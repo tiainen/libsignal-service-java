@@ -323,6 +323,42 @@ public class SignalServiceMessageSender {
 
     sendMessage(localAddress, Optional.<UnidentifiedAccess>absent(), timestamp, content, false);
   }
+  
+ public OutgoingPushMessageList createMessageBundle(SignalServiceSyncMessage message, Optional<UnidentifiedAccessPair> unidentifiedAccess)
+      throws IOException, UntrustedIdentityException, InvalidKeyException
+  {
+    byte[] content;
+
+    if (message.getContacts().isPresent()) {
+      content = createMultiDeviceContactsContent(message.getContacts().get().getContactsStream().asStream(),
+                                                 message.getContacts().get().isComplete());
+    } else if (message.getGroups().isPresent()) {
+      content = createMultiDeviceGroupsContent(message.getGroups().get().asStream());
+    } else if (message.getRead().isPresent()) {
+      content = createMultiDeviceReadContent(message.getRead().get());
+    } else if (message.getViewOnceOpen().isPresent()) {
+      content = createMultiDeviceViewOnceOpenContent(message.getViewOnceOpen().get());
+    } else if (message.getBlockedList().isPresent()) {
+      content = createMultiDeviceBlockedContent(message.getBlockedList().get());
+    } else if (message.getConfiguration().isPresent()) {
+      content = createMultiDeviceConfigurationContent(message.getConfiguration().get());
+    } else if (message.getSent().isPresent()) {
+      content = createMultiDeviceSentTranscriptContent(message.getSent().get(), unidentifiedAccess);
+    } else if (message.getStickerPackOperations().isPresent()) {
+      content = createMultiDeviceStickerPackOperationContent(message.getStickerPackOperations().get());
+    } else if (message.getFetchType().isPresent()) {
+      content = createMultiDeviceFetchTypeContent(message.getFetchType().get());
+    } else if (message.getRequest().isPresent()) {
+      content = createMultiDeviceRequestContent(message.getRequest().get());
+    }  else {
+      throw new IOException("Unsupported sync message!");
+    }
+
+    long timestamp = message.getSent().isPresent() ? message.getSent().get().getTimestamp()
+                                                   : System.currentTimeMillis();
+    OutgoingPushMessageList messages  = getEncryptedMessages(socket, localAddress, Optional.<UnidentifiedAccess>absent(), timestamp, content, false);
+    return messages;
+  }
 
   public void setSoTimeoutMillis(long soTimeoutMillis) {
     socket.setSoTimeoutMillis(soTimeoutMillis);
