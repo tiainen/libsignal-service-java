@@ -4,7 +4,7 @@
 
     <groupId>org.whispersystems</groupId>
     <artifactId>signal-service-java</artifactId>
-    <version>2.15.4-SNAPSHOT</version>
+    <version>2.15.4-gluon</version>
     <packaging>jar</packaging>
 
     <name>signal-service-java</name>
@@ -22,11 +22,13 @@
     </repositories>
 
     <dependencies>
+<!--
         <dependency>
           <groupId>org.whispersystems</groupId>
           <artifactId>signal-client-java</artifactId>
           <version>0.8.4</version>
         </dependency>
+-->
         <dependency>
           <groupId>com.googlecode.libphonenumber</groupId>
           <artifactId>libphonenumber</artifactId>
@@ -35,7 +37,7 @@
         <dependency>
           <groupId>org.whispersystems</groupId>
           <artifactId>curve25519-java</artifactId>
-          <version>0.5.0</version>
+          <version>0.5.0-gluon</version>
         </dependency>
         <dependency>
           <groupId>org.signal</groupId>

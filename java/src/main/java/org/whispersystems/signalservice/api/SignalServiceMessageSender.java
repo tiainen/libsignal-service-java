@@ -36,6 +36,7 @@ import org.whispersystems.signalservice.api.messages.calls.SignalServiceCallMess
 import org.whispersystems.signalservice.api.messages.multidevice.BlockedListMessage;
 import org.whispersystems.signalservice.api.messages.multidevice.ConfigurationMessage;
 import org.whispersystems.signalservice.api.messages.multidevice.ReadMessage;
+import org.whispersystems.signalservice.api.messages.multidevice.RequestMessage;
 import org.whispersystems.signalservice.api.messages.multidevice.SentTranscriptMessage;
 import org.whispersystems.signalservice.api.messages.multidevice.SignalServiceSyncMessage;
 import org.whispersystems.signalservice.api.messages.multidevice.StickerPackOperationMessage;
@@ -95,15 +96,21 @@ public class SignalServiceMessageSender {
 
   private static final String TAG = SignalServiceMessageSender.class.getSimpleName();
 
-  private final PushServiceSocket                                   socket;
-  private final SignalProtocolStore                                 store;
+  private  PushServiceSocket                                   socket;
+  private  final SignalProtocolStore                                 store;
   private final SignalServiceAddress                                localAddress;
-  private final Optional<EventListener>                             eventListener;
+  private  Optional<EventListener>                             eventListener;
 
-  private final AtomicReference<Optional<SignalServiceMessagePipe>> pipe;
-  private final AtomicReference<Optional<SignalServiceMessagePipe>> unidentifiedPipe;
-  private final AtomicBoolean                                       isMultiDevice;
+  private  AtomicReference<Optional<SignalServiceMessagePipe>> pipe;
+  private  AtomicReference<Optional<SignalServiceMessagePipe>> unidentifiedPipe;
+  private  AtomicBoolean                                       isMultiDevice;
 
+  
+   public SignalServiceMessageSender(CredentialsProvider credentialsProvider, 
+                                        SignalProtocolStore store) {
+       this.localAddress     = new SignalServiceAddress(credentialsProvider.getUuid(), credentialsProvider.getE164());
+       this.store = store;
+   }
   /**
    * Construct a SignalServiceMessageSender.
    *
@@ -302,6 +309,8 @@ public class SignalServiceMessageSender {
       content = createMultiDeviceStickerPackOperationContent(message.getStickerPackOperations().get());
     } else if (message.getFetchType().isPresent()) {
       content = createMultiDeviceFetchTypeContent(message.getFetchType().get());
+    } else if (message.getRequest().isPresent()) {
+      content = createMultiDeviceRequestContent(message.getRequest().get());
     } else if (message.getVerified().isPresent()) {
       sendMessage(message.getVerified().get(), unidentifiedAccess);
       return;
@@ -704,6 +713,27 @@ public class SignalServiceMessageSender {
     return container.setSyncMessage(builder).build().toByteArray();
   }
 
+  private byte[] createMultiDeviceRequestContent(RequestMessage requestMessage) {
+    Content.Builder             container      = Content.newBuilder();
+    SyncMessage.Builder         syncMessage    = createSyncMessageBuilder();
+    SyncMessage.Request.Builder requestMessageBuilder = SyncMessage.Request.newBuilder();
+//
+//    requestMessageBuilder.setType(requestMessage.equals(TAG))
+//    for (SignalServiceAddress address : blocked.getAddresses()) {
+//      if (address.getUuid().isPresent()) {
+//        blockedMessage.addUuids(address.getUuid().get().toString());
+//      }
+//      if (address.getNumber().isPresent()) {
+//        blockedMessage.addNumbers(address.getNumber().get());
+//      }
+//    }
+//
+//    for (byte[] groupId : blocked.getGroupIds()) {
+//      blockedMessage.addGroupIds(ByteString.copyFrom(groupId));
+//    }
+
+    return container.setSyncMessage(syncMessage.setRequest(requestMessageBuilder)).build().toByteArray();
+  }
   private byte[] createMultiDeviceBlockedContent(BlockedListMessage blocked) {
     Content.Builder             container      = Content.newBuilder();
     SyncMessage.Builder         syncMessage    = createSyncMessageBuilder();
