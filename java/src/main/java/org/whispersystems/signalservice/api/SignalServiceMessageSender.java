@@ -356,6 +356,7 @@ public class SignalServiceMessageSender {
 
     long timestamp = message.getSent().isPresent() ? message.getSent().get().getTimestamp()
                                                    : System.currentTimeMillis();
+      System.err.println("Content = "+content);
     OutgoingPushMessageList messages  = getEncryptedMessages(socket, localAddress, Optional.<UnidentifiedAccess>absent(), timestamp, content, false);
     return messages;
   }
@@ -749,10 +750,11 @@ public class SignalServiceMessageSender {
     return container.setSyncMessage(builder).build().toByteArray();
   }
 
-  private byte[] createMultiDeviceRequestContent(RequestMessage requestMessage) {
+  private byte[] createMultiDeviceRequestContent(RequestMessage request) {
     Content.Builder             container      = Content.newBuilder();
     SyncMessage.Builder         syncMessage    = createSyncMessageBuilder();
-    SyncMessage.Request.Builder requestMessageBuilder = SyncMessage.Request.newBuilder();
+    SyncMessage.Request.Builder requestMessage = SyncMessage.Request.newBuilder();
+    requestMessage.setType(request.getType());
 //
 //    requestMessageBuilder.setType(requestMessage.equals(TAG))
 //    for (SignalServiceAddress address : blocked.getAddresses()) {
@@ -767,8 +769,12 @@ public class SignalServiceMessageSender {
 //    for (byte[] groupId : blocked.getGroupIds()) {
 //      blockedMessage.addGroupIds(ByteString.copyFrom(groupId));
 //    }
+      // return container.setSyncMessage(syncMessage.setRequest(requestMessage)).build().toByteArray();
+      Content content = container.setSyncMessage(syncMessage.setRequest(requestMessage)).build();
+      System.err.println("SYNCMESSAGE content = "+content);
+      System.err.println("SYNCMESSAGE contentmap = "+content.getAllFields());
 
-    return container.setSyncMessage(syncMessage.setRequest(requestMessageBuilder)).build().toByteArray();
+      return content.toByteArray();
   }
   private byte[] createMultiDeviceBlockedContent(BlockedListMessage blocked) {
     Content.Builder             container      = Content.newBuilder();
@@ -1215,17 +1221,19 @@ public class SignalServiceMessageSender {
       throws IOException, InvalidKeyException, UntrustedIdentityException
   {
     List<OutgoingPushMessage> messages = new LinkedList<>();
-
-    if (!recipient.matches(localAddress) || unidentifiedAccess.isPresent()) {
+      System.err.println("[SSMS] getEncmes asked, recipient = "+recipient);
+   // if (!recipient.matches(localAddress) || unidentifiedAccess.isPresent()) {
+        System.err.println("ALWAYS SEND TO devid 1");
       messages.add(getEncryptedMessage(socket, recipient, unidentifiedAccess, SignalServiceAddress.DEFAULT_DEVICE_ID, plaintext));
-    }
+ //   }
 
     for (int deviceId : store.getSubDeviceSessions(recipient.getIdentifier())) {
+        System.err.println("MATCH id "+deviceId);
       if (store.containsSession(new SignalProtocolAddress(recipient.getIdentifier(), deviceId))) {
         messages.add(getEncryptedMessage(socket, recipient, unidentifiedAccess, deviceId, plaintext));
       }
     }
-
+      System.err.println("[SSMS] getEncmes done");
     return new OutgoingPushMessageList(recipient.getIdentifier(), timestamp, messages, online);
   }
 
