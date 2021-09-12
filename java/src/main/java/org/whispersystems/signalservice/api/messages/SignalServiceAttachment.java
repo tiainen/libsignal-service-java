@@ -7,6 +7,8 @@
 package org.whispersystems.signalservice.api.messages;
 
 import org.whispersystems.libsignal.util.guava.Optional;
+import org.whispersystems.signalservice.internal.push.http.CancelationSignal;
+import org.whispersystems.signalservice.internal.push.http.ResumableUploadSpec;
 
 import java.io.InputStream;
 
@@ -39,16 +41,20 @@ public abstract class SignalServiceAttachment {
 
   public static class Builder {
 
-    private InputStream      inputStream;
-    private String           contentType;
-    private String           fileName;
-    private long             length;
-    private ProgressListener listener;
-    private boolean          voiceNote;
-    private int              width;
-    private int              height;
-    private String           caption;
-    private String           blurHash;
+    private InputStream             inputStream;
+    private String                  contentType;
+    private String                  fileName;
+    private long                    length;
+    private ProgressListener        listener;
+    private CancelationSignal       cancelationSignal;
+    private boolean                 voiceNote;
+    private boolean                 borderless;
+    private int                     width;
+    private int                     height;
+    private String                  caption;
+    private String                  blurHash;
+    private long                    uploadTimestamp;
+    private ResumableUploadSpec     resumableUploadSpec;
 
     private Builder() {}
 
@@ -77,8 +83,18 @@ public abstract class SignalServiceAttachment {
       return this;
     }
 
+    public Builder withCancelationSignal(CancelationSignal cancelationSignal) {
+      this.cancelationSignal = cancelationSignal;
+      return this;
+    }
+
     public Builder withVoiceNote(boolean voiceNote) {
       this.voiceNote = voiceNote;
+      return this;
+    }
+
+    public Builder withBorderless(boolean borderless) {
+      this.borderless = borderless;
       return this;
     }
 
@@ -102,6 +118,16 @@ public abstract class SignalServiceAttachment {
       return this;
     }
 
+    public Builder withUploadTimestamp(long uploadTimestamp) {
+      this.uploadTimestamp = uploadTimestamp;
+      return this;
+    }
+
+    public Builder withResumableUploadSpec(ResumableUploadSpec resumableUploadSpec) {
+      this.resumableUploadSpec = resumableUploadSpec;
+      return this;
+    }
+
     public SignalServiceAttachmentStream build() {
       if (inputStream == null) throw new IllegalArgumentException("Must specify stream!");
       if (contentType == null) throw new IllegalArgumentException("No content type specified!");
@@ -112,12 +138,16 @@ public abstract class SignalServiceAttachment {
                                                length,
                                                Optional.fromNullable(fileName),
                                                voiceNote,
+                                               borderless,
                                                Optional.<byte[]>absent(),
                                                width,
                                                height,
+                                               uploadTimestamp,
                                                Optional.fromNullable(caption),
                                                Optional.fromNullable(blurHash),
-                                               listener);
+                                               listener,
+                                               cancelationSignal,
+                                               Optional.fromNullable(resumableUploadSpec));
     }
   }
 

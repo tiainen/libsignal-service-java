@@ -924,22 +924,28 @@ public class PushServiceSocket {
       for (Map.Entry<String, String> header : headers.entrySet()) {
         request.addHeader(header.getKey(), header.getValue());
       }
-
+      request.addHeader("content-type","application/json;charset=utf-8");
+      request.addHeader("User-Agent","Signal-Desktop/5.14.0 Linux");
+        System.err.println("UNIDENTIFIEDACCESS?");
       if (unidentifiedAccess.isPresent()) {
+          System.err.println("UA 1");
         request.addHeader("Unidentified-Access-Key", Base64.encodeBytes(unidentifiedAccess.get().getUnidentifiedAccessKey()));
       } else if (credentialsProvider.getPassword() != null) {
+          System.err.println("UA 2");
         request.addHeader("Authorization", getAuthorizationHeader(credentialsProvider));
       }
 
       if (userAgent != null) {
-        request.addHeader("X-Signal-Agent", userAgent);
+        request.addHeader("X-Signal-Agent", "OWD");
       }
 
       if (connectionHolder.getHostHeader().isPresent()) {
         request.addHeader("Host", connectionHolder.getHostHeader().get());
       }
-
-      Call call = okHttpClient.newCall(request.build());
+        Request build = request.build();
+        System.err.println("[PSS] ready to call "+build+" with headers "+build.headers().toMultimap());
+        
+      Call call = okHttpClient.newCall(build);
 
       synchronized (connections) {
         connections.add(call);

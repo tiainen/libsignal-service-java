@@ -44,13 +44,15 @@ public class DeviceGroupsInputStream extends ChunkedInputStream{
     Optional<Integer>                       expirationTimer = Optional.absent();
     Optional<String>                        color           = Optional.fromNullable(details.getColor());
     boolean                                 blocked         = details.getBlocked();
+    Optional<Integer>                       inboxPosition   = Optional.absent();
+    boolean                                 archived        = false;
 
     if (details.hasAvatar()) {
       long        avatarLength      = details.getAvatar().getLength();
       InputStream avatarStream      = new ChunkedInputStream.LimitedInputStream(in, avatarLength);
       String      avatarContentType = details.getAvatar().getContentType();
 
-      avatar = Optional.of(new SignalServiceAttachmentStream(avatarStream, avatarContentType, avatarLength, Optional.<String>absent(), false, null));
+      avatar = Optional.of(new SignalServiceAttachmentStream(avatarStream, avatarContentType, avatarLength, Optional.<String>absent(), false, false, null, null));
     }
 
     if (details.hasExpireTimer() && details.getExpireTimer() > 0) {
@@ -59,14 +61,22 @@ public class DeviceGroupsInputStream extends ChunkedInputStream{
 
     List<SignalServiceAddress> addressMembers = new ArrayList<>(members.size());
     for (GroupDetails.Member member : members) {
-      if (SignalServiceAddress.isValidAddress(member.getUuid(), member.getE164())) {
-        addressMembers.add(new SignalServiceAddress(UuidUtil.parseOrNull(member.getUuid()), member.getE164()));
+      if (SignalServiceAddress.isValidAddress(null, member.getE164())) {
+        addressMembers.add(new SignalServiceAddress(null, member.getE164()));
       } else {
         throw new IOException("Missing group member address!");
       }
     }
 
-    return new DeviceGroup(id, name, addressMembers, avatar, active, expirationTimer, color, blocked);
+    if (details.hasInboxPosition()) {
+      inboxPosition = Optional.of(details.getInboxPosition());
+    }
+
+    if (details.hasArchived()) {
+      archived = details.getArchived();
+    }
+
+    return new DeviceGroup(id, name, addressMembers, avatar, active, expirationTimer, color, blocked, inboxPosition, archived);
   }
 
 }

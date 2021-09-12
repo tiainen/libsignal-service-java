@@ -85,14 +85,19 @@ public class DeviceContactsOutputStream extends ChunkedOutputStream {
     }
 
     if (contact.getProfileKey().isPresent()) {
-      contactDetails.setProfileKey(ByteString.copyFrom(contact.getProfileKey().get()));
+      contactDetails.setProfileKey(ByteString.copyFrom(contact.getProfileKey().get().serialize()));
     }
 
     if (contact.getExpirationTimer().isPresent()) {
       contactDetails.setExpireTimer(contact.getExpirationTimer().get());
     }
 
+    if (contact.getInboxPosition().isPresent()) {
+      contactDetails.setInboxPosition(contact.getInboxPosition().get());
+    }
+
     contactDetails.setBlocked(contact.isBlocked());
+    contactDetails.setArchived(contact.isArchived());
 
     byte[] serializedContactDetails = contactDetails.build().toByteArray();
 

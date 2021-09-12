@@ -86,6 +86,10 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import org.whispersystems.signalservice.api.messages.SignalServiceAttachmentRemoteId;
+import org.whispersystems.signalservice.api.messages.SignalServiceGroupContext;
+import org.whispersystems.signalservice.api.messages.SignalServiceGroupV2;
+import org.whispersystems.signalservice.internal.push.SignalServiceProtos.GroupContextV2;
 
 /**
  * The main interface for sending Signal Service messages.
@@ -210,8 +214,8 @@ public class SignalServiceMessageSender {
                               SignalServiceCallMessage message)
       throws IOException, UntrustedIdentityException
   {
-    byte[] content = createCallContent(message);
-    sendMessage(recipient, getTargetUnidentifiedAccess(unidentifiedAccess), System.currentTimeMillis(), content, false);
+//    byte[] content = createCallContent(message);
+//    sendMessage(recipient, getTargetUnidentifiedAccess(unidentifiedAccess), System.currentTimeMillis(), content, false);
   }
 
   /**
@@ -407,7 +411,9 @@ public class SignalServiceMessageSender {
 
     Pair<Long, byte[]> attachmentIdAndDigest = socket.uploadAttachment(attachmentData, uploadAttributes);
 
-    return new SignalServiceAttachmentPointer(attachmentIdAndDigest.first(),
+    return new SignalServiceAttachmentPointer(
+            0,
+                                              new SignalServiceAttachmentRemoteId(attachmentIdAndDigest.first()),
                                               attachment.getContentType(),
                                               attachmentKey,
                                               Optional.of(Util.toIntExact(attachment.getLength())),
@@ -416,8 +422,12 @@ public class SignalServiceMessageSender {
                                               Optional.of(attachmentIdAndDigest.second()),
                                               attachment.getFileName(),
                                               attachment.getVoiceNote(),
+                                                          attachment.isBorderless(),
+
                                               attachment.getCaption(),
-                                              attachment.getBlurHash());
+                                              attachment.getBlurHash(),
+            attachment.getUploadTimestamp()
+    );
   }
 
 
@@ -489,9 +499,15 @@ public class SignalServiceMessageSender {
     if (message.getBody().isPresent()) {
       builder.setBody(message.getBody().get());
     }
+    if (message.getGroupContext().isPresent()) {
+      SignalServiceGroupContext groupContext = message.getGroupContext().get();
+      if (groupContext.getGroupV1().isPresent()) {
+        builder.setGroup(createGroupContent(groupContext.getGroupV1().get()));
+      }
 
-    if (message.getGroupInfo().isPresent()) {
-      builder.setGroup(createGroupContent(message.getGroupInfo().get()));
+      if (groupContext.getGroupV2().isPresent()) {
+        builder.setGroupV2(createGroupContent(groupContext.getGroupV2().get()));
+      }
     }
 
     if (message.isEndSession()) {
@@ -594,39 +610,39 @@ public class SignalServiceMessageSender {
     return container.setDataMessage(builder).build().toByteArray();
   }
 
-  private byte[] createCallContent(SignalServiceCallMessage callMessage) {
-    Content.Builder     container = Content.newBuilder();
-    CallMessage.Builder builder   = CallMessage.newBuilder();
-
-    if (callMessage.getOfferMessage().isPresent()) {
-      OfferMessage offer = callMessage.getOfferMessage().get();
-      builder.setOffer(CallMessage.Offer.newBuilder()
-                                        .setId(offer.getId())
-                                        .setDescription(offer.getDescription()));
-    } else if (callMessage.getAnswerMessage().isPresent()) {
-      AnswerMessage answer = callMessage.getAnswerMessage().get();
-      builder.setAnswer(CallMessage.Answer.newBuilder()
-                                          .setId(answer.getId())
-                                          .setDescription(answer.getDescription()));
-    } else if (callMessage.getIceUpdateMessages().isPresent()) {
-      List<IceUpdateMessage> updates = callMessage.getIceUpdateMessages().get();
-
-      for (IceUpdateMessage update : updates) {
-        builder.addIceUpdate(CallMessage.IceUpdate.newBuilder()
-                                                  .setId(update.getId())
-                                                  .setSdp(update.getSdp())
-                                                  .setSdpMid(update.getSdpMid())
-                                                  .setSdpMLineIndex(update.getSdpMLineIndex()));
-      }
-    } else if (callMessage.getHangupMessage().isPresent()) {
-      builder.setHangup(CallMessage.Hangup.newBuilder().setId(callMessage.getHangupMessage().get().getId()));
-    } else if (callMessage.getBusyMessage().isPresent()) {
-      builder.setBusy(CallMessage.Busy.newBuilder().setId(callMessage.getBusyMessage().get().getId()));
-    }
-
-    container.setCallMessage(builder);
-    return container.build().toByteArray();
-  }
+//  private byte[] createCallContent(SignalServiceCallMessage callMessage) {
+//    Content.Builder     container = Content.newBuilder();
+//    CallMessage.Builder builder   = CallMessage.newBuilder();
+//
+//    if (callMessage.getOfferMessage().isPresent()) {
+//      OfferMessage offer = callMessage.getOfferMessage().get();
+//      builder.setOffer(CallMessage.Offer.newBuilder()
+//                                        .setId(offer.getId())
+//                                        .setDescription(offer.getDescription()));
+//    } else if (callMessage.getAnswerMessage().isPresent()) {
+//      AnswerMessage answer = callMessage.getAnswerMessage().get();
+//      builder.setAnswer(CallMessage.Answer.newBuilder()
+//                                          .setId(answer.getId())
+//                                          .setDescription(answer.getDescription()));
+//    } else if (callMessage.getIceUpdateMessages().isPresent()) {
+//      List<IceUpdateMessage> updates = callMessage.getIceUpdateMessages().get();
+//
+//      for (IceUpdateMessage update : updates) {
+//        builder.addIceUpdate(CallMessage.IceUpdate.newBuilder()
+//                                                  .setId(update.getId())
+//                                                  .setSdp(update.getSdp())
+//                                                  .setSdpMid(update.getSdpMid())
+//                                                  .setSdpMLineIndex(update.getSdpMLineIndex()));
+//      }
+//    } else if (callMessage.getHangupMessage().isPresent()) {
+//      builder.setHangup(CallMessage.Hangup.newBuilder().setId(callMessage.getHangupMessage().get().getId()));
+//    } else if (callMessage.getBusyMessage().isPresent()) {
+//      builder.setBusy(CallMessage.Busy.newBuilder().setId(callMessage.getBusyMessage().get().getId()));
+//    }
+//
+//    container.setCallMessage(builder);
+//    return container.build().toByteArray();
+//  }
 
   private byte[] createMultiDeviceContactsContent(SignalServiceAttachmentStream contacts, boolean complete) throws IOException {
     Content.Builder     container = Content.newBuilder();
@@ -922,24 +938,16 @@ public class SignalServiceMessageSender {
       if (group.getName().isPresent()) {
         builder.setName(group.getName().get());
       }
-
       if (group.getMembers().isPresent()) {
         for (SignalServiceAddress address : group.getMembers().get()) {
           if (address.getNumber().isPresent()) {
             builder.addMembersE164(address.getNumber().get());
-          }
 
-          GroupContext.Member.Builder memberBuilder = GroupContext.Member.newBuilder();
-
-          if (address.getUuid().isPresent()) {
-            memberBuilder.setUuid(address.getUuid().get().toString());
-          }
-
-          if (address.getNumber().isPresent()) {
+            GroupContext.Member.Builder memberBuilder = GroupContext.Member.newBuilder();
             memberBuilder.setE164(address.getNumber().get());
-          }
 
-          builder.addMembers(memberBuilder.build());
+            builder.addMembers(memberBuilder.build());
+          }
         }
       }
 
@@ -952,6 +960,20 @@ public class SignalServiceMessageSender {
       }
     } else {
       builder.setType(GroupContext.Type.DELIVER);
+    }
+
+    return builder.build();
+  }
+
+  private static GroupContextV2 createGroupContent(SignalServiceGroupV2 group) {
+    GroupContextV2.Builder builder = GroupContextV2.newBuilder()
+                                                   .setMasterKey(ByteString.copyFrom(group.getMasterKey().serialize()))
+                                                   .setRevision(group.getRevision());
+
+
+    byte[] signedGroupChange = group.getSignedGroupChange();
+    if (signedGroupChange != null && signedGroupChange.length <= 2048) {
+      builder.setGroupChange(ByteString.copyFrom(signedGroupChange));
     }
 
     return builder.build();
@@ -1167,11 +1189,13 @@ public class SignalServiceMessageSender {
 
   private AttachmentPointer createAttachmentPointer(SignalServiceAttachmentPointer attachment) {
     AttachmentPointer.Builder builder = AttachmentPointer.newBuilder()
-                                                         .setContentType(attachment.getContentType())
-                                                         .setId(attachment.getId())
+            .setCdnNumber(attachment.getCdnNumber())
+            .setContentType(attachment.getContentType())
                                                          .setKey(ByteString.copyFrom(attachment.getKey()))
                                                          .setDigest(ByteString.copyFrom(attachment.getDigest().get()))
-                                                         .setSize(attachment.getSize().get());
+                                                         .setSize(attachment.getSize().get())
+                                                         .setUploadTimestamp(attachment.getUploadTimestamp());
+                                                      
 
     if (attachment.getFileName().isPresent()) {
       builder.setFileName(attachment.getFileName().get());

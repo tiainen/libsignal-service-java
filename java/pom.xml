@@ -41,6 +41,11 @@
         </dependency>
         <dependency>
           <groupId>org.signal</groupId>
+          <artifactId>zkgroup-java</artifactId>
+          <version>0.7.0</version>
+        </dependency>
+        <dependency>
+          <groupId>org.signal</groupId>
           <artifactId>signal-metadata-java</artifactId>
           <version>0.1.2</version>
         </dependency>
