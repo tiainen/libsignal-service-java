@@ -15,8 +15,14 @@ public class StaticCredentialsProvider implements CredentialsProvider {
   private final UUID   uuid;
   private final String e164;
   private final String password;
-  private final String signalingKey;
+  private  String signalingKey;
 
+  public StaticCredentialsProvider(UUID uuid, String e164, String password) {
+    this.uuid         = uuid;
+    this.e164         = e164;
+    this.password     = password;
+  }
+  
   public StaticCredentialsProvider(UUID uuid, String e164, String password, String signalingKey) {
     this.uuid         = uuid;
     this.e164         = e164;

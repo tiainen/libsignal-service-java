@@ -1,9 +1,11 @@
 package org.whispersystems.signalservice.api.crypto;
 
 
+import org.signal.zkgroup.profiles.ProfileKey;
 import org.whispersystems.libsignal.util.ByteUtil;
 import org.whispersystems.signalservice.internal.util.Util;
 
+import java.nio.charset.StandardCharsets;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
@@ -19,11 +21,19 @@ import javax.crypto.spec.SecretKeySpec;
 
 public class ProfileCipher {
 
-  public static final int NAME_PADDED_LENGTH = 26;
+  private static final int NAME_PADDED_LENGTH_1 = 53;
+  private static final int NAME_PADDED_LENGTH_2 = 257;
+  private static final int ABOUT_PADDED_LENGTH_1 = 128;
+  private static final int ABOUT_PADDED_LENGTH_2 = 254;
+  private static final int ABOUT_PADDED_LENGTH_3 = 512;
 
-  private final byte[] key;
+  public static final int MAX_POSSIBLE_NAME_LENGTH  = NAME_PADDED_LENGTH_2;
+  public static final int MAX_POSSIBLE_ABOUT_LENGTH = ABOUT_PADDED_LENGTH_3;
+  public static final int EMOJI_PADDED_LENGTH       = 32;
 
-  public ProfileCipher(byte[] key) {
+  private final ProfileKey key;
+
+  public ProfileCipher(ProfileKey key) {
     this.key = key;
   }
 
@@ -40,7 +50,7 @@ public class ProfileCipher {
       byte[] nonce = Util.getSecretBytes(12);
 
       Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-      cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, "AES"), new GCMParameterSpec(128, nonce));
+      cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key.serialize(), "AES"), new GCMParameterSpec(128, nonce));
 
       return ByteUtil.combine(nonce, cipher.doFinal(inputPadded));
     } catch (NoSuchAlgorithmException | InvalidAlgorithmParameterException | BadPaddingException | NoSuchPaddingException | IllegalBlockSizeException | InvalidKeyException e) {
@@ -58,7 +68,7 @@ public class ProfileCipher {
       System.arraycopy(input, 0, nonce, 0, nonce.length);
 
       Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
-      cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(key, "AES"), new GCMParameterSpec(128, nonce));
+      cipher.init(Cipher.DECRYPT_MODE, new SecretKeySpec(key.serialize(), "AES"), new GCMParameterSpec(128, nonce));
 
       byte[] paddedPlaintext = cipher.doFinal(input, nonce.length, input.length - nonce.length);
       int    plaintextLength = 0;
@@ -98,4 +108,25 @@ public class ProfileCipher {
     }
   }
 
+  public static int getTargetNameLength(String name) {
+    int nameLength = name.getBytes(StandardCharsets.UTF_8).length;
+
+    if (nameLength <= NAME_PADDED_LENGTH_1) {
+      return NAME_PADDED_LENGTH_1;
+    } else {
+      return NAME_PADDED_LENGTH_2;
+    }
+  }
+
+  public static int getTargetAboutLength(String about) {
+    int aboutLength = about.getBytes(StandardCharsets.UTF_8).length;
+
+    if (aboutLength <= ABOUT_PADDED_LENGTH_1) {
+      return ABOUT_PADDED_LENGTH_1;
+    } else if (aboutLength < ABOUT_PADDED_LENGTH_2){
+      return ABOUT_PADDED_LENGTH_2;
+    } else {
+      return ABOUT_PADDED_LENGTH_3;
+    }
+  }
 }

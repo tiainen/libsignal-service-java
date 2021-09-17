@@ -7,6 +7,7 @@
 package org.whispersystems.signalservice.api.push;
 
 import org.whispersystems.libsignal.util.guava.Optional;
+import org.whispersystems.signalservice.api.util.OptionalUtil;
 import org.whispersystems.signalservice.api.util.UuidUtil;
 
 import java.util.UUID;
@@ -43,8 +44,7 @@ public class SignalServiceAddress {
    * Convenience constructor that will consider a UUID/E164 string absent if it is null or empty.
    */
   public SignalServiceAddress(UUID uuid, String e164) {
-    this(Optional.fromNullable(uuid),
-         e164 != null && !e164.isEmpty() ? Optional.of(e164) : Optional.<String>absent());
+    this(Optional.fromNullable(uuid), OptionalUtil.absentIfEmpty(e164));
   }
 
   public SignalServiceAddress(Optional<UUID> uuid, Optional<String> e164) {
@@ -65,7 +65,17 @@ public class SignalServiceAddress {
     } else if (e164.isPresent()) {
       return e164.get();
     } else {
-      return null;
+      throw new AssertionError("Given the checks in the constructor, this should not be possible.");
+    }
+  }
+
+  public String getLegacyIdentifier() {
+    if (e164.isPresent()) {
+      return e164.get();
+    } else if (uuid.isPresent()) {
+      return uuid.get().toString();
+    } else {
+      throw new AssertionError("Given the checks in the constructor, this should not be possible.");
     }
   }
 

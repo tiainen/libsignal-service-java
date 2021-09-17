@@ -32,6 +32,7 @@ public class DeviceContactsInputStream extends ChunkedInputStream {
 
   public DeviceContact read() throws IOException {
     long   detailsLength     = readRawVarint32();
+    System.err.println("need to read "+detailsLength);
     byte[] detailsSerialized = new byte[(int)detailsLength];
     Util.readFully(in, detailsSerialized);
 
@@ -51,12 +52,13 @@ public class DeviceContactsInputStream extends ChunkedInputStream {
     Optional<Integer>                       expireTimer   = Optional.absent();
     Optional<Integer>                       inboxPosition = Optional.absent();
     boolean                                 archived      = false;
-
+      System.err.println("retrieved "+name+" with address "+address.getNumber());
     if (details.hasAvatar()) {
+        System.err.println("we have an avatar for "+name);
       long        avatarLength      = details.getAvatar().getLength();
       InputStream avatarStream      = new LimitedInputStream(in, avatarLength);
       String      avatarContentType = details.getAvatar().getContentType();
-
+        System.err.println("retrieve avatar, lenght = "+avatarLength+ ", contenttype = "+ avatarContentType);
       avatar = Optional.of(new SignalServiceAttachmentStream(avatarStream, avatarContentType, avatarLength, Optional.<String>absent(), false, false, null, null));
     }
 

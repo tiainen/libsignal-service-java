@@ -1,15 +1,39 @@
 package org.whispersystems.signalservice.api.profiles;
 
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+
+import org.signal.zkgroup.InvalidInputException;
+import org.signal.zkgroup.profiles.ProfileKeyCredentialResponse;
+import org.whispersystems.libsignal.logging.Log;
+import org.whispersystems.signalservice.internal.util.JsonUtil;
+
+import java.util.UUID;
 
 public class SignalServiceProfile {
+
+  public enum RequestType {
+    PROFILE,
+    PROFILE_AND_CREDENTIAL
+  }
+
+  private static final String TAG = SignalServiceProfile.class.getSimpleName();
 
   @JsonProperty
   private String identityKey;
 
   @JsonProperty
   private String name;
+
+  @JsonProperty
+  private String about;
+
+  @JsonProperty
+  private String aboutEmoji;
 
   @JsonProperty
   private String avatar;
@@ -23,6 +47,17 @@ public class SignalServiceProfile {
   @JsonProperty
   private Capabilities capabilities;
 
+  @JsonProperty
+  @JsonSerialize(using = JsonUtil.UuidSerializer.class)
+  @JsonDeserialize(using = JsonUtil.UuidDeserializer.class)
+  private UUID uuid;
+
+  @JsonProperty
+  private byte[] credential;
+
+  @JsonIgnore
+  private RequestType requestType;
+
   public SignalServiceProfile() {}
 
   public String getIdentityKey() {
@@ -31,6 +66,14 @@ public class SignalServiceProfile {
 
   public String getName() {
     return name;
+  }
+
+  public String getAbout() {
+    return about;
+  }
+
+  public String getAboutEmoji() {
+    return aboutEmoji;
   }
 
   public String getAvatar() {
@@ -49,14 +92,52 @@ public class SignalServiceProfile {
     return capabilities;
   }
 
+  public UUID getUuid() {
+    return uuid;
+  }
+
+  public RequestType getRequestType() {
+    return requestType;
+  }
+
+  public void setRequestType(RequestType requestType) {
+    this.requestType = requestType;
+  }
+
   public static class Capabilities {
     @JsonProperty
-    private boolean uuid;
+    private boolean gv2;
 
+    @JsonProperty
+    private boolean storage;
+
+    @JsonProperty("gv1-migration")
+    private boolean gv1Migration;
+
+    @JsonCreator
     public Capabilities() {}
 
-    public boolean isUuid() {
-      return uuid;
+    public boolean isGv2() {
+      return gv2;
+    }
+
+    public boolean isStorage() {
+      return storage;
+    }
+
+    public boolean isGv1Migration() {
+      return gv1Migration;
+    }
+  }
+
+  public ProfileKeyCredentialResponse getProfileKeyCredentialResponse() {
+    if (credential == null) return null;
+
+    try {
+      return new ProfileKeyCredentialResponse(credential);
+    } catch (InvalidInputException e) {
+      Log.w(TAG, e);
+      return null;
     }
   }
 }
