@@ -236,21 +236,7 @@ public class SignalServiceMessageSender {
     SyncMessage.Builder         syncMessage    = createSyncMessageBuilder();
     SyncMessage.Request.Builder requestMessage = SyncMessage.Request.newBuilder();
     requestMessage.setType(request.getType());
-//
-//    requestMessageBuilder.setType(requestMessage.equals(TAG))
-//    for (SignalServiceAddress address : blocked.getAddresses()) {
-//      if (address.getUuid().isPresent()) {
-//        blockedMessage.addUuids(address.getUuid().get().toString());
-//      }
-//      if (address.getNumber().isPresent()) {
-//        blockedMessage.addNumbers(address.getNumber().get());
-//      }
-//    }
-//
-//    for (byte[] groupId : blocked.getGroupIds()) {
-//      blockedMessage.addGroupIds(ByteString.copyFrom(groupId));
-//    }
-      // return container.setSyncMessage(syncMessage.setRequest(requestMessage)).build().toByteArray();
+
       Content content = container.setSyncMessage(syncMessage.setRequest(requestMessage)).build();
       System.err.println("SYNCMESSAGE content = "+content);
       System.err.println("SYNCMESSAGE contentmap = "+content.getAllFields());
@@ -440,7 +426,9 @@ public class SignalServiceMessageSender {
       content = createMultiDeviceMessageRequestResponseContent(message.getMessageRequestResponse().get());
     } else if (message.getKeys().isPresent()) {
       content = createMultiDeviceSyncKeysContent(message.getKeys().get());
-    } else if (message.getVerified().isPresent()) {
+    } else if (message.getRequest().isPresent()) {
+      content = createMultiDeviceRequestContent(message.getRequest().get());
+    }else if (message.getVerified().isPresent()) {
       sendMessage(message.getVerified().get(), unidentifiedAccess);
       return;
     } else {

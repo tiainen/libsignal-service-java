@@ -13,4 +13,8 @@ public interface CredentialsProvider {
   public String getE164();
   public String getPassword();
   public String getSignalingKey();
+  public int getDeviceId();
+  
+  public String getDevUuid();
+  
 }

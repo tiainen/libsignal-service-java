@@ -118,12 +118,12 @@ public class WebSocketConnection extends WebSocketListener {
       String filledUri;
 
       if (credentialsProvider.isPresent()) {
-        String identifier = credentialsProvider.get().getUuid() != null ? credentialsProvider.get().getUuid().toString() : credentialsProvider.get().getE164();
+        String identifier = credentialsProvider.get().getUuid() != null ? credentialsProvider.get().getDevUuid() : credentialsProvider.get().getE164();
         filledUri = String.format(wsUri, identifier, credentialsProvider.get().getPassword());
       } else {
         filledUri = wsUri;
       }
-
+        System.err.println("filledUri = "+filledUri);
       Pair<SSLSocketFactory, X509TrustManager> socketFactory = createTlsSocketFactory(trustStore);
 
       OkHttpClient.Builder clientBuilder = new OkHttpClient.Builder()
@@ -154,7 +154,9 @@ public class WebSocketConnection extends WebSocketListener {
       }
 
       this.connected = false;
-      this.client    = okHttpClient.newWebSocket(requestBuilder.build(), this);
+        Request request = requestBuilder.build();
+        System.err.println("now connecting websocket for request "+request);
+      this.client    = okHttpClient.newWebSocket(request, this);
     }
   }
 
@@ -202,6 +204,7 @@ public class WebSocketConnection extends WebSocketListener {
                                                .build();
 
     SettableFuture<WebsocketResponse> future = new SettableFuture<>();
+      System.err.println("putting outgoingrequest "+request.getId()+" on queue");
     outgoingRequests.put(request.getId(), new OutgoingRequest(future, System.currentTimeMillis()));
 
     if (!client.send(ByteString.of(message.toByteArray()))) {
@@ -246,7 +249,7 @@ public class WebSocketConnection extends WebSocketListener {
   @Override
   public synchronized void onOpen(WebSocket webSocket, Response response) {
     if (client != null && keepAliveSender == null) {
-      Log.i(TAG, "onOpen() connected");
+      Log.i(TAG, "onOpen() connected, client = "+client);
       attempts        = 0;
       connected       = true;
       keepAliveSender = new KeepAliveSender();
@@ -260,11 +263,12 @@ public class WebSocketConnection extends WebSocketListener {
   public synchronized void onMessage(WebSocket webSocket, ByteString payload) {
     try {
       WebSocketMessage message = WebSocketMessage.parseFrom(payload.toByteArray());
-
+        System.err.println("[WSC] onMessage for "+message.getType());
       if (message.getType().getNumber() == WebSocketMessage.Type.REQUEST_VALUE)  {
         incomingRequests.add(message.getRequest());
       } else if (message.getType().getNumber() == WebSocketMessage.Type.RESPONSE_VALUE) {
         OutgoingRequest listener = outgoingRequests.get(message.getResponse().getId());
+          System.err.println("listener = "+listener);
         if (listener != null) {
           listener.getResponseFuture().set(new WebsocketResponse(message.getResponse().getStatus(),
                                                                  new String(message.getResponse().getBody().toByteArray())));
@@ -334,6 +338,7 @@ public class WebSocketConnection extends WebSocketListener {
 
   @Override
   public void onMessage(WebSocket webSocket, String text) {
+      System.err.println("[WSC] 2 onMessage, text = "+text);
     Log.d(TAG, "onMessage(text)");
   }
 
