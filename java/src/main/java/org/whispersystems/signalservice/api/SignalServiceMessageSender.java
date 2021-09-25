@@ -231,6 +231,11 @@ public class SignalServiceMessageSender {
     OutgoingPushMessageList messages  = getEncryptedMessages(socket, localAddress, Optional.<UnidentifiedAccess>absent(), timestamp, content, false);
     return messages;
   }
+ 
+ public PushServiceSocket getSocket() {
+     return this.socket;
+ }
+ 
    private byte[] createMultiDeviceRequestContent(RequestMessage request) {
     Content.Builder             container      = Content.newBuilder();
     SyncMessage.Builder         syncMessage    = createSyncMessageBuilder();
@@ -631,7 +636,7 @@ public class SignalServiceMessageSender {
     return container.setReceiptMessage(builder).build().toByteArray();
   }
 
-  private byte[] createMessageContent(SignalServiceDataMessage message) throws IOException {
+  public byte[] createMessageContent(SignalServiceDataMessage message) throws IOException {
     Content.Builder         container = Content.newBuilder();
     DataMessage.Builder     builder   = DataMessage.newBuilder();
     List<AttachmentPointer> pointers  = createAttachmentPointers(message.getAttachments());
@@ -1593,12 +1598,18 @@ public class SignalServiceMessageSender {
       throws IOException, InvalidKeyException, UntrustedIdentityException
   {
     List<OutgoingPushMessage> messages = new LinkedList<>();
-System.err.println("ALWAYS SEND TO devid 1");
-   // if (!recipient.matches(localAddress) || unidentifiedAccess.isPresent()) {
-      messages.add(getEncryptedMessage(socket, recipient, unidentifiedAccess, SignalServiceAddress.DEFAULT_DEVICE_ID, plaintext));
-   // }
-
-    for (int deviceId : store.getSubDeviceSessions(recipient.getIdentifier())) {
+System.err.println("DO not ALWAYS SEND TO devid 1");
+      System.err.println("recipient = "+recipient.getIdentifier()+ "or leg "+recipient.getLegacyIdentifier()
+      + " with nr = "+recipient.getNumber()+" and uuid = "+recipient.getUuid());
+      System.err.println("localaddress = "+localAddress.getIdentifier()+" or leg "+localAddress.getLegacyIdentifier());
+      OutgoingPushMessage encryptedMessage = getEncryptedMessage(socket, recipient, unidentifiedAccess, SignalServiceAddress.DEFAULT_DEVICE_ID, plaintext); 
+      System.err.println("processed encryptedmessage even if we might nog need it, but it will update the subdevicesessions");
+      if (!recipient.matches(localAddress) || unidentifiedAccess.isPresent()) {
+        messages.add(encryptedMessage);
+      }
+      List<Integer> subDeviceSessions = store.getSubDeviceSessions(recipient.getIdentifier());
+      System.err.println("SubDeviceSessions: "+subDeviceSessions);
+    for (int deviceId : subDeviceSessions) {
       if (store.containsSession(new SignalProtocolAddress(recipient.getIdentifier(), deviceId))) {
         messages.add(getEncryptedMessage(socket, recipient, unidentifiedAccess, deviceId, plaintext));
       }
@@ -1620,7 +1631,7 @@ System.err.println("ALWAYS SEND TO devid 1");
     if (!store.containsSession(signalProtocolAddress)) {
       try {
         List<PreKeyBundle> preKeys = socket.getPreKeys(recipient, unidentifiedAccess, deviceId);
-
+          System.err.println("[SSMS] preKeys = "+preKeys);
         for (PreKeyBundle preKey : preKeys) {
           try {
             SignalProtocolAddress preKeyAddress  = new SignalProtocolAddress(recipient.getIdentifier(), preKey.getDeviceId());

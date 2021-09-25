@@ -445,7 +445,7 @@ public class PushServiceSocket {
     makeServiceRequest(String.format(UUID_ACK_MESSAGE_PATH, uuid), "DELETE", null);
   }
 
-  public void registerPreKeys(IdentityKey identityKey,
+  public String registerPreKeys(IdentityKey identityKey,
                               SignedPreKeyRecord signedPreKey,
                               List<PreKeyRecord> records)
       throws IOException
@@ -463,8 +463,8 @@ public class PushServiceSocket {
         signedPreKey.getKeyPair().getPublicKey(),
         signedPreKey.getSignature());
 
-    makeServiceRequest(String.format(PREKEY_PATH, ""), "PUT",
-        JsonUtil.toJson(new PreKeyState(entities, signedPreKeyEntity, identityKey)));
+    return makeServiceRequest(String.format(PREKEY_PATH, ""), "PUT",
+              JsonUtil.toJson(new PreKeyState(entities, signedPreKeyEntity, identityKey)));
   }
 
   public int getAvailablePreKeys() throws IOException {
@@ -490,8 +490,10 @@ public class PushServiceSocket {
       if (destination.getRelay().isPresent()) {
         path = path + "?relay=" + destination.getRelay().get();
       }
-
+//      Thread.dumpStack();
+        System.err.println("[PSS] getPreKeys, path = "+path);
       String             responseText = makeServiceRequest(path, "GET", null, NO_HEADERS, unidentifiedAccess);
+        System.err.println("[PPS] responseText from getPreKeys = "+responseText);
       PreKeyResponse     response     = JsonUtil.fromJson(responseText, PreKeyResponse.class);
       List<PreKeyBundle> bundles      = new LinkedList<>();
 
@@ -517,7 +519,7 @@ public class PushServiceSocket {
             preKey, signedPreKeyId, signedPreKey, signedPreKeySignature,
             response.getIdentityKey()));
       }
-
+        System.err.println("Ready to return bundle with prekeys: "+bundles);
       return bundles;
     } catch (NotFoundException nfe) {
       throw new UnregisteredUserException(destination.getIdentifier(), nfe);
@@ -1311,14 +1313,14 @@ public class PushServiceSocket {
                                 .encodedFragment(resumableHttpUrl.encodedFragment())
                                 .build();
   }
-
-  private String makeServiceRequest(String urlFragment, String method, String jsonBody)
+  
+  public String makeServiceRequest(String urlFragment, String method, String jsonBody)
       throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException
   {
     return makeServiceRequest(urlFragment, method, jsonBody, NO_HEADERS, NO_HANDLER, Optional.<UnidentifiedAccess>absent());
   }
 
-  private String makeServiceRequest(String urlFragment, String method, String jsonBody, Map<String, String> headers)
+  public String makeServiceRequest(String urlFragment, String method, String jsonBody, Map<String, String> headers)
       throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException
   {
     return makeServiceRequest(urlFragment, method, jsonBody, headers, NO_HANDLER, Optional.<UnidentifiedAccess>absent());
@@ -1343,6 +1345,8 @@ public class PushServiceSocket {
     try {
       return responseBody.string();
     } catch (IOException e) {
+        System.err.println("Error "+responseBody);
+        System.err.println("with urlF = "+urlFragment+", method = " + method+", body = "+jsonBody);
       throw new PushNetworkException(e);
     }
   }
@@ -1419,7 +1423,7 @@ public class PushServiceSocket {
       throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException {
     int    responseCode    = response.code();
     String responseMessage = response.message();
-
+      System.err.println("validate response "+response);
     switch (responseCode) {
       case 413:
         throw new RateLimitException("Rate limit exceeded: " + responseCode);
@@ -1468,6 +1472,7 @@ public class PushServiceSocket {
       throws PushNetworkException
   {
     try {
+      System.err.println("[PSS] getServiceConnection, url = "+urlFragment+", headers = "+headers);
       OkHttpClient okHttpClient = buildOkHttpClient(unidentifiedAccess.isPresent());
       Call         call         = okHttpClient.newCall(buildServiceRequest(urlFragment, method, body, headers, unidentifiedAccess));
 
@@ -1490,7 +1495,7 @@ public class PushServiceSocket {
   private OkHttpClient buildOkHttpClient(boolean unidentified) {
     ServiceConnectionHolder connectionHolder = (ServiceConnectionHolder) getRandom(serviceClients, random);
     OkHttpClient            baseClient       = unidentified ? connectionHolder.getUnidentifiedClient() : connectionHolder.getClient();
-
+    System.err.println("got baseclient for unidentified? "+unidentified+": "+baseClient);
     return baseClient.newBuilder()
                      .connectTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
                      .readTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
@@ -1499,10 +1504,11 @@ public class PushServiceSocket {
   }
 
   private Request buildServiceRequest(String urlFragment, String method, RequestBody body, Map<String, String> headers, Optional<UnidentifiedAccess> unidentifiedAccess) {
-    ServiceConnectionHolder connectionHolder = (ServiceConnectionHolder) getRandom(serviceClients, random);
+      System.err.println("[PSS] needs to buildServiceRequest for urlfrag = "+urlFragment+", headers = "+headers);
+      ServiceConnectionHolder connectionHolder = (ServiceConnectionHolder) getRandom(serviceClients, random);
 
-//      Log.d(TAG, "Push service URL: " + connectionHolder.getUrl());
-//      Log.d(TAG, "Opening URL: " + String.format("%s%s", connectionHolder.getUrl(), urlFragment));
+      Log.d(TAG, "Push service URL: " + connectionHolder.getUrl());
+      Log.d(TAG, "Opening URL: " + String.format("%s%s", connectionHolder.getUrl(), urlFragment));
 
     Request.Builder request = new Request.Builder();
     request.url(String.format("%s%s", connectionHolder.getUrl(), urlFragment));
@@ -1511,8 +1517,9 @@ public class PushServiceSocket {
     for (Map.Entry<String, String> header : headers.entrySet()) {
       request.addHeader(header.getKey(), header.getValue());
     }
-
+      System.err.println("Before sending, headers = "+headers);
     if (!headers.containsKey("Authorization")) {
+        System.err.println("We have no auth yet!");
       if (unidentifiedAccess.isPresent()) {
         request.addHeader("Unidentified-Access-Key", Base64.encodeBytes(unidentifiedAccess.get().getUnidentifiedAccessKey()));
       } else if (credentialsProvider.getPassword() != null) {
@@ -1527,8 +1534,12 @@ public class PushServiceSocket {
     if (connectionHolder.getHostHeader().isPresent()) {
       request.addHeader("Host", connectionHolder.getHostHeader().get());
     }
+      System.err.println("[PSS] request will have headers: "+request);
+      Request answer = request.build();
+            System.err.println("[PSS] request will have headers: "+answer.headers());
+            System.err.println("[PSS] request = "+answer);
 
-    return request.build();
+      return answer;
   }
 
 
@@ -1826,7 +1837,14 @@ public class PushServiceSocket {
 
   private String getAuthorizationHeader(CredentialsProvider credentialsProvider) {
     try {
-      String identifier = credentialsProvider.getUuid() != null ? credentialsProvider.getUuid().toString() : credentialsProvider.getE164();
+        int deviceId = credentialsProvider.getDeviceId();
+        boolean me = deviceId < 2;
+        System.err.println("Getauthheader, me = "+me+" and devid = "+deviceId);
+        System.err.println("uuid = "+credentialsProvider.getUuid());
+      String identifier = credentialsProvider.getUuid() != null ? 
+              (me ? credentialsProvider.getUuid().toString() :credentialsProvider.getUuid().toString()+"."+deviceId )
+              : credentialsProvider.getE164();
+        System.err.println("authheader identifier = "+identifier);
       return "Basic " + Base64.encodeBytes((identifier + ":" + credentialsProvider.getPassword()).getBytes("UTF-8"));
     } catch (UnsupportedEncodingException e) {
       throw new AssertionError(e);

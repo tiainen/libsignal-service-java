@@ -108,10 +108,12 @@ public class WebSocketConnection extends WebSocketListener {
     String uri = httpUri.replace("https://", "wss://").replace("http://", "ws://");
     if (credentialsProvider.isPresent()) this.wsUri = uri + "/v1/websocket/"+path+"?login=%s&password=%s";
     else                                 this.wsUri = uri + "/v1/websocket/"+path;
+      System.err.println("[WSC] created "+this+" with url = "+this.wsUri);
 
   }
 
   public synchronized void connect() {
+      System.err.println("[WSC] connect for "+this);
     Log.i(TAG, "connect()");
 
     if (client == null) {
@@ -155,13 +157,13 @@ public class WebSocketConnection extends WebSocketListener {
 
       this.connected = false;
         Request request = requestBuilder.build();
-        System.err.println("now connecting websocket for request "+request);
+        System.err.println("[WSC] now connecting websocket for request "+request);
       this.client    = okHttpClient.newWebSocket(request, this);
     }
   }
 
   public synchronized void disconnect() {
-    Log.i(TAG, "disconnect()");
+    Log.i(TAG, "disconnect() asked by user for "+this);
 
     if (client != null) {
       client.close(1000, "OK");
@@ -204,9 +206,10 @@ public class WebSocketConnection extends WebSocketListener {
                                                .build();
 
     SettableFuture<WebsocketResponse> future = new SettableFuture<>();
-      System.err.println("putting outgoingrequest "+request.getId()+" on queue");
+    System.err.println("[WSC] putting outgoingrequest "+request.getId()+" on queue");
+//    Thread.dumpStack();
     outgoingRequests.put(request.getId(), new OutgoingRequest(future, System.currentTimeMillis()));
-
+      System.err.println("outgoingRequests is now "+outgoingRequests);
     if (!client.send(ByteString.of(message.toByteArray()))) {
       throw new IOException("Write failed!");
     }
@@ -248,11 +251,13 @@ public class WebSocketConnection extends WebSocketListener {
 
   @Override
   public synchronized void onOpen(WebSocket webSocket, Response response) {
+      System.err.println("[WSC] onOpen for "+this);
     if (client != null && keepAliveSender == null) {
       Log.i(TAG, "onOpen() connected, client = "+client);
       attempts        = 0;
       connected       = true;
       keepAliveSender = new KeepAliveSender();
+      Log.i(TAG, "keepalive thread = "+keepAliveSender);
       keepAliveSender.start();
 
       if (listener != null) listener.onConnected();
@@ -263,12 +268,15 @@ public class WebSocketConnection extends WebSocketListener {
   public synchronized void onMessage(WebSocket webSocket, ByteString payload) {
     try {
       WebSocketMessage message = WebSocketMessage.parseFrom(payload.toByteArray());
-        System.err.println("[WSC] onMessage for "+message.getType());
+      System.err.println("[WSC] onMessage with type "+message.getType());
       if (message.getType().getNumber() == WebSocketMessage.Type.REQUEST_VALUE)  {
+          Thread.dumpStack();
+          System.err.println("message = "+message);
+          System.err.println("requst = "+message.getRequest().getBody());
         incomingRequests.add(message.getRequest());
       } else if (message.getType().getNumber() == WebSocketMessage.Type.RESPONSE_VALUE) {
         OutgoingRequest listener = outgoingRequests.get(message.getResponse().getId());
-          System.err.println("listener = "+listener);
+        System.err.println("listener for id " + message.getResponse().getId()+" = "+listener);
         if (listener != null) {
           listener.getResponseFuture().set(new WebsocketResponse(message.getResponse().getStatus(),
                                                                  new String(message.getResponse().getBody().toByteArray())));
@@ -283,7 +291,7 @@ public class WebSocketConnection extends WebSocketListener {
 
   @Override
   public synchronized void onClosed(WebSocket webSocket, int code, String reason) {
-    Log.i(TAG, "onClose()");
+    Log.i(TAG, "onClosed() for "+this+" with reason = "+reason);
     this.connected = false;
 
     Iterator<Map.Entry<Long, OutgoingRequest>> iterator = outgoingRequests.entrySet().iterator();
@@ -317,6 +325,8 @@ public class WebSocketConnection extends WebSocketListener {
 
   @Override
   public synchronized void onFailure(WebSocket webSocket, Throwable t, Response response) {
+     System.err.println("[WSC] onFailure for "+this);
+
     Log.w(TAG, "onFailure()", t);
 
     if (response != null && (response.code() == 401 || response.code() == 403)) {
@@ -344,7 +354,7 @@ public class WebSocketConnection extends WebSocketListener {
 
   @Override
   public synchronized void onClosing(WebSocket webSocket, int code, String reason) {
-    Log.i(TAG, "onClosing()");
+    Log.i(TAG, "onClosing() for "+this);
     webSocket.close(1000, "OK");
   }
 
@@ -373,15 +383,18 @@ public class WebSocketConnection extends WebSocketListener {
         try {
           sleepTimer.sleep(TimeUnit.SECONDS.toMillis(KEEPALIVE_TIMEOUT_SECONDS));
 
-          Log.d(TAG, "Sending keep alive...");
+          Log.d(TAG, "Sending keep alive for "+this);
           sendKeepAlive();
         } catch (Throwable e) {
+          Log.d(TAG, "FAILED Sending keep alive for "+this);
           Log.w(TAG, e);
         }
       }
+      Log.w(TAG, "No more keepalives for "+this);
     }
 
     public void shutdown() {
+        Log.d(TAG, "Requesting to stop keep alive for "+this);
       stop.set(true);
     }
   }

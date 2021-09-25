@@ -199,6 +199,7 @@ public class SignalServiceMessagePipe {
       } else if (value.getStatus() == 508) {
         throw new ServerRejectedException();
       } else if (value.getStatus() < 200 || value.getStatus() >= 300) {
+          System.err.println("will throw IOexception, response = "+value.getBody());
         throw new IOException("Non-successful response: " + value.getStatus());
       }
 
