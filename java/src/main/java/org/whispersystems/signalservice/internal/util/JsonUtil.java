@@ -38,8 +38,12 @@ public class JsonUtil {
 
   public static String toJson(Object object) {
     try {
-      return objectMapper.writeValueAsString(object);
+      String answer = objectMapper.writeValueAsString(object);
+        System.err.println("I created json based on "+object);
+        System.err.println("json = "+answer);
+      return answer;
     } catch (JsonProcessingException e) {
+        e.printStackTrace();
       Log.w(TAG, e);
       return "";
     }

@@ -1341,6 +1341,7 @@ public class PushServiceSocket {
   private String makeServiceRequest(String urlFragment, String method, String jsonBody, Map<String, String> headers, ResponseCodeHandler responseCodeHandler, Optional<UnidentifiedAccess> unidentifiedAccessKey)
       throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException
   {
+      System.err.println("need to create request for jsonbody = "+jsonBody);
     ResponseBody responseBody = makeServiceBodyRequest(urlFragment, method, jsonRequestBody(jsonBody), headers, responseCodeHandler, unidentifiedAccessKey);
     try {
       return responseBody.string();
@@ -1412,7 +1413,10 @@ public class PushServiceSocket {
                                       Optional<UnidentifiedAccess> unidentifiedAccessKey)
       throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException
   {
-    Response response = getServiceConnection(urlFragment, method, body, headers, unidentifiedAccessKey);
+      System.err.println("PSS, makeServiceReq, urlFrag = "+urlFragment+" and method = "+method);
+      System.err.println("PSS, body = "+body);
+      System.err.println("headers = "+headers);
+      Response response = getServiceConnection(urlFragment, method, body, headers, unidentifiedAccessKey);
 
     responseCodeHandler.handle(response.code());
 
@@ -1511,7 +1515,9 @@ public class PushServiceSocket {
       Log.d(TAG, "Opening URL: " + String.format("%s%s", connectionHolder.getUrl(), urlFragment));
 
     Request.Builder request = new Request.Builder();
-    request.url(String.format("%s%s", connectionHolder.getUrl(), urlFragment));
+    String myurl = String.format("%s%s", connectionHolder.getUrl(), urlFragment);
+      System.err.println("myurl = "+myurl);
+    request.url(myurl);
     request.method(method, body);
 
     for (Map.Entry<String, String> header : headers.entrySet()) {
