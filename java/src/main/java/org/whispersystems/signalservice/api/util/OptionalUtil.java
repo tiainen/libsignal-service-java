@@ -2,9 +2,8 @@ package org.whispersystems.signalservice.api.util;
 
 import com.google.protobuf.ByteString;
 
-import org.whispersystems.libsignal.util.guava.Optional;
-
 import java.util.Arrays;
+import java.util.Optional;
 
 public final class OptionalUtil {
 
@@ -29,7 +28,7 @@ public final class OptionalUtil {
 
   public static Optional<String> absentIfEmpty(String value) {
     if (value == null || value.length() == 0) {
-      return Optional.absent();
+      return Optional.empty();
     } else {
       return Optional.of(value);
     }
@@ -37,7 +36,7 @@ public final class OptionalUtil {
 
   public static Optional<byte[]> absentIfEmpty(ByteString value) {
     if (value == null || value.isEmpty()) {
-      return Optional.absent();
+      return Optional.empty();
     } else {
       return Optional.of(value.toByteArray());
     }

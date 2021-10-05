@@ -1,7 +1,7 @@
 package org.whispersystems.signalservice.api.messages.multidevice;
 
+import java.util.Optional;
 
-import org.whispersystems.libsignal.util.guava.Optional;
 import org.whispersystems.signalservice.api.push.SignalServiceAddress;
 
 public class MessageRequestResponseMessage {
@@ -11,11 +11,11 @@ public class MessageRequestResponseMessage {
   private final Type                           type;
 
   public static MessageRequestResponseMessage forIndividual(SignalServiceAddress address, Type type) {
-    return new MessageRequestResponseMessage(Optional.of(address), Optional.<byte[]>absent(), type);
+    return new MessageRequestResponseMessage(Optional.of(address), Optional.<byte[]>empty(), type);
   }
 
   public static MessageRequestResponseMessage forGroup(byte[] groupId, Type type) {
-    return new MessageRequestResponseMessage(Optional.<SignalServiceAddress>absent(), Optional.of(groupId), type);
+    return new MessageRequestResponseMessage(Optional.<SignalServiceAddress>empty(), Optional.of(groupId), type);
   }
 
   private MessageRequestResponseMessage(Optional<SignalServiceAddress> person,

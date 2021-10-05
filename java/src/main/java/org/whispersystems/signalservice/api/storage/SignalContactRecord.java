@@ -2,7 +2,6 @@ package org.whispersystems.signalservice.api.storage;
 
 import com.google.protobuf.ByteString;
 
-import org.whispersystems.libsignal.util.guava.Optional;
 import org.whispersystems.signalservice.api.push.SignalServiceAddress;
 import org.whispersystems.signalservice.api.util.OptionalUtil;
 import org.whispersystems.signalservice.api.util.ProtoUtil;
@@ -11,6 +10,7 @@ import org.whispersystems.signalservice.internal.storage.protos.ContactRecord;
 import org.whispersystems.signalservice.internal.storage.protos.ContactRecord.IdentityState;
 
 import java.util.Objects;
+import java.util.Optional;
 
 public final class SignalContactRecord implements SignalRecord {
 
@@ -124,7 +124,7 @@ public final class SignalContactRecord implements SignalRecord {
       this.builder = ContactRecord.newBuilder();
 
       builder.setServiceUuid(address.getUuid().isPresent() ? address.getUuid().get().toString() : "");
-      builder.setServiceE164(address.getNumber().or(""));
+      builder.setServiceE164(address.getNumber().orElse(""));
     }
 
     public Builder setUnknownFields(byte[] serializedUnknowns) {

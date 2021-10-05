@@ -1,9 +1,9 @@
 package org.whispersystems.signalservice.api.storage;
 
-import org.whispersystems.libsignal.util.guava.Optional;
 import org.whispersystems.signalservice.internal.storage.protos.AccountRecord;
 
 import java.util.Objects;
+import java.util.Optional;
 
 public class SignalStorageRecord implements SignalRecord {
 
@@ -18,7 +18,7 @@ public class SignalStorageRecord implements SignalRecord {
   }
 
   public static SignalStorageRecord forContact(StorageId key, SignalContactRecord contact) {
-    return new SignalStorageRecord(key, Optional.of(contact), Optional.<SignalGroupV1Record>absent(), Optional.<SignalGroupV2Record>absent(), Optional.<SignalAccountRecord>absent());
+    return new SignalStorageRecord(key, Optional.of(contact), Optional.<SignalGroupV1Record>empty(), Optional.<SignalGroupV2Record>empty(), Optional.<SignalAccountRecord>empty());
   }
 
   public static SignalStorageRecord forGroupV1(SignalGroupV1Record groupV1) {
@@ -26,7 +26,7 @@ public class SignalStorageRecord implements SignalRecord {
   }
 
   public static SignalStorageRecord forGroupV1(StorageId key, SignalGroupV1Record groupV1) {
-    return new SignalStorageRecord(key, Optional.<SignalContactRecord>absent(), Optional.of(groupV1), Optional.<SignalGroupV2Record>absent(), Optional.<SignalAccountRecord>absent());
+    return new SignalStorageRecord(key, Optional.<SignalContactRecord>empty(), Optional.of(groupV1), Optional.<SignalGroupV2Record>empty(), Optional.<SignalAccountRecord>empty());
   }
 
   public static SignalStorageRecord forGroupV2(SignalGroupV2Record groupV2) {
@@ -34,7 +34,7 @@ public class SignalStorageRecord implements SignalRecord {
   }
 
   public static SignalStorageRecord forGroupV2(StorageId key, SignalGroupV2Record groupV2) {
-    return new SignalStorageRecord(key, Optional.<SignalContactRecord>absent(), Optional.<SignalGroupV1Record>absent(), Optional.of(groupV2), Optional.<SignalAccountRecord>absent());
+    return new SignalStorageRecord(key, Optional.<SignalContactRecord>empty(), Optional.<SignalGroupV1Record>empty(), Optional.of(groupV2), Optional.<SignalAccountRecord>empty());
   }
 
   public static SignalStorageRecord forAccount(SignalAccountRecord account) {
@@ -42,11 +42,11 @@ public class SignalStorageRecord implements SignalRecord {
   }
 
   public static SignalStorageRecord forAccount(StorageId key, SignalAccountRecord account) {
-    return new SignalStorageRecord(key, Optional.<SignalContactRecord>absent(), Optional.<SignalGroupV1Record>absent(), Optional.<SignalGroupV2Record>absent(), Optional.of(account));
+    return new SignalStorageRecord(key, Optional.<SignalContactRecord>empty(), Optional.<SignalGroupV1Record>empty(), Optional.<SignalGroupV2Record>empty(), Optional.of(account));
   }
 
   public static SignalStorageRecord forUnknown(StorageId key) {
-    return new SignalStorageRecord(key,Optional.<SignalContactRecord>absent(), Optional.<SignalGroupV1Record>absent(), Optional.<SignalGroupV2Record>absent(), Optional.<SignalAccountRecord>absent());
+    return new SignalStorageRecord(key,Optional.<SignalContactRecord>empty(), Optional.<SignalGroupV1Record>empty(), Optional.<SignalGroupV2Record>empty(), Optional.<SignalAccountRecord>empty());
   }
 
   private SignalStorageRecord(StorageId id,

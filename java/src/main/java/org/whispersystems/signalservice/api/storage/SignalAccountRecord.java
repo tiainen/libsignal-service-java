@@ -2,7 +2,6 @@ package org.whispersystems.signalservice.api.storage;
 
 import com.google.protobuf.ByteString;
 
-import org.whispersystems.libsignal.util.guava.Optional;
 import org.whispersystems.signalservice.api.push.SignalServiceAddress;
 import org.whispersystems.signalservice.api.util.OptionalUtil;
 import org.whispersystems.signalservice.api.util.ProtoUtil;
@@ -11,6 +10,7 @@ import org.whispersystems.signalservice.internal.storage.protos.AccountRecord;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Objects;
 
 public final class SignalAccountRecord implements SignalRecord {
@@ -142,19 +142,19 @@ public final class SignalAccountRecord implements SignalRecord {
     }
 
     public static PinnedConversation forContact(SignalServiceAddress address) {
-      return new PinnedConversation(Optional.of(address), Optional.absent(), Optional.absent());
+      return new PinnedConversation(Optional.of(address), Optional.empty(), Optional.empty());
     }
 
     public static PinnedConversation forGroupV1(byte[] groupId) {
-      return new PinnedConversation(Optional.absent(), Optional.of(groupId), Optional.absent());
+      return new PinnedConversation(Optional.empty(), Optional.of(groupId), Optional.empty());
     }
 
     public static PinnedConversation forGroupV2(byte[] masterKey) {
-      return new PinnedConversation(Optional.absent(), Optional.absent(), Optional.of(masterKey));
+      return new PinnedConversation(Optional.empty(), Optional.empty(), Optional.of(masterKey));
     }
 
     private static PinnedConversation forEmpty() {
-      return new PinnedConversation(Optional.absent(), Optional.absent(), Optional.absent());
+      return new PinnedConversation(Optional.empty(), Optional.empty(), Optional.empty());
     }
 
     static PinnedConversation fromRemote(AccountRecord.PinnedConversation remote) {

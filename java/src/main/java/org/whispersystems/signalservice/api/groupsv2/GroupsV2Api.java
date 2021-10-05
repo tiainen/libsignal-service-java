@@ -20,7 +20,7 @@ import org.signal.zkgroup.auth.AuthCredentialResponse;
 import org.signal.zkgroup.auth.ClientZkAuthOperations;
 import org.signal.zkgroup.groups.ClientZkGroupCipher;
 import org.signal.zkgroup.groups.GroupSecretParams;
-import org.whispersystems.libsignal.util.guava.Optional;
+
 import org.whispersystems.signalservice.internal.push.PushServiceSocket;
 import org.whispersystems.signalservice.internal.push.exceptions.ForbiddenException;
 
@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public final class GroupsV2Api {
@@ -116,8 +117,8 @@ public final class GroupsV2Api {
     GroupsV2Operations.GroupOperations    groupOperations = groupsOperations.forGroup(groupSecretParams);
 
     for (GroupChanges.GroupChangeState change : changesList) {
-      Optional<DecryptedGroup>       decryptedGroup  = change.hasGroupState () ? Optional.of(groupOperations.decryptGroup(change.getGroupState())) : Optional.absent();
-      Optional<DecryptedGroupChange> decryptedChange = change.hasGroupChange() ? groupOperations.decryptChange(change.getGroupChange(), false)     : Optional.absent();
+      Optional<DecryptedGroup>       decryptedGroup  = change.hasGroupState () ? Optional.of(groupOperations.decryptGroup(change.getGroupState())) : Optional.empty();
+      Optional<DecryptedGroupChange> decryptedChange = change.hasGroupChange() ? groupOperations.decryptChange(change.getGroupChange(), false)     : Optional.empty();
 
       result.add(new DecryptedGroupHistoryEntry(decryptedGroup, decryptedChange));
     }

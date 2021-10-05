@@ -6,7 +6,6 @@
 
 package org.whispersystems.signalservice.api.messages.multidevice;
 
-import org.whispersystems.libsignal.util.guava.Optional;
 import org.whispersystems.signalservice.api.messages.SignalServiceAttachmentStream;
 import org.whispersystems.signalservice.api.push.SignalServiceAddress;
 import org.whispersystems.signalservice.api.util.UuidUtil;
@@ -18,6 +17,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 public class DeviceGroupsInputStream extends ChunkedInputStream{
 
@@ -37,14 +37,14 @@ public class DeviceGroupsInputStream extends ChunkedInputStream{
     }
 
     byte[]                                  id              = details.getId().toByteArray();
-    Optional<String>                        name            = Optional.fromNullable(details.getName());
+    Optional<String>                        name            = Optional.ofNullable(details.getName());
     List<GroupDetails.Member>               members         = details.getMembersList();
-    Optional<SignalServiceAttachmentStream> avatar          = Optional.absent();
+    Optional<SignalServiceAttachmentStream> avatar          = Optional.empty();
     boolean                                 active          = details.getActive();
-    Optional<Integer>                       expirationTimer = Optional.absent();
-    Optional<String>                        color           = Optional.fromNullable(details.getColor());
+    Optional<Integer>                       expirationTimer = Optional.empty();
+    Optional<String>                        color           = Optional.ofNullable(details.getColor());
     boolean                                 blocked         = details.getBlocked();
-    Optional<Integer>                       inboxPosition   = Optional.absent();
+    Optional<Integer>                       inboxPosition   = Optional.empty();
     boolean                                 archived        = false;
 
     if (details.hasAvatar()) {
@@ -52,7 +52,7 @@ public class DeviceGroupsInputStream extends ChunkedInputStream{
       InputStream avatarStream      = new ChunkedInputStream.LimitedInputStream(in, avatarLength);
       String      avatarContentType = details.getAvatar().getContentType();
 
-      avatar = Optional.of(new SignalServiceAttachmentStream(avatarStream, avatarContentType, avatarLength, Optional.<String>absent(), false, false, null, null));
+      avatar = Optional.of(new SignalServiceAttachmentStream(avatarStream, avatarContentType, avatarLength, Optional.<String>empty(), false, false, null, null));
     }
 
     if (details.hasExpireTimer() && details.getExpireTimer() > 0) {

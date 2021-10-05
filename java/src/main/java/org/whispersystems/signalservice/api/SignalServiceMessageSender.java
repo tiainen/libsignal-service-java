@@ -15,7 +15,6 @@ import org.whispersystems.libsignal.SignalProtocolAddress;
 import org.whispersystems.libsignal.logging.Log;
 import org.whispersystems.libsignal.state.PreKeyBundle;
 import org.whispersystems.libsignal.util.Pair;
-import org.whispersystems.libsignal.util.guava.Optional;
 import org.whispersystems.signalservice.api.crypto.AttachmentCipherOutputStream;
 import org.whispersystems.signalservice.api.crypto.SignalServiceCipher;
 import org.whispersystems.signalservice.api.crypto.SignalSessionBuilder;
@@ -97,6 +96,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -228,7 +228,7 @@ public class SignalServiceMessageSender {
     long timestamp = message.getSent().isPresent() ? message.getSent().get().getTimestamp()
                                                    : System.currentTimeMillis();
       System.err.println("Content = "+content);
-    OutgoingPushMessageList messages  = getEncryptedMessages(socket, localAddress, Optional.<UnidentifiedAccess>absent(), timestamp, content, false);
+    OutgoingPushMessageList messages  = getEncryptedMessages(socket, localAddress, Optional.<UnidentifiedAccess>empty(), timestamp, content, false);
     return messages;
   }
  
@@ -345,7 +345,7 @@ public class SignalServiceMessageSender {
 
     if (result.getSuccess() != null && result.getSuccess().isNeedsSync()) {
       byte[] syncMessage = createMultiDeviceSentTranscriptContent(content, Optional.of(recipient), timestamp, Collections.singletonList(result), false);
-      sendMessage(localAddress, Optional.<UnidentifiedAccess>absent(), timestamp, syncMessage, false, null);
+      sendMessage(localAddress, Optional.<UnidentifiedAccess>empty(), timestamp, syncMessage, false, null);
     }
 
     // TODO [greyson][session] Delete this when we delete the button
@@ -391,13 +391,13 @@ public class SignalServiceMessageSender {
     }
 
     if (needsSyncInResults || isMultiDevice.get()) {
-      Optional<SignalServiceAddress> recipient = Optional.absent();
+      Optional<SignalServiceAddress> recipient = Optional.empty();
       if (!message.getGroupContext().isPresent() && recipients.size() == 1) {
         recipient = Optional.of(recipients.get(0));
       }
 
       byte[] syncMessage = createMultiDeviceSentTranscriptContent(content, recipient, timestamp, results, isRecipientUpdate);
-      sendMessage(localAddress, Optional.<UnidentifiedAccess>absent(), timestamp, syncMessage, false, null);
+      sendMessage(localAddress, Optional.<UnidentifiedAccess>empty(), timestamp, syncMessage, false, null);
     }
 
     return results;
@@ -443,7 +443,7 @@ public class SignalServiceMessageSender {
     long timestamp = message.getSent().isPresent() ? message.getSent().get().getTimestamp()
                                                    : System.currentTimeMillis();
 
-    sendMessage(localAddress, Optional.<UnidentifiedAccess>absent(), timestamp, content, false, null);
+    sendMessage(localAddress, Optional.<UnidentifiedAccess>empty(), timestamp, content, false, null);
   }
 
   public void setSoTimeoutMillis(long soTimeoutMillis) {
@@ -455,14 +455,14 @@ public class SignalServiceMessageSender {
   }
 
   public void update(SignalServiceMessagePipe pipe, SignalServiceMessagePipe unidentifiedPipe, boolean isMultiDevice) {
-    this.pipe.set(Optional.fromNullable(pipe));
-    this.unidentifiedPipe.set(Optional.fromNullable(unidentifiedPipe));
+    this.pipe.set(Optional.ofNullable(pipe));
+    this.unidentifiedPipe.set(Optional.ofNullable(unidentifiedPipe));
     this.isMultiDevice.set(isMultiDevice);
   }
 
   public SignalServiceAttachmentPointer uploadAttachment(SignalServiceAttachmentStream attachment) throws IOException {
-    byte[]             attachmentKey    = attachment.getResumableUploadSpec().transform(ResumableUploadSpec::getSecretKey).or(() -> Util.getSecretBytes(64));
-    byte[]             attachmentIV     = attachment.getResumableUploadSpec().transform(ResumableUploadSpec::getIV).or(() -> Util.getSecretBytes(16));
+    byte[]             attachmentKey    = attachment.getResumableUploadSpec().map(ResumableUploadSpec::getSecretKey).orElse(Util.getSecretBytes(64));
+    byte[]             attachmentIV     = attachment.getResumableUploadSpec().map(ResumableUploadSpec::getIV).orElse(Util.getSecretBytes(16));
     long               paddedLength     = PaddingInputStream.getPaddedSize(attachment.getLength());
     InputStream        dataStream       = new PaddingInputStream(attachment.getInputStream(), attachment.getLength());
     long               ciphertextLength = AttachmentCipherOutputStream.getCiphertextLength(paddedLength);
@@ -472,7 +472,7 @@ public class SignalServiceMessageSender {
                                                                  new AttachmentCipherOutputStreamFactory(attachmentKey, attachmentIV),
                                                                  attachment.getListener(),
                                                                  attachment.getCancelationSignal(),
-                                                                 attachment.getResumableUploadSpec().orNull());
+                                                                 attachment.getResumableUploadSpec().orElse(null));
 
     if (attachment.getResumableUploadSpec().isPresent()) {
       return uploadAttachmentV3(attachment, attachmentKey, attachmentData);
@@ -580,7 +580,7 @@ public class SignalServiceMessageSender {
 
     if (result.getSuccess().isNeedsSync()) {
       byte[] syncMessage = createMultiDeviceVerifiedContent(message, nullMessage.toByteArray());
-      sendMessage(localAddress, Optional.<UnidentifiedAccess>absent(), message.getTimestamp(), syncMessage, false, null);
+      sendMessage(localAddress, Optional.<UnidentifiedAccess>empty(), message.getTimestamp(), syncMessage, false, null);
     }
   }
 
@@ -1463,7 +1463,7 @@ public class SignalServiceMessageSender {
 
         if (pipe.isPresent() && !unidentifiedAccess.isPresent()) {
           try {
-            SendMessageResponse response = pipe.get().send(messages, Optional.absent()).get(10, TimeUnit.SECONDS);
+            SendMessageResponse response = pipe.get().send(messages, Optional.empty()).get(10, TimeUnit.SECONDS);
             return SendMessageResult.success(recipient, false, response.getNeedsSync() || isMultiDevice.get(), System.currentTimeMillis() - startTime);
           } catch (IOException | ExecutionException | InterruptedException | TimeoutException e) {
             Log.w(TAG, e);
@@ -1489,11 +1489,11 @@ public class SignalServiceMessageSender {
 
       } catch (InvalidKeyException ike) {
         Log.w(TAG, ike);
-        unidentifiedAccess = Optional.absent();
+        unidentifiedAccess = Optional.empty();
       } catch (AuthorizationFailedException afe) {
         Log.w(TAG, afe);
         if (unidentifiedAccess.isPresent()) {
-          unidentifiedAccess = Optional.absent();
+          unidentifiedAccess = Optional.empty();
         } else {
           throw afe;
         }
@@ -1702,7 +1702,7 @@ System.err.println("DO not ALWAYS SEND TO devid 1");
       return unidentifiedAccess.get().getTargetUnidentifiedAccess();
     }
 
-    return Optional.absent();
+    return Optional.empty();
   }
 
   private List<Optional<UnidentifiedAccess>> getTargetUnidentifiedAccess(List<Optional<UnidentifiedAccessPair>> unidentifiedAccess) {
@@ -1710,7 +1710,7 @@ System.err.println("DO not ALWAYS SEND TO devid 1");
 
     for (Optional<UnidentifiedAccessPair> item : unidentifiedAccess) {
       if (item.isPresent()) results.add(item.get().getTargetUnidentifiedAccess());
-      else                  results.add(Optional.<UnidentifiedAccess>absent());
+      else                  results.add(Optional.<UnidentifiedAccess>empty());
     }
 
     return results;

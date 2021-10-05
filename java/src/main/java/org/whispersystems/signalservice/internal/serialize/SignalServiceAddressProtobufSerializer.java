@@ -2,11 +2,11 @@ package org.whispersystems.signalservice.internal.serialize;
 
 import com.google.protobuf.ByteString;
 
-import org.whispersystems.libsignal.util.guava.Optional;
 import org.whispersystems.signalservice.api.push.SignalServiceAddress;
 import org.whispersystems.signalservice.api.util.UuidUtil;
 import org.whispersystems.signalservice.internal.serialize.protos.AddressProto;
 
+import java.util.Optional;
 import java.util.UUID;
 
 public final class SignalServiceAddressProtobufSerializer {
@@ -29,9 +29,9 @@ public final class SignalServiceAddressProtobufSerializer {
   }
 
   public static SignalServiceAddress fromProtobuf(AddressProto addressProto) {
-    Optional<UUID>   uuid   = addressProto.hasUuid()  ? Optional.of(UuidUtil.parseOrThrow(addressProto.getUuid().toByteArray())) : Optional.<UUID>absent();
-    Optional<String> number = addressProto.hasE164()  ? Optional.of(addressProto.getE164()                                     ) : Optional.<String>absent();
-    Optional<String> relay  = addressProto.hasRelay() ? Optional.of(addressProto.getRelay()                                    ) : Optional.<String>absent();
+    Optional<UUID>   uuid   = addressProto.hasUuid()  ? Optional.of(UuidUtil.parseOrThrow(addressProto.getUuid().toByteArray())) : Optional.<UUID>empty();
+    Optional<String> number = addressProto.hasE164()  ? Optional.of(addressProto.getE164()                                     ) : Optional.<String>empty();
+    Optional<String> relay  = addressProto.hasRelay() ? Optional.of(addressProto.getRelay()                                    ) : Optional.<String>empty();
     return new SignalServiceAddress(uuid, number, relay);
   }
 }

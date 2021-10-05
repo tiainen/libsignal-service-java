@@ -1,7 +1,6 @@
 package org.whispersystems.signalservice.internal.push.http;
 
 
-import org.whispersystems.libsignal.util.guava.Preconditions;
 import org.whispersystems.signalservice.api.crypto.DigestingOutputStream;
 import org.whispersystems.signalservice.api.crypto.SkippingOutputStream;
 import org.whispersystems.signalservice.api.messages.SignalServiceAttachment.ProgressListener;
@@ -32,8 +31,8 @@ public class DigestingRequestBody extends RequestBody {
                               CancelationSignal cancelationSignal,
                               long contentStart)
   {
-    Preconditions.checkArgument(contentLength >= contentStart);
-    Preconditions.checkArgument(contentStart >= 0);
+    assert(contentLength >= contentStart);
+    assert(contentStart >= 0);
 
     this.inputStream         = inputStream;
     this.outputStreamFactory = outputStreamFactory;

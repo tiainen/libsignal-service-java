@@ -6,11 +6,11 @@
 
 package org.whispersystems.signalservice.api.messages;
 
-import org.whispersystems.libsignal.util.guava.Optional;
 import org.whispersystems.signalservice.internal.push.http.CancelationSignal;
 import org.whispersystems.signalservice.internal.push.http.ResumableUploadSpec;
 
 import java.io.InputStream;
+import java.util.Optional;
 
 /**
  * Represents a local SignalServiceAttachment to be sent.
@@ -41,7 +41,7 @@ public class SignalServiceAttachmentStream extends SignalServiceAttachment {
                                        ProgressListener listener,
                                        CancelationSignal cancelationSignal)
   {
-    this(inputStream, contentType, length, fileName, voiceNote, borderless, Optional.<byte[]>absent(), 0, 0, System.currentTimeMillis(), Optional.<String>absent(), Optional.<String>absent(), listener, cancelationSignal, Optional.absent());
+    this(inputStream, contentType, length, fileName, voiceNote, borderless, Optional.<byte[]>empty(), 0, 0, System.currentTimeMillis(), Optional.<String>empty(), Optional.<String>empty(), listener, cancelationSignal, Optional.empty());
   }
 
   public SignalServiceAttachmentStream(InputStream inputStream,

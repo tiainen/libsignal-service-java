@@ -37,7 +37,6 @@ import org.signal.zkgroup.profiles.ProfileKeyCredential;
 import org.signal.zkgroup.profiles.ProfileKeyCredentialPresentation;
 import org.signal.zkgroup.util.UUIDUtil;
 import org.whispersystems.libsignal.logging.Log;
-import org.whispersystems.libsignal.util.guava.Optional;
 import org.whispersystems.signalservice.api.util.UuidUtil;
 
 import java.security.SecureRandom;
@@ -45,6 +44,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -106,7 +106,7 @@ public final class GroupsV2Operations {
     group.addMembers(groupOperations.member(self.getProfileKeyCredential().get(), Member.Role.ADMINISTRATOR));
 
     for (GroupCandidate credential : members) {
-      ProfileKeyCredential profileKeyCredential = credential.getProfileKeyCredential().orNull();
+      ProfileKeyCredential profileKeyCredential = credential.getProfileKeyCredential().orElse(null);
 
       if (profileKeyCredential != null) {
         group.addMembers(groupOperations.member(profileKeyCredential, memberRole));
@@ -156,7 +156,7 @@ public final class GroupsV2Operations {
 
       for (GroupCandidate credential : membersToAdd) {
         Member.Role          newMemberRole        = Member.Role.DEFAULT;
-        ProfileKeyCredential profileKeyCredential = credential.getProfileKeyCredential().orNull();
+        ProfileKeyCredential profileKeyCredential = credential.getProfileKeyCredential().orElse(null);
 
         if (profileKeyCredential != null) {
           actions.addAddMembers(GroupChange.Actions.AddMemberAction
@@ -405,7 +405,7 @@ public final class GroupsV2Operations {
     {
       if (groupChange.getChangeEpoch() > HIGHEST_KNOWN_EPOCH) {
         Log.w(TAG, String.format(Locale.US, "Ignoring change from Epoch %d. Highest known Epoch is %d", groupChange.getChangeEpoch(), HIGHEST_KNOWN_EPOCH));
-        return Optional.absent();
+        return Optional.empty();
       }
 
       GroupChange.Actions actions = verifySignature ? getVerifiedActions(groupChange) : getActions(groupChange);

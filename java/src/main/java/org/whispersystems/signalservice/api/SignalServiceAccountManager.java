@@ -18,7 +18,6 @@ import org.whispersystems.libsignal.ecc.ECPublicKey;
 import org.whispersystems.libsignal.logging.Log;
 import org.whispersystems.libsignal.state.PreKeyRecord;
 import org.whispersystems.libsignal.state.SignedPreKeyRecord;
-import org.whispersystems.libsignal.util.guava.Optional;
 import org.whispersystems.signalservice.api.crypto.InvalidCiphertextException;
 import org.whispersystems.signalservice.api.crypto.ProfileCipher;
 import org.whispersystems.signalservice.api.crypto.ProfileCipherInputStream;
@@ -87,6 +86,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
@@ -345,7 +345,7 @@ public class SignalServiceAccountManager {
       contactTokenDetails.setNumber(e164number);
     }
 
-    return Optional.fromNullable(contactTokenDetails);
+    return Optional.ofNullable(contactTokenDetails);
   }
 
   /**
@@ -420,7 +420,7 @@ public class SignalServiceAccountManager {
       return Optional.of(SignalStorageModels.remoteToLocalStorageManifest(storageManifest, storageKey));
     } catch (InvalidKeyException | NotFoundException e) {
       Log.w(TAG, "Error while fetching manifest.", e);
-      return Optional.absent();
+      return Optional.empty();
     }
   }
 
@@ -442,12 +442,12 @@ public class SignalServiceAccountManager {
 
       if (storageManifest.getValue().isEmpty()) {
         Log.w(TAG, "Got an empty storage manifest!");
-        return Optional.absent();
+        return Optional.empty();
       }
 
       return Optional.of(SignalStorageModels.remoteToLocalStorageManifest(storageManifest, storageKey));
     } catch (NoContentException e) {
-      return Optional.absent();
+      return Optional.empty();
     }
   }
 
@@ -563,7 +563,7 @@ public class SignalServiceAccountManager {
 
       return Optional.of(conflictManifest);
     } else {
-      return Optional.absent();
+      return Optional.empty();
     }
   }
 
@@ -670,7 +670,7 @@ public class SignalServiceAccountManager {
       throws NonSuccessfulResponseCodeException, PushNetworkException
   {
     try {
-      ProfileAndCredential credential = this.pushServiceSocket.retrieveVersionedProfileAndCredential(uuid, profileKey, Optional.absent()).get(10, TimeUnit.SECONDS);
+      ProfileAndCredential credential = this.pushServiceSocket.retrieveVersionedProfileAndCredential(uuid, profileKey, Optional.empty()).get(10, TimeUnit.SECONDS);
       return credential.getProfileKeyCredential();
     } catch (InterruptedException | TimeoutException e) {
       throw new PushNetworkException(e);

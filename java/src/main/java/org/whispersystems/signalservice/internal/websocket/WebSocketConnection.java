@@ -4,7 +4,6 @@ import com.google.protobuf.InvalidProtocolBufferException;
 
 import org.whispersystems.libsignal.logging.Log;
 import org.whispersystems.libsignal.util.Pair;
-import org.whispersystems.libsignal.util.guava.Optional;
 import org.whispersystems.signalservice.api.push.TrustStore;
 import org.whispersystems.signalservice.api.util.CredentialsProvider;
 import org.whispersystems.signalservice.api.util.SleepTimer;
@@ -25,6 +24,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -132,7 +132,7 @@ public class WebSocketConnection extends WebSocketListener {
                                                            .sslSocketFactory(new Tls12SocketFactory(socketFactory.first()), socketFactory.second())
                                                            .connectionSpecs(Util.immutableList(ConnectionSpec.RESTRICTED_TLS))
                                                            .readTimeout(KEEPALIVE_TIMEOUT_SECONDS + 10, TimeUnit.SECONDS)
-                                                           .dns(dns.or(Dns.SYSTEM))
+                                                           .dns(dns.orElse(Dns.SYSTEM))
                                                            .connectTimeout(KEEPALIVE_TIMEOUT_SECONDS + 10, TimeUnit.SECONDS);
 
       for (Interceptor interceptor : interceptors) {

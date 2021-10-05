@@ -12,7 +12,6 @@ import org.whispersystems.libsignal.IdentityKey;
 import org.whispersystems.libsignal.InvalidKeyException;
 import org.whispersystems.libsignal.InvalidMessageException;
 import org.whispersystems.libsignal.logging.Log;
-import org.whispersystems.libsignal.util.guava.Optional;
 import org.whispersystems.signalservice.api.messages.SignalServiceAttachmentStream;
 import org.whispersystems.signalservice.api.push.SignalServiceAddress;
 import org.whispersystems.signalservice.api.util.UuidUtil;
@@ -21,6 +20,7 @@ import org.whispersystems.signalservice.internal.util.Util;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Optional;
 
 public class DeviceContactsInputStream extends ChunkedInputStream {
 
@@ -43,14 +43,14 @@ public class DeviceContactsInputStream extends ChunkedInputStream {
     }
 
     SignalServiceAddress                    address       = new SignalServiceAddress(UuidUtil.parseOrNull(details.getUuid()), details.getNumber());
-    Optional<String>                        name          = Optional.fromNullable(details.getName());
-    Optional<SignalServiceAttachmentStream> avatar        = Optional.absent();
-    Optional<String>                        color         = details.hasColor() ? Optional.of(details.getColor()) : Optional.<String>absent();
-    Optional<VerifiedMessage>               verified      = Optional.absent();
-    Optional<ProfileKey>                    profileKey    = Optional.absent();
+    Optional<String>                        name          = Optional.ofNullable(details.getName());
+    Optional<SignalServiceAttachmentStream> avatar        = Optional.empty();
+    Optional<String>                        color         = details.hasColor() ? Optional.of(details.getColor()) : Optional.<String>empty();
+    Optional<VerifiedMessage>               verified      = Optional.empty();
+    Optional<ProfileKey>                    profileKey    = Optional.empty();
     boolean                                 blocked       = false;
-    Optional<Integer>                       expireTimer   = Optional.absent();
-    Optional<Integer>                       inboxPosition = Optional.absent();
+    Optional<Integer>                       expireTimer   = Optional.empty();
+    Optional<Integer>                       inboxPosition = Optional.empty();
     boolean                                 archived      = false;
       System.err.println("retrieved "+name+" with address "+address.getNumber());
     if (details.hasAvatar()) {
@@ -59,7 +59,7 @@ public class DeviceContactsInputStream extends ChunkedInputStream {
       InputStream avatarStream      = new LimitedInputStream(in, avatarLength);
       String      avatarContentType = details.getAvatar().getContentType();
         System.err.println("retrieve avatar, lenght = "+avatarLength+ ", contenttype = "+ avatarContentType);
-      avatar = Optional.of(new SignalServiceAttachmentStream(avatarStream, avatarContentType, avatarLength, Optional.<String>absent(), false, false, null, null));
+      avatar = Optional.of(new SignalServiceAttachmentStream(avatarStream, avatarContentType, avatarLength, Optional.<String>empty(), false, false, null, null));
     }
 
     if (details.hasVerified()) {
@@ -83,13 +83,13 @@ public class DeviceContactsInputStream extends ChunkedInputStream {
         verified = Optional.of(new VerifiedMessage(destination, identityKey, state, System.currentTimeMillis()));
       } catch (InvalidKeyException | InvalidMessageException e) {
         Log.w(TAG, e);
-        verified = Optional.absent();
+        verified = Optional.empty();
       }
     }
 
     if (details.hasProfileKey()) {
       try {
-        profileKey = Optional.fromNullable(new ProfileKey(details.getProfileKey().toByteArray()));
+        profileKey = Optional.ofNullable(new ProfileKey(details.getProfileKey().toByteArray()));
       } catch (InvalidInputException e) {
         Log.w(TAG, "Invalid profile key ignored", e);
       }

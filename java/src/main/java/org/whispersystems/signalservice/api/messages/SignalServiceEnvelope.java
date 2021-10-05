@@ -11,7 +11,6 @@ import com.google.protobuf.InvalidProtocolBufferException;
 
 import org.whispersystems.libsignal.InvalidVersionException;
 import org.whispersystems.libsignal.logging.Log;
-import org.whispersystems.libsignal.util.guava.Optional;
 import org.whispersystems.signalservice.api.push.SignalServiceAddress;
 import org.whispersystems.signalservice.api.util.UuidUtil;
 import org.whispersystems.signalservice.internal.push.SignalServiceProtos.Envelope;
@@ -24,6 +23,7 @@ import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
+import java.util.Optional;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -148,18 +148,18 @@ public class SignalServiceEnvelope {
    * @return The envelope's sender as an E164 number.
    */
   public Optional<String> getSourceE164() {
-    return Optional.fromNullable(envelope.getSourceE164());
+    return Optional.ofNullable(envelope.getSourceE164());
   }
 
   /**
    * @return The envelope's sender as a UUID.
    */
   public Optional<String> getSourceUuid() {
-    return Optional.fromNullable(envelope.getSourceUuid());
+    return Optional.ofNullable(envelope.getSourceUuid());
   }
 
   public String getSourceIdentifier() {
-    return getSourceUuid().or(getSourceE164()).orNull();
+    return getSourceUuid().orElse(getSourceE164().orElse("null"));
   }
 
   public boolean hasSourceDevice() {

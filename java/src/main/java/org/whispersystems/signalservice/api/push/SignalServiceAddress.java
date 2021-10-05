@@ -6,11 +6,11 @@
 
 package org.whispersystems.signalservice.api.push;
 
-import org.whispersystems.libsignal.util.guava.Optional;
 import org.whispersystems.signalservice.api.util.OptionalUtil;
 import org.whispersystems.signalservice.api.util.UuidUtil;
 
 import java.util.UUID;
+import java.util.Optional;
 
 /**
  * A class representing a message destination or origin.
@@ -44,11 +44,11 @@ public class SignalServiceAddress {
    * Convenience constructor that will consider a UUID/E164 string absent if it is null or empty.
    */
   public SignalServiceAddress(UUID uuid, String e164) {
-    this(Optional.fromNullable(uuid), OptionalUtil.absentIfEmpty(e164));
+    this(Optional.ofNullable(uuid), OptionalUtil.absentIfEmpty(e164));
   }
 
   public SignalServiceAddress(Optional<UUID> uuid, Optional<String> e164) {
-    this(uuid, e164, Optional.<String>absent());
+    this(uuid, e164, Optional.<String>empty());
   }
 
   public Optional<String> getNumber() {
@@ -96,7 +96,7 @@ public class SignalServiceAddress {
     if (isValidAddress(rawUuid, e164)) {
       return Optional.of(new SignalServiceAddress(UuidUtil.parseOrNull(rawUuid), e164));
     } else {
-      return Optional.absent();
+      return Optional.empty();
     }
   }
 

@@ -10,7 +10,6 @@ import org.signal.zkgroup.VerificationFailedException;
 import org.signal.zkgroup.profiles.ClientZkProfileOperations;
 import org.signal.zkgroup.profiles.ProfileKey;
 import org.whispersystems.libsignal.InvalidMessageException;
-import org.whispersystems.libsignal.util.guava.Optional;
 import org.whispersystems.signalservice.api.crypto.AttachmentCipherInputStream;
 import org.whispersystems.signalservice.api.crypto.ProfileCipherInputStream;
 import org.whispersystems.signalservice.api.crypto.UnidentifiedAccess;
@@ -48,6 +47,7 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -141,14 +141,14 @@ public class SignalServiceMessageReceiver {
         return FutureTransformers.map(socket.retrieveVersionedProfile(uuid.get(), profileKey.get(), unidentifiedAccess), profile -> {
           return new ProfileAndCredential(profile,
                                           SignalServiceProfile.RequestType.PROFILE,
-                                          Optional.absent());
+                                          Optional.empty());
         });
       }
     } else {
       return FutureTransformers.map(socket.retrieveProfile(address, unidentifiedAccess), profile -> {
         return new ProfileAndCredential(profile,
                                         SignalServiceProfile.RequestType.PROFILE,
-                                        Optional.absent());
+                                        Optional.empty());
       });
     }
   }
@@ -191,7 +191,7 @@ public class SignalServiceMessageReceiver {
     if (!pointer.getDigest().isPresent()) throw new InvalidMessageException("No attachment digest!");
 
     socket.retrieveAttachment(pointer.getCdnNumber(), pointer.getRemoteId(), destination, maxSizeBytes, listener);
-    return AttachmentCipherInputStream.createForAttachment(destination, pointer.getSize().or(0), pointer.getKey(), pointer.getDigest().get());
+    return AttachmentCipherInputStream.createForAttachment(destination, pointer.getSize().orElse(0), pointer.getKey(), pointer.getDigest().get());
   }
 
   public InputStream retrieveSticker(byte[] packId, byte[] packKey, int stickerId)
@@ -254,7 +254,7 @@ public class SignalServiceMessageReceiver {
   public SignalServiceMessagePipe createUnidentifiedMessagePipe() {
     WebSocketConnection webSocket = new WebSocketConnection(urls.getSignalServiceUrls()[0].getUrl(),
                                                             urls.getSignalServiceUrls()[0].getTrustStore(),
-                                                            Optional.<CredentialsProvider>absent(), signalAgent, connectivityListener,
+                                                            Optional.<CredentialsProvider>empty(), signalAgent, connectivityListener,
                                                             sleepTimer,
                                                             urls.getNetworkInterceptors(),
                                                             urls.getDns(),

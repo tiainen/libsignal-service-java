@@ -1,7 +1,8 @@
 package org.whispersystems.signalservice.internal.push;
 
-import org.whispersystems.libsignal.util.guava.Optional;
 import org.whispersystems.signalservice.api.messages.SignalServiceGroupContext;
+
+import java.util.Optional;
 
 /**
  * Exception that indicates that the data message contains something that is not supported by this

@@ -17,7 +17,6 @@ import org.whispersystems.libsignal.IdentityKey;
 import org.whispersystems.libsignal.InvalidKeyException;
 import org.whispersystems.libsignal.InvalidMessageException;
 import org.whispersystems.libsignal.logging.Log;
-import org.whispersystems.libsignal.util.guava.Optional;
 import org.whispersystems.signalservice.api.messages.calls.AnswerMessage;
 import org.whispersystems.signalservice.api.messages.calls.BusyMessage;
 import org.whispersystems.signalservice.api.messages.calls.HangupMessage;
@@ -50,6 +49,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.whispersystems.signalservice.api.messages.multidevice.ContactsMessage;
 
@@ -90,11 +90,11 @@ public final class SignalServiceContent {
     this.needsReceipt             = needsReceipt;
     this.serializedState          = serializedState;
 
-    this.message            = Optional.fromNullable(message);
-    this.synchronizeMessage = Optional.absent();
-    this.callMessage        = Optional.absent();
-    this.readMessage        = Optional.absent();
-    this.typingMessage      = Optional.absent();
+    this.message            = Optional.ofNullable(message);
+    this.synchronizeMessage = Optional.empty();
+    this.callMessage        = Optional.empty();
+    this.readMessage        = Optional.empty();
+    this.typingMessage      = Optional.empty();
   }
 
   private SignalServiceContent(SignalServiceSyncMessage synchronizeMessage,
@@ -114,11 +114,11 @@ public final class SignalServiceContent {
     this.needsReceipt             = needsReceipt;
     this.serializedState          = serializedState;
 
-    this.message            = Optional.absent();
-    this.synchronizeMessage = Optional.fromNullable(synchronizeMessage);
-    this.callMessage        = Optional.absent();
-    this.readMessage        = Optional.absent();
-    this.typingMessage      = Optional.absent();
+    this.message            = Optional.empty();
+    this.synchronizeMessage = Optional.ofNullable(synchronizeMessage);
+    this.callMessage        = Optional.empty();
+    this.readMessage        = Optional.empty();
+    this.typingMessage      = Optional.empty();
   }
 
   private SignalServiceContent(SignalServiceCallMessage callMessage,
@@ -138,11 +138,11 @@ public final class SignalServiceContent {
     this.needsReceipt             = needsReceipt;
     this.serializedState          = serializedState;
 
-    this.message            = Optional.absent();
-    this.synchronizeMessage = Optional.absent();
+    this.message            = Optional.empty();
+    this.synchronizeMessage = Optional.empty();
     this.callMessage        = Optional.of(callMessage);
-    this.readMessage        = Optional.absent();
-    this.typingMessage      = Optional.absent();
+    this.readMessage        = Optional.empty();
+    this.typingMessage      = Optional.empty();
   }
 
   private SignalServiceContent(SignalServiceReceiptMessage receiptMessage,
@@ -162,11 +162,11 @@ public final class SignalServiceContent {
     this.needsReceipt             = needsReceipt;
     this.serializedState          = serializedState;
 
-    this.message            = Optional.absent();
-    this.synchronizeMessage = Optional.absent();
-    this.callMessage        = Optional.absent();
+    this.message            = Optional.empty();
+    this.synchronizeMessage = Optional.empty();
+    this.callMessage        = Optional.empty();
     this.readMessage        = Optional.of(receiptMessage);
-    this.typingMessage      = Optional.absent();
+    this.typingMessage      = Optional.empty();
   }
 
   private SignalServiceContent(SignalServiceTypingMessage typingMessage,
@@ -186,10 +186,10 @@ public final class SignalServiceContent {
     this.needsReceipt             = needsReceipt;
     this.serializedState          = serializedState;
 
-    this.message            = Optional.absent();
-    this.synchronizeMessage = Optional.absent();
-    this.callMessage        = Optional.absent();
-    this.readMessage        = Optional.absent();
+    this.message            = Optional.empty();
+    this.synchronizeMessage = Optional.empty();
+    this.callMessage        = Optional.empty();
+    this.readMessage        = Optional.empty();
     this.typingMessage      = Optional.of(typingMessage);
   }
 
@@ -406,7 +406,7 @@ public final class SignalServiceContent {
       SignalServiceDataMessage             dataMessage          = createSignalServiceMessage(metadata, sentContent.getMessage());
       Optional<SignalServiceAddress>       address              = SignalServiceAddress.isValidAddress(sentContent.getDestinationUuid(), sentContent.getDestinationE164())
                                                                   ? Optional.of(new SignalServiceAddress(UuidUtil.parseOrNull(sentContent.getDestinationUuid()), sentContent.getDestinationE164()))
-                                                                  : Optional.<SignalServiceAddress>absent();
+                                                                  : Optional.<SignalServiceAddress>empty();
 
       if (!address.isPresent() && !dataMessage.getGroupContext().isPresent()) {
         throw new ProtocolInvalidMessageException(new InvalidMessageException("SyncMessage missing both destination and group ID!"), null, 0);
@@ -549,10 +549,10 @@ public final class SignalServiceContent {
       Boolean typingIndicators               = content.getConfiguration().hasTypingIndicators() ? content.getConfiguration().getTypingIndicators() : null;
       Boolean linkPreviews                   = content.getConfiguration().hasLinkPreviews() ? content.getConfiguration().getLinkPreviews() : null;
 
-      return SignalServiceSyncMessage.forConfiguration(new ConfigurationMessage(Optional.fromNullable(readReceipts),
-                                                                                Optional.fromNullable(unidentifiedDeliveryIndicators),
-                                                                                Optional.fromNullable(typingIndicators),
-                                                                                Optional.fromNullable(linkPreviews)));
+      return SignalServiceSyncMessage.forConfiguration(new ConfigurationMessage(Optional.ofNullable(readReceipts),
+                                                                                Optional.ofNullable(unidentifiedDeliveryIndicators),
+                                                                                Optional.ofNullable(typingIndicators),
+                                                                                Optional.ofNullable(linkPreviews)));
     }
 
     if (content.hasFetchLatest() && content.getFetchLatest().hasType()) {
@@ -667,7 +667,7 @@ Thread.dumpStack();
 
     return new SignalServiceTypingMessage(action, content.getTimestamp(),
                                           content.hasGroupId() ? Optional.of(content.getGroupId().toByteArray()) :
-                                                                 Optional.<byte[]>absent());
+                                                                 Optional.<byte[]>empty());
   }
 
   private static SignalServiceDataMessage.Quote createQuote(SignalServiceProtos.DataMessage content, boolean isGroupV2) throws ProtocolInvalidMessageException {
@@ -711,7 +711,7 @@ Thread.dumpStack();
                                                        preview.getTitle(),
                                                        preview.getDescription(),
                                                        preview.getDate(),
-                                                       Optional.fromNullable(attachment)));
+                                                       Optional.ofNullable(attachment)));
     }
 
     return results;
@@ -914,15 +914,15 @@ Thread.dumpStack();
                                               SignalServiceAttachmentRemoteId.from(pointer),
                                               pointer.getContentType(),
                                               pointer.getKey().toByteArray(),
-                                              pointer.hasSize() ? Optional.of(pointer.getSize()) : Optional.<Integer>absent(),
-                                              pointer.hasThumbnail() ? Optional.of(pointer.getThumbnail().toByteArray()): Optional.<byte[]>absent(),
+                                              pointer.hasSize() ? Optional.of(pointer.getSize()) : Optional.<Integer>empty(),
+                                              pointer.hasThumbnail() ? Optional.of(pointer.getThumbnail().toByteArray()): Optional.<byte[]>empty(),
                                               pointer.getWidth(), pointer.getHeight(),
-                                              pointer.hasDigest() ? Optional.of(pointer.getDigest().toByteArray()) : Optional.<byte[]>absent(),
-                                              pointer.hasFileName() ? Optional.of(pointer.getFileName()) : Optional.<String>absent(),
+                                              pointer.hasDigest() ? Optional.of(pointer.getDigest().toByteArray()) : Optional.<byte[]>empty(),
+                                              pointer.hasFileName() ? Optional.of(pointer.getFileName()) : Optional.<String>empty(),
                                               (pointer.getFlags() & SignalServiceProtos.AttachmentPointer.Flags.VOICE_MESSAGE_VALUE) != 0,
                                               (pointer.getFlags() & SignalServiceProtos.AttachmentPointer.Flags.BORDERLESS_VALUE) != 0,
-                                              pointer.hasCaption() ? Optional.of(pointer.getCaption()) : Optional.<String>absent(),
-                                              pointer.hasBlurHash() ? Optional.of(pointer.getBlurHash()) : Optional.<String>absent(),
+                                              pointer.hasCaption() ? Optional.of(pointer.getCaption()) : Optional.<String>empty(),
+                                              pointer.hasBlurHash() ? Optional.of(pointer.getBlurHash()) : Optional.<String>empty(),
                                               pointer.hasUploadTimestamp() ? pointer.getUploadTimestamp() : 0);
 
   }
@@ -975,13 +975,13 @@ Thread.dumpStack();
                                                     pointer.getContentType(),
                                                     pointer.getKey().toByteArray(),
                                                     Optional.of(pointer.getSize()),
-                                                    Optional.<byte[]>absent(), 0, 0,
-                                                    Optional.fromNullable(pointer.hasDigest() ? pointer.getDigest().toByteArray() : null),
-                                                    Optional.<String>absent(),
+                                                    Optional.<byte[]>empty(), 0, 0,
+                                                    Optional.ofNullable(pointer.hasDigest() ? pointer.getDigest().toByteArray() : null),
+                                                    Optional.<String>empty(),
                                                     false,
                                                     false,
-                                                    Optional.<String>absent(),
-                                                    Optional.<String>absent(),
+                                                    Optional.<String>empty(),
+                                                    Optional.<String>empty(),
                                                     pointer.hasUploadTimestamp() ? pointer.getUploadTimestamp() : 0);
       }
 

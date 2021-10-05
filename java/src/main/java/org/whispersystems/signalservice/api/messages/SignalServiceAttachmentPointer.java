@@ -6,7 +6,8 @@
 
 package org.whispersystems.signalservice.api.messages;
 
-import org.whispersystems.libsignal.util.guava.Optional;
+import java.util.Optional;
+
 import org.whispersystems.signalservice.api.SignalServiceMessageReceiver;
 
 /**

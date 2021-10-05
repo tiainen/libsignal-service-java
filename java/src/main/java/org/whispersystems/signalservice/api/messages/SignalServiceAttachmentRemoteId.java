@@ -2,8 +2,9 @@ package org.whispersystems.signalservice.api.messages;
 
 import org.signal.libsignal.metadata.ProtocolInvalidMessageException;
 import org.whispersystems.libsignal.InvalidMessageException;
-import org.whispersystems.libsignal.util.guava.Optional;
 import org.whispersystems.signalservice.internal.push.SignalServiceProtos.AttachmentPointer;
+
+import java.util.Optional;
 
 /**
  * Represents a signal service attachment identifier. This can be either a CDN key or a long, but
@@ -18,11 +19,11 @@ public final class SignalServiceAttachmentRemoteId {
 
     public SignalServiceAttachmentRemoteId(long v2) {
         this.v2 = Optional.of(v2);
-        this.v3 = Optional.absent();
+        this.v3 = Optional.empty();
     }
 
     public SignalServiceAttachmentRemoteId(String v3) {
-        this.v2 = Optional.absent();
+        this.v2 = Optional.empty();
         this.v3 = Optional.of(v3);
     }
 

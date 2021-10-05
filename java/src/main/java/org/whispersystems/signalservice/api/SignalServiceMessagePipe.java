@@ -18,7 +18,6 @@ import org.signal.zkgroup.profiles.ProfileKeyVersion;
 import org.whispersystems.libsignal.InvalidVersionException;
 import org.whispersystems.libsignal.logging.Log;
 import org.whispersystems.libsignal.util.Hex;
-import org.whispersystems.libsignal.util.guava.Optional;
 import org.whispersystems.signalservice.api.crypto.UnidentifiedAccess;
 import org.whispersystems.signalservice.api.messages.SignalServiceEnvelope;
 import org.whispersystems.signalservice.api.profiles.ProfileAndCredential;
@@ -45,6 +44,7 @@ import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -166,7 +166,7 @@ public class SignalServiceMessagePipe {
           callback.onMessage(envelope);
           return Optional.of(envelope);
         } else if (isSocketEmptyRequest(request)) {
-          return Optional.absent();
+          return Optional.empty();
         }
       } finally {
         websocket.sendResponse(response);
@@ -266,7 +266,7 @@ public class SignalServiceMessagePipe {
                                                     ? clientZkProfile.receiveProfileKeyCredential(finalRequestContext, signalServiceProfile.getProfileKeyCredentialResponse())
                                                     : null;
 
-      return new ProfileAndCredential(signalServiceProfile, requestType, Optional.fromNullable(profileKeyCredential));
+      return new ProfileAndCredential(signalServiceProfile, requestType, Optional.ofNullable(profileKeyCredential));
     });
   }
 
@@ -343,7 +343,7 @@ public class SignalServiceMessagePipe {
 
   private static Optional<String> findHeader(WebSocketRequestMessage message, String targetHeader) {
     if (message.getHeadersCount() == 0) {
-      return Optional.absent();
+      return Optional.empty();
     }
 
     for (String header : message.getHeadersList()) {
@@ -355,7 +355,7 @@ public class SignalServiceMessagePipe {
       }
     }
 
-    return Optional.absent();
+    return Optional.empty();
   }
 
   /**

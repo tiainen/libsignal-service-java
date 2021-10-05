@@ -1,6 +1,5 @@
 package org.whispersystems.signalservice.api.storage;
 
-import org.whispersystems.libsignal.util.guava.Optional;
 import org.whispersystems.signalservice.internal.storage.protos.ManifestRecord;
 import org.whispersystems.signalservice.internal.storage.protos.StorageManifest;
 
@@ -8,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
 import java.util.Map;
 
 public class SignalStorageManifest {
@@ -44,7 +44,7 @@ public class SignalStorageManifest {
     if (list != null && list.size() > 0) {
       return Optional.of(list.get(0));
     } else {
-      return Optional.absent();
+      return Optional.empty();
     }
   }
 }
