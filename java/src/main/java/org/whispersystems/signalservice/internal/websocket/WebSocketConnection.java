@@ -24,6 +24,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -54,7 +55,7 @@ public class WebSocketConnection extends WebSocketListener {
   private static final String TAG                       = WebSocketConnection.class.getSimpleName();
   private static final int    KEEPALIVE_TIMEOUT_SECONDS = 55;
 
-  private final LinkedList<WebSocketRequestMessage>              incomingRequests = new LinkedList<>();
+  private final LinkedList<WebSocketRequestMessage> incomingRequests = new LinkedList<>();
   private final Map<Long, OutgoingRequest> outgoingRequests = new HashMap<>();
 
   private final String                        wsUri;
@@ -179,23 +180,27 @@ public class WebSocketConnection extends WebSocketListener {
     notifyAll();
   }
 
-  public synchronized WebSocketRequestMessage readRequest(long timeoutMillis)
-      throws TimeoutException, IOException
-  {
-    if (client == null) {
-      throw new IOException("Connection closed!");
+    public synchronized WebSocketRequestMessage readRequest(long timeoutMillis)
+            throws TimeoutException, IOException {
+        if (client == null) {
+            throw new IOException("Connection closed!");
+        }
+
+        long startTime = System.currentTimeMillis();
+
+        while (client != null && incomingRequests.isEmpty() && elapsedTime(startTime) < timeoutMillis) {
+            Util.wait(this, Math.max(1, timeoutMillis - elapsedTime(startTime)));
+        }
+
+        if (incomingRequests.isEmpty() && client == null) {
+            throw new IOException("Connection closed!");
+        } else if (incomingRequests.isEmpty()) {
+            throw new TimeoutException("Timeout exceeded");
+        } else {
+            System.err.println("[WSC] readrequest will handover "+Objects.hashCode(incomingRequests.getFirst()));
+            return incomingRequests.removeFirst();
+        }
     }
-
-    long startTime = System.currentTimeMillis();
-
-    while (client != null && incomingRequests.isEmpty() && elapsedTime(startTime) < timeoutMillis) {
-      Util.wait(this, Math.max(1, timeoutMillis - elapsedTime(startTime)));
-    }
-
-    if      (incomingRequests.isEmpty() && client == null) throw new IOException("Connection closed!");
-    else if (incomingRequests.isEmpty())                   throw new TimeoutException("Timeout exceeded");
-    else                                                   return incomingRequests.removeFirst();
-  }
 
   public synchronized ListenableFuture<WebsocketResponse> sendRequest(WebSocketRequestMessage request) throws IOException {
     if (client == null || !connected) throw new IOException("No connection!");
@@ -268,12 +273,12 @@ public class WebSocketConnection extends WebSocketListener {
   public synchronized void onMessage(WebSocket webSocket, ByteString payload) {
     try {
       WebSocketMessage message = WebSocketMessage.parseFrom(payload.toByteArray());
-      System.err.println("[WSC] onMessage with type "+message.getType());
+      System.err.println("[WSC] "+Thread.currentThread()+" onMessage with type "+message.getType());
       if (message.getType().getNumber() == WebSocketMessage.Type.REQUEST_VALUE)  {
-          Thread.dumpStack();
-          System.err.println("message = "+message);
-          System.err.println("requst = "+message.getRequest().getBody());
+          System.err.println("[WSCOM] message = "+message);
+  //        System.err.println("[WSCOM] request = "+message.getRequest().getBody());
         incomingRequests.add(message.getRequest());
+          System.err.println("[WCOM] message added to incomingRequests "+Objects.hashCode(message.getRequest()));
       } else if (message.getType().getNumber() == WebSocketMessage.Type.RESPONSE_VALUE) {
         OutgoingRequest listener = outgoingRequests.get(message.getResponse().getId());
         System.err.println("listener for id " + message.getResponse().getId()+" = "+listener);

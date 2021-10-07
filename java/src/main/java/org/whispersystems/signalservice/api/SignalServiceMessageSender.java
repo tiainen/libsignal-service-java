@@ -1598,7 +1598,7 @@ public class SignalServiceMessageSender {
       throws IOException, InvalidKeyException, UntrustedIdentityException
   {
     List<OutgoingPushMessage> messages = new LinkedList<>();
-System.err.println("DO not ALWAYS SEND TO devid 1");
+Thread.dumpStack();
       System.err.println("recipient = "+recipient.getIdentifier()+ "or leg "+recipient.getLegacyIdentifier()
       + " with nr = "+recipient.getNumber()+" and uuid = "+recipient.getUuid());
       System.err.println("localaddress = "+localAddress.getIdentifier()+" or leg "+localAddress.getLegacyIdentifier());
@@ -1627,9 +1627,10 @@ System.err.println("DO not ALWAYS SEND TO devid 1");
   {
     SignalProtocolAddress signalProtocolAddress = new SignalProtocolAddress(recipient.getIdentifier(), deviceId);
     SignalServiceCipher   cipher                = new SignalServiceCipher(localAddress, store, sessionLock, null);
-
+      System.err.println("[SSMS] "+Thread.currentThread()+" encrypting outgoing message");
     if (!store.containsSession(signalProtocolAddress)) {
       try {
+          System.err.println("[SMSS] we need to get prekeys first");
         List<PreKeyBundle> preKeys = socket.getPreKeys(recipient, unidentifiedAccess, deviceId);
           System.err.println("[SSMS] preKeys = "+preKeys);
         for (PreKeyBundle preKey : preKeys) {

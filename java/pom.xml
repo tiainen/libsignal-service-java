@@ -45,7 +45,7 @@
         <dependency>
           <groupId>org.signal</groupId>
           <artifactId>signal-metadata-java</artifactId>
-          <version>0.1.2-gluon-2</version>
+          <version>0.1.2-gluon-3-SNAPSHOT</version>
         </dependency>
         <dependency>
           <groupId>com.squareup.okhttp3</groupId>

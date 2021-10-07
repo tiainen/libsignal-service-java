@@ -1414,6 +1414,7 @@ public class PushServiceSocket {
       throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException
   {
       System.err.println("PSS, makeServiceReq, urlFrag = "+urlFragment+" and method = "+method);
+     Thread.dumpStack();
       System.err.println("PSS, body = "+body);
       System.err.println("headers = "+headers);
       Response response = getServiceConnection(urlFragment, method, body, headers, unidentifiedAccessKey);
