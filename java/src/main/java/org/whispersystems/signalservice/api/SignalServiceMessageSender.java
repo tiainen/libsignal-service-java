@@ -1663,6 +1663,7 @@ Thread.dumpStack();
       throws IOException, UntrustedIdentityException
   {
     try {
+System.err.println("MISMATCH: extra = " + mismatchedDevices.getExtraDevices()+" and missing = " + mismatchedDevices.getMissingDevices());
       for (int extraDeviceId : mismatchedDevices.getExtraDevices()) {
         if (recipient.getUuid().isPresent()) {
           store.archiveSession(new SignalProtocolAddress(recipient.getUuid().get().toString(), extraDeviceId));
