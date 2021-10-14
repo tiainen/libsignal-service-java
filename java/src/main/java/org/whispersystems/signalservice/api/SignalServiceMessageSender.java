@@ -227,7 +227,7 @@ public class SignalServiceMessageSender {
 
     long timestamp = message.getSent().isPresent() ? message.getSent().get().getTimestamp()
                                                    : System.currentTimeMillis();
-      System.err.println("Content = "+content);
+    Log.d(TAG, "Content = "+content);
     OutgoingPushMessageList messages  = getEncryptedMessages(socket, localAddress, Optional.<UnidentifiedAccess>empty(), timestamp, content, false);
     return messages;
   }
@@ -242,11 +242,11 @@ public class SignalServiceMessageSender {
     SyncMessage.Request.Builder requestMessage = SyncMessage.Request.newBuilder();
     requestMessage.setType(request.getType());
 
-      Content content = container.setSyncMessage(syncMessage.setRequest(requestMessage)).build();
-      System.err.println("SYNCMESSAGE content = "+content);
-      System.err.println("SYNCMESSAGE contentmap = "+content.getAllFields());
+    Content content = container.setSyncMessage(syncMessage.setRequest(requestMessage)).build();
+    Log.d(TAG, "SYNCMESSAGE content = "+content);
+    Log.d(TAG, "SYNCMESSAGE contentmap = "+content.getAllFields());
 
-      return content.toByteArray();
+    return content.toByteArray();
   }
 
   /**
@@ -1598,17 +1598,16 @@ public class SignalServiceMessageSender {
       throws IOException, InvalidKeyException, UntrustedIdentityException
   {
     List<OutgoingPushMessage> messages = new LinkedList<>();
-Thread.dumpStack();
-      System.err.println("recipient = "+recipient.getIdentifier()+ "or leg "+recipient.getLegacyIdentifier()
+      Log.d(TAG, "recipient = "+recipient.getIdentifier()+ "or leg "+recipient.getLegacyIdentifier()
       + " with nr = "+recipient.getNumber()+" and uuid = "+recipient.getUuid());
-      System.err.println("localaddress = "+localAddress.getIdentifier()+" or leg "+localAddress.getLegacyIdentifier());
+      Log.d(TAG, "localaddress = "+localAddress.getIdentifier()+" or leg "+localAddress.getLegacyIdentifier());
       OutgoingPushMessage encryptedMessage = getEncryptedMessage(socket, recipient, unidentifiedAccess, SignalServiceAddress.DEFAULT_DEVICE_ID, plaintext); 
-      System.err.println("processed encryptedmessage even if we might nog need it, but it will update the subdevicesessions");
+      Log.d(TAG, "processed encryptedmessage even if we might nog need it, but it will update the subdevicesessions");
       if (!recipient.matches(localAddress) || unidentifiedAccess.isPresent()) {
         messages.add(encryptedMessage);
       }
       List<Integer> subDeviceSessions = store.getSubDeviceSessions(recipient.getIdentifier());
-      System.err.println("SubDeviceSessions: "+subDeviceSessions);
+      Log.d(TAG, "SubDeviceSessions: "+subDeviceSessions);
     for (int deviceId : subDeviceSessions) {
       if (store.containsSession(new SignalProtocolAddress(recipient.getIdentifier(), deviceId))) {
         messages.add(getEncryptedMessage(socket, recipient, unidentifiedAccess, deviceId, plaintext));
@@ -1627,12 +1626,12 @@ Thread.dumpStack();
   {
     SignalProtocolAddress signalProtocolAddress = new SignalProtocolAddress(recipient.getIdentifier(), deviceId);
     SignalServiceCipher   cipher                = new SignalServiceCipher(localAddress, store, sessionLock, null);
-      System.err.println("[SSMS] "+Thread.currentThread()+" encrypting outgoing message");
+    Log.d(TAG, "[SSMS] "+Thread.currentThread()+" encrypting outgoing message");
     if (!store.containsSession(signalProtocolAddress)) {
       try {
-          System.err.println("[SMSS] we need to get prekeys first");
+        Log.i(TAG,"We need to get prekeys before we can encrypt a message");
         List<PreKeyBundle> preKeys = socket.getPreKeys(recipient, unidentifiedAccess, deviceId);
-          System.err.println("[SSMS] preKeys = "+preKeys);
+        Log.i(TAG, "We got " + preKeys.size()+" preKeys.");
         for (PreKeyBundle preKey : preKeys) {
           try {
             SignalProtocolAddress preKeyAddress  = new SignalProtocolAddress(recipient.getIdentifier(), preKey.getDeviceId());
@@ -1663,7 +1662,7 @@ Thread.dumpStack();
       throws IOException, UntrustedIdentityException
   {
     try {
-System.err.println("MISMATCH: extra = " + mismatchedDevices.getExtraDevices()+" and missing = " + mismatchedDevices.getMissingDevices());
+      Log.w(TAG, "MISMATCH: extra = " + mismatchedDevices.getExtraDevices()+" and missing = " + mismatchedDevices.getMissingDevices());
       for (int extraDeviceId : mismatchedDevices.getExtraDevices()) {
         if (recipient.getUuid().isPresent()) {
           store.archiveSession(new SignalProtocolAddress(recipient.getUuid().get().toString(), extraDeviceId));

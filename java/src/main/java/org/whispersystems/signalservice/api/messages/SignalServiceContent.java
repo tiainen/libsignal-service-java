@@ -260,7 +260,7 @@ public final class SignalServiceContent {
   public static SignalServiceContent createFromProto(SignalServiceContentProto serviceContentProto)
       throws ProtocolInvalidMessageException, ProtocolInvalidKeyException, UnsupportedDataMessageException
   {
-      System.err.println("SSC createFromProto");
+    Log.d(TAG, "createFromProto called");
     SignalServiceMetadata metadata     = SignalServiceMetadataProtobufSerializer.fromProtobuf(serviceContentProto.getMetadata());
     SignalServiceAddress  localAddress = SignalServiceAddressProtobufSerializer.fromProtobuf(serviceContentProto.getLocalAddress());
 
@@ -277,7 +277,7 @@ public final class SignalServiceContent {
                                       serviceContentProto);
     } else if (serviceContentProto.getDataCase() == SignalServiceContentProto.DataCase.CONTENT) {
       SignalServiceProtos.Content message = serviceContentProto.getContent();
-        System.err.println("SSC content message = "+message);
+      Log.d(TAG, "This is a content message: "+message);
       if (message.hasDataMessage()) {
         return new SignalServiceContent(createSignalServiceMessage(metadata, message.getDataMessage()),
                                         metadata.getSender(),
@@ -431,12 +431,12 @@ public final class SignalServiceContent {
     }
 
     if (content.hasRequest()) {
-        System.err.println("SSC, content has syncrequest");
+      Log.i(TAG, "content has a request");
       return SignalServiceSyncMessage.forRequest(new RequestMessage(content.getRequest()));
     }
     
     if (content.hasContacts()) {
-        System.err.println("SSC contacts!");
+        Log.i(TAG, "content has contacts");
         SignalServiceProtos.SyncMessage.Contacts contacts = content.getContacts();
         SignalServiceAttachmentPointer att = createAttachmentPointer(contacts.getBlob());
         return SignalServiceSyncMessage.forContacts(new ContactsMessage(att, contacts.getComplete()));
@@ -604,41 +604,39 @@ public final class SignalServiceContent {
   }
 
   private static SignalServiceCallMessage createCallMessage(SignalServiceProtos.CallMessage content) {
-Thread.dumpStack();
-      throw new RuntimeException("CALLS NOT YET SUPPORTED");
 
-//    boolean isMultiRing         = content.getMultiRing();
-//    Integer destinationDeviceId = content.hasDestinationDeviceId() ? content.getDestinationDeviceId() : null;
+    boolean isMultiRing         = content.getMultiRing();
+    Integer destinationDeviceId = content.hasDestinationDeviceId() ? content.getDestinationDeviceId() : null;
 //
-//    if (content.hasOffer()) {
-//      SignalServiceProtos.CallMessage.Offer offerContent = content.getOffer();
-//      return SignalServiceCallMessage.forOffer(new OfferMessage(offerContent.getId(), offerContent.hasSdp() ? offerContent.getSdp() : null, OfferMessage.Type.fromProto(offerContent.getType()), offerContent.hasOpaque() ? offerContent.getOpaque().toByteArray() : null), isMultiRing, destinationDeviceId);
-//    } else if (content.hasAnswer()) {
-//      SignalServiceProtos.CallMessage.Answer answerContent = content.getAnswer();
-//      return SignalServiceCallMessage.forAnswer(new AnswerMessage(answerContent.getId(), answerContent.hasSdp() ? answerContent.getSdp() : null, answerContent.hasOpaque() ? answerContent.getOpaque().toByteArray() : null), isMultiRing, destinationDeviceId);
-//    } else if (content.getIceUpdateCount() > 0) {
-//      List<IceUpdateMessage> iceUpdates = new LinkedList<>();
-//
-//      for (SignalServiceProtos.CallMessage.IceUpdate iceUpdate : content.getIceUpdateList()) {
-//        iceUpdates.add(new IceUpdateMessage(iceUpdate.getId(), iceUpdate.hasOpaque() ? iceUpdate.getOpaque().toByteArray() : null, iceUpdate.hasSdp() ? iceUpdate.getSdp() : null));
-//      }
-//
-//      return SignalServiceCallMessage.forIceUpdates(iceUpdates, isMultiRing, destinationDeviceId);
-//    } else if (content.hasLegacyHangup()) {
-//      SignalServiceProtos.CallMessage.Hangup hangup = content.getLegacyHangup();
-//      return SignalServiceCallMessage.forHangup(new HangupMessage(hangup.getId(), HangupMessage.Type.fromProto(hangup.getType()), hangup.getDeviceId(), content.hasLegacyHangup()), isMultiRing, destinationDeviceId);
-//    } else if (content.hasHangup()) {
-//      SignalServiceProtos.CallMessage.Hangup hangup = content.getHangup();
-//      return SignalServiceCallMessage.forHangup(new HangupMessage(hangup.getId(), HangupMessage.Type.fromProto(hangup.getType()), hangup.getDeviceId(), content.hasLegacyHangup()), isMultiRing, destinationDeviceId);
-//    } else if (content.hasBusy()) {
-//      SignalServiceProtos.CallMessage.Busy busy = content.getBusy();
-//      return SignalServiceCallMessage.forBusy(new BusyMessage(busy.getId()), isMultiRing, destinationDeviceId);
-//    } else if (content.hasOpaque()) {
-//      SignalServiceProtos.CallMessage.Opaque opaque = content.getOpaque();
-//      return SignalServiceCallMessage.forOpaque(new OpaqueMessage(opaque.getData().toByteArray()), isMultiRing, destinationDeviceId);
-//    }
-//
-//    return SignalServiceCallMessage.empty();
+    if (content.hasOffer()) {
+      SignalServiceProtos.CallMessage.Offer offerContent = content.getOffer();
+      return SignalServiceCallMessage.forOffer(new OfferMessage(offerContent.getId(), offerContent.hasSdp() ? offerContent.getSdp() : null, OfferMessage.Type.fromProto(offerContent.getType()), offerContent.hasOpaque() ? offerContent.getOpaque().toByteArray() : null), isMultiRing, destinationDeviceId);
+    } else if (content.hasAnswer()) {
+      SignalServiceProtos.CallMessage.Answer answerContent = content.getAnswer();
+      return SignalServiceCallMessage.forAnswer(new AnswerMessage(answerContent.getId(), answerContent.hasSdp() ? answerContent.getSdp() : null, answerContent.hasOpaque() ? answerContent.getOpaque().toByteArray() : null), isMultiRing, destinationDeviceId);
+    } else if (content.getIceUpdateCount() > 0) {
+      List<IceUpdateMessage> iceUpdates = new LinkedList<>();
+
+      for (SignalServiceProtos.CallMessage.IceUpdate iceUpdate : content.getIceUpdateList()) {
+        iceUpdates.add(new IceUpdateMessage(iceUpdate.getId(), iceUpdate.hasOpaque() ? iceUpdate.getOpaque().toByteArray() : null, iceUpdate.hasSdp() ? iceUpdate.getSdp() : null));
+      }
+
+      return SignalServiceCallMessage.forIceUpdates(iceUpdates, isMultiRing, destinationDeviceId);
+    } else if (content.hasLegacyHangup()) {
+      SignalServiceProtos.CallMessage.Hangup hangup = content.getLegacyHangup();
+      return SignalServiceCallMessage.forHangup(new HangupMessage(hangup.getId(), HangupMessage.Type.fromProto(hangup.getType()), hangup.getDeviceId(), content.hasLegacyHangup()), isMultiRing, destinationDeviceId);
+    } else if (content.hasHangup()) {
+      SignalServiceProtos.CallMessage.Hangup hangup = content.getHangup();
+      return SignalServiceCallMessage.forHangup(new HangupMessage(hangup.getId(), HangupMessage.Type.fromProto(hangup.getType()), hangup.getDeviceId(), content.hasLegacyHangup()), isMultiRing, destinationDeviceId);
+    } else if (content.hasBusy()) {
+      SignalServiceProtos.CallMessage.Busy busy = content.getBusy();
+      return SignalServiceCallMessage.forBusy(new BusyMessage(busy.getId()), isMultiRing, destinationDeviceId);
+    } else if (content.hasOpaque()) {
+      SignalServiceProtos.CallMessage.Opaque opaque = content.getOpaque();
+      return SignalServiceCallMessage.forOpaque(new OpaqueMessage(opaque.getData().toByteArray()), isMultiRing, destinationDeviceId);
+    }
+
+    return SignalServiceCallMessage.empty();
   }
 
   private static SignalServiceReceiptMessage createReceiptMessage(SignalServiceMetadata metadata, SignalServiceProtos.ReceiptMessage content) {

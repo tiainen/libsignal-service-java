@@ -148,9 +148,9 @@ public class SignalServiceMessagePipe {
 
     while (true) {
       WebSocketRequestMessage  request  = websocket.readRequest(unit.toMillis(timeout));
-        System.err.println("[SSMP] "+Thread.currentThread()+" readOrEmpty will deal with "+Objects.hashCode(request));
+      Log.d(TAG, "[SSMP] "+Thread.currentThread()+" readOrEmpty will deal with "+Objects.hashCode(request));
       WebSocketResponseMessage response = createWebSocketResponse(request);
-        System.err.println("[SSMP] readOrEmpty has a response ready");
+      Log.d(TAG, "[SSMP] readOrEmpty has a response ready");
       try {
         if (isSignalServiceEnvelope(request)) {
           Optional<String> timestampHeader = findHeader(request, SERVER_DELIVERED_TIMESTAMP_HEADER);
@@ -165,17 +165,17 @@ public class SignalServiceMessagePipe {
           }
 
           SignalServiceEnvelope envelope = new SignalServiceEnvelope(request.getBody().toByteArray(), timestamp);
-            System.err.println("[SSMP] request "+Objects.hashCode(request)+ " has envelope "+Objects.hashCode(envelope));
+          Log.d(TAG, "[SSMP] request "+Objects.hashCode(request)+ " has envelope "+Objects.hashCode(envelope));
           callback.onMessage(envelope);
-            System.err.println("[SSMP] callback invoked on envelope "+Objects.hashCode(envelope));
+          Log.d(TAG, "[SSMP] callback invoked on envelope "+Objects.hashCode(envelope));
           return Optional.of(envelope);
         } else if (isSocketEmptyRequest(request)) {
           return Optional.empty();
         }
       } finally {
-          System.err.println("[SSMP] readOrEmpty will send response");
+        Log.d(TAG, "[SSMP] readOrEmpty will send response");
         websocket.sendResponse(response);
-         System.err.println("[SSMP] readOrEmpty did send response");
+        Log.d(TAG, "[SSMP] readOrEmpty did send response");
 
       }
     }
