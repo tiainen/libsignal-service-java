@@ -26,10 +26,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
@@ -72,6 +72,7 @@ public class WebSocketConnection extends WebSocketListener {
     private KeepAliveSender keepAliveSender;
     private int attempts;
     private boolean connected;
+    private Consumer callback;
 
     public WebSocketConnection(String httpUri,
             TrustStore trustStore,
@@ -81,8 +82,9 @@ public class WebSocketConnection extends WebSocketListener {
             SleepTimer timer,
             List<Interceptor> interceptors,
             Optional<Dns> dns,
-            Optional<SignalProxy> signalProxy) {
-        this(httpUri, "", trustStore, credentialsProvider, signalAgent, listener, timer, interceptors, dns, signalProxy);
+            Optional<SignalProxy> signalProxy,
+            Consumer callback) {
+        this(httpUri, "", trustStore, credentialsProvider, signalAgent, listener, timer, interceptors, dns, signalProxy, callback);
 
     }
 
@@ -95,7 +97,8 @@ public class WebSocketConnection extends WebSocketListener {
             SleepTimer timer,
             List<Interceptor> interceptors,
             Optional<Dns> dns,
-            Optional<SignalProxy> signalProxy) {
+            Optional<SignalProxy> signalProxy,
+            Consumer callback) {
         this.trustStore = trustStore;
         this.credentialsProvider = credentialsProvider;
         this.signalAgent = signalAgent;
@@ -106,6 +109,7 @@ public class WebSocketConnection extends WebSocketListener {
         this.signalProxy = signalProxy;
         this.attempts = 0;
         this.connected = false;
+        this.callback = callback;
 
         String uri = httpUri.replace("https://", "wss://").replace("http://", "ws://");
         if (credentialsProvider.isPresent()) {
@@ -259,7 +263,7 @@ public class WebSocketConnection extends WebSocketListener {
 
     @Override
     public synchronized void onOpen(WebSocket webSocket, Response response) {
-        Log.d(TAG, "[WSC] onOpen for " + this);
+        Log.d(TAG, "[WSC] onOpen for " + this+", response = "+response);
         if (client != null && keepAliveSender == null) {
             Log.i(TAG, "onOpen() connected, client = " + client);
             attempts = 0;
@@ -270,6 +274,9 @@ public class WebSocketConnection extends WebSocketListener {
 
             if (listener != null) {
                 listener.onConnected();
+            }
+            if (this.callback != null) {
+                this.callback.accept(this);
             }
         }
     }

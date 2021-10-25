@@ -6,7 +6,6 @@
 
 package org.whispersystems.signalservice.api;
 
-import org.signal.zkgroup.VerificationFailedException;
 import org.signal.zkgroup.profiles.ClientZkProfileOperations;
 import org.signal.zkgroup.profiles.ProfileKey;
 import org.whispersystems.libsignal.InvalidMessageException;
@@ -22,8 +21,6 @@ import org.whispersystems.signalservice.api.profiles.ProfileAndCredential;
 import org.whispersystems.signalservice.api.profiles.SignalServiceProfile;
 import org.whispersystems.signalservice.api.push.SignalServiceAddress;
 import org.whispersystems.signalservice.api.push.exceptions.MissingConfigurationException;
-import org.whispersystems.signalservice.api.push.exceptions.NonSuccessfulResponseCodeException;
-import org.whispersystems.signalservice.api.push.exceptions.PushNetworkException;
 import org.whispersystems.signalservice.api.util.CredentialsProvider;
 import org.whispersystems.signalservice.api.util.SleepTimer;
 import org.whispersystems.signalservice.api.util.UuidUtil;
@@ -49,6 +46,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 
 /**
  * The primary interface for receiving Signal Service messages.
@@ -233,32 +231,37 @@ public class SignalServiceMessageReceiver {
   }
 
   /**
-   * Creates a pipe for receiving SignalService messages.
+   * Creates a pipe for receiving SignalService messages.Callers must call {@link SignalServiceMessagePipe#shutdown()} when finished with the pipe.
    *
-   * Callers must call {@link SignalServiceMessagePipe#shutdown()} when finished with the pipe.
    *
+   * @param callback A callback function that will be invoked when the created pipeline is
+   * ready to be used by senders. Note that we can't use the <code>ConnectivityListener</code>
+   * here as that is an instance shared between the messagePipe and the unidentifiedMessagePipe.
+   * 
    * @return A SignalServiceMessagePipe for receiving Signal Service messages.
    */
-  public SignalServiceMessagePipe createMessagePipe() {
+  public SignalServiceMessagePipe createMessagePipe(Consumer callback) {
     WebSocketConnection webSocket = new WebSocketConnection(urls.getSignalServiceUrls()[0].getUrl(),
                                                             urls.getSignalServiceUrls()[0].getTrustStore(),
                                                             Optional.of(credentialsProvider), signalAgent, connectivityListener,
                                                             sleepTimer,
                                                             urls.getNetworkInterceptors(),
                                                             urls.getDns(),
-                                                            urls.getSignalProxy());
+                                                            urls.getSignalProxy(),
+                                                            callback);
 
     return new SignalServiceMessagePipe(webSocket, Optional.of(credentialsProvider), clientZkProfileOperations);
   }
 
-  public SignalServiceMessagePipe createUnidentifiedMessagePipe() {
+  public SignalServiceMessagePipe createUnidentifiedMessagePipe(Consumer callback) {
     WebSocketConnection webSocket = new WebSocketConnection(urls.getSignalServiceUrls()[0].getUrl(),
                                                             urls.getSignalServiceUrls()[0].getTrustStore(),
                                                             Optional.<CredentialsProvider>empty(), signalAgent, connectivityListener,
                                                             sleepTimer,
                                                             urls.getNetworkInterceptors(),
                                                             urls.getDns(),
-                                                            urls.getSignalProxy());
+                                                            urls.getSignalProxy(),
+                                                            callback);
 
     return new SignalServiceMessagePipe(webSocket, Optional.of(credentialsProvider), clientZkProfileOperations);
   }

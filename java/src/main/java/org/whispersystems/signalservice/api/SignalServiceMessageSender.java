@@ -443,7 +443,8 @@ public class SignalServiceMessageSender {
     long timestamp = message.getSent().isPresent() ? message.getSent().get().getTimestamp()
                                                    : System.currentTimeMillis();
 
-    sendMessage(localAddress, Optional.<UnidentifiedAccess>empty(), timestamp, content, false, null);
+      SendMessageResult result = sendMessage(localAddress, Optional.<UnidentifiedAccess>empty(), timestamp, content, false, null);
+      Log.d(TAG, "Result of sendMessage = "+result);
   }
 
   public void setSoTimeoutMillis(long soTimeoutMillis) {
@@ -1464,6 +1465,7 @@ public class SignalServiceMessageSender {
         if (pipe.isPresent() && !unidentifiedAccess.isPresent()) {
           try {
             SendMessageResponse response = pipe.get().send(messages, Optional.empty()).get(10, TimeUnit.SECONDS);
+            Log.d(TAG, "sendMessageResponse = "+response+" with needssync = "+response.getNeedsSync());
             return SendMessageResult.success(recipient, false, response.getNeedsSync() || isMultiDevice.get(), System.currentTimeMillis() - startTime);
           } catch (IOException | ExecutionException | InterruptedException | TimeoutException e) {
             Log.w(TAG, e);

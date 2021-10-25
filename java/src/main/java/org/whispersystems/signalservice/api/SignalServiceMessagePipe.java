@@ -77,7 +77,6 @@ public class SignalServiceMessagePipe {
     this.websocket           = websocket;
     this.credentialsProvider = credentialsProvider;
     this.clientZkProfile     = clientZkProfile;
-
     this.websocket.connect();
   }
 
