@@ -3,7 +3,6 @@ package org.whispersystems.signalservice.api.crypto;
 
 import junit.framework.TestCase;
 
-import org.conscrypt.Conscrypt;
 import org.signal.zkgroup.InvalidInputException;
 import org.signal.zkgroup.profiles.ProfileKey;
 import org.whispersystems.signalservice.internal.util.Util;
@@ -15,10 +14,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.Security;
 
 public class ProfileCipherTest extends TestCase {
-
-  static {
-    Security.insertProviderAt(Conscrypt.newProvider(), 1);
-  }
 
   public void testEncryptDecrypt() throws InvalidCiphertextException, InvalidInputException {
     ProfileKey    key       = new ProfileKey(Util.getSecretBytes(32));

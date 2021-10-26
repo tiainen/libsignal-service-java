@@ -1,6 +1,5 @@
 package org.whispersystems.signalservice.api.crypto;
 
-import org.conscrypt.Conscrypt;
 import org.junit.Test;
 import org.whispersystems.libsignal.InvalidMessageException;
 import org.whispersystems.libsignal.kdf.HKDFv3;
@@ -20,10 +19,6 @@ import static org.junit.Assert.assertTrue;
 // import static org.whispersystems.signalservice.testutil.LibSignalLibraryUtil.assumeLibSignalSupportedOnOS;
 
 public final class AttachmentCipherTest {
-
-  static {
-    Security.insertProviderAt(Conscrypt.newProvider(), 1);
-  }
 
   @Test
   public void attachment_encryptDecrypt() throws IOException, InvalidMessageException {
