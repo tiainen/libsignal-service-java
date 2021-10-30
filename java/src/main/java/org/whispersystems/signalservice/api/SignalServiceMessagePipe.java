@@ -146,6 +146,7 @@ public class SignalServiceMessagePipe {
     }
 
     while (true) {
+        System.err.println("[SSMP] Reading on websocket "+websocket);
       WebSocketRequestMessage  request  = websocket.readRequest(unit.toMillis(timeout));
       Log.d(TAG, "[SSMP] "+Thread.currentThread()+" readOrEmpty will deal with "+Objects.hashCode(request));
       WebSocketResponseMessage response = createWebSocketResponse(request);
@@ -171,6 +172,9 @@ public class SignalServiceMessagePipe {
         } else if (isSocketEmptyRequest(request)) {
           return Optional.empty();
         }
+      } catch (Throwable t) {
+          System.err.println("THROWABLE!!! "+t);
+          t.printStackTrace();
       } finally {
         Log.d(TAG, "[SSMP] readOrEmpty will send response");
         websocket.sendResponse(response);

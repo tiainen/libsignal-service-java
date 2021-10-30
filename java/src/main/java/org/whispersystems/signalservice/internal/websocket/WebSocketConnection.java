@@ -195,7 +195,9 @@ public class WebSocketConnection extends WebSocketListener {
         long startTime = System.currentTimeMillis();
 
         while (client != null && incomingRequests.isEmpty() && elapsedTime(startTime) < timeoutMillis) {
-            Util.wait(this, Math.max(1, timeoutMillis - elapsedTime(startTime)));
+            long et = elapsedTime(startTime);
+            System.err.println("WAIT "+(timeoutMillis-et));
+            Util.wait(this, Math.max(1, timeoutMillis - et));
         }
 
         if (incomingRequests.isEmpty() && client == null) {
@@ -283,8 +285,13 @@ public class WebSocketConnection extends WebSocketListener {
 
     @Override
     public synchronized void onMessage(WebSocket webSocket, ByteString payload) {
+        long mid = 0;
         try {
+            Log.d(TAG, "[WSC] "+ Thread.currentThread()+" onMessage invoked on "
+                    +webSocket+" with WSC = " + this+" with queuesize = "+webSocket.queueSize());
+            Thread.dumpStack();
             WebSocketMessage message = WebSocketMessage.parseFrom(payload.toByteArray());
+           mid = Objects.hashCode(message.getRequest());
             Log.d(TAG, "[WSC] " + Thread.currentThread() + " onMessage with type " + message.getType());
             if (message.getType().getNumber() == WebSocketMessage.Type.REQUEST_VALUE) {
                 Log.d(TAG, "[WSCOM] message = " + message);
@@ -303,11 +310,12 @@ public class WebSocketConnection extends WebSocketListener {
         } catch (InvalidProtocolBufferException e) {
             Log.w(TAG, e);
         }
+         Log.d(TAG, "[WSC] "+ Thread.currentThread()+" handled onMessage "+mid);
     }
 
     @Override
     public synchronized void onClosed(WebSocket webSocket, int code, String reason) {
-        Log.i(TAG, "onClosed() for " + this + " with reason = " + reason);
+        Log.i(TAG, "onClosed() for " + this + " on webSocket "+webSocket+" with reason = " + reason);
         this.connected = false;
 
         Iterator<Map.Entry<Long, OutgoingRequest>> iterator = outgoingRequests.entrySet().iterator();
@@ -370,7 +378,8 @@ public class WebSocketConnection extends WebSocketListener {
 
     @Override
     public synchronized void onClosing(WebSocket webSocket, int code, String reason) {
-        Log.i(TAG, "onClosing() for " + this);
+        Log.i(TAG, "onClosing() for " + this+" and webSocket "+webSocket+" with code = " + code+" and reason = "+reason);
+        Thread.dumpStack();
         webSocket.close(1000, "OK");
     }
 
