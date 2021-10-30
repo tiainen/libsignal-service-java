@@ -146,7 +146,6 @@ public class SignalServiceMessagePipe {
     }
 
     while (true) {
-        System.err.println("[SSMP] Reading on websocket "+websocket);
       WebSocketRequestMessage  request  = websocket.readRequest(unit.toMillis(timeout));
       Log.d(TAG, "[SSMP] "+Thread.currentThread()+" readOrEmpty will deal with "+Objects.hashCode(request));
       WebSocketResponseMessage response = createWebSocketResponse(request);

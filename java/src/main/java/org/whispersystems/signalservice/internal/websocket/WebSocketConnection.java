@@ -196,7 +196,7 @@ public class WebSocketConnection extends WebSocketListener {
 
         while (client != null && incomingRequests.isEmpty() && elapsedTime(startTime) < timeoutMillis) {
             long et = elapsedTime(startTime);
-            System.err.println("WAIT "+(timeoutMillis-et));
+//            System.err.println("WAIT "+(timeoutMillis-et));
             Util.wait(this, Math.max(1, timeoutMillis - et));
         }
 
@@ -289,7 +289,6 @@ public class WebSocketConnection extends WebSocketListener {
         try {
             Log.d(TAG, "[WSC] "+ Thread.currentThread()+" onMessage invoked on "
                     +webSocket+" with WSC = " + this+" with queuesize = "+webSocket.queueSize());
-            Thread.dumpStack();
             WebSocketMessage message = WebSocketMessage.parseFrom(payload.toByteArray());
            mid = Objects.hashCode(message.getRequest());
             Log.d(TAG, "[WSC] " + Thread.currentThread() + " onMessage with type " + message.getType());
@@ -379,7 +378,6 @@ public class WebSocketConnection extends WebSocketListener {
     @Override
     public synchronized void onClosing(WebSocket webSocket, int code, String reason) {
         Log.i(TAG, "onClosing() for " + this+" and webSocket "+webSocket+" with code = " + code+" and reason = "+reason);
-        Thread.dumpStack();
         webSocket.close(1000, "OK");
     }
 
