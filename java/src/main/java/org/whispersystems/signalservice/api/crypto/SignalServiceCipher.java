@@ -53,6 +53,7 @@ import org.whispersystems.signalservice.internal.serialize.protos.SignalServiceC
 import org.whispersystems.util.Base64;
 
 import java.util.Optional;
+import org.whispersystems.signalservice.api.InvalidMessageStructureException;
 
 /**
  * This is used to decrypt received {@link SignalServiceEnvelope}s.
@@ -141,20 +142,22 @@ public class SignalServiceCipher {
         return SignalServiceContent.createFromProto(contentProto);
       } else if (envelope.hasContent()) {
         Plaintext                   plaintext = decrypt(envelope, envelope.getContent());
+          System.err.println("PLAINTEXT = "+plaintext);
         SignalServiceProtos.Content content   = SignalServiceProtos.Content.parseFrom(plaintext.getData());
-
+          System.err.println("CONTENT = "+content);
         SignalServiceContentProto contentProto = SignalServiceContentProto.newBuilder()
                                                                           .setLocalAddress(SignalServiceAddressProtobufSerializer.toProtobuf(localAddress))
                                                                           .setMetadata(SignalServiceMetadataProtobufSerializer.toProtobuf(plaintext.metadata))
                                                                           .setContent(content)
                                                                           .build();
-
         return SignalServiceContent.createFromProto(contentProto);
       }
 
       return null;
     } catch (InvalidProtocolBufferException e) {
       throw new InvalidMetadataMessageException(e);
+    } catch (InvalidMessageStructureException e2) {
+      throw new InvalidMetadataMessageException(e2);
     }
   }
 

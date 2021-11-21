@@ -72,7 +72,7 @@ public class AttachmentCipherInputStream extends FilterInputStream {
       }
 
       InputStream inputStream = new AttachmentCipherInputStream(new FileInputStream(file), parts[0], file.length() - BLOCK_SIZE - mac.getMacLength());
-
+        System.err.println("ACIS, ptl = "+plaintextLength+", fl = "+file.length()+", bs = "+BLOCK_SIZE+", ml = "+mac.getMacLength());
       if (plaintextLength != 0) {
         inputStream = new ContentLengthInputStream(inputStream, plaintextLength);
       }

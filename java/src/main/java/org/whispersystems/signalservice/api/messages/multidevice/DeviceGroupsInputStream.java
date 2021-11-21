@@ -27,16 +27,18 @@ public class DeviceGroupsInputStream extends ChunkedInputStream{
 
   public DeviceGroup read() throws IOException {
     long   detailsLength     = readRawVarint32();
+      System.err.println("DETlength = "+detailsLength);
+
     byte[] detailsSerialized = new byte[(int)detailsLength];
+
     Util.readFully(in, detailsSerialized);
-
     GroupDetails details = GroupDetails.parseFrom(detailsSerialized);
-
+      System.err.println("DETNAME? "+details.getName());
     if (!details.hasId()) {
-      throw new IOException("ID missing on group record!");
+         throw new IOException("ID missing on group record!");
     }
 
-    byte[]                                  id              = details.getId().toByteArray();
+     byte[]                                  id              = details.getId().toByteArray();
     Optional<String>                        name            = Optional.ofNullable(details.getName());
     List<GroupDetails.Member>               members         = details.getMembersList();
     Optional<SignalServiceAttachmentStream> avatar          = Optional.empty();

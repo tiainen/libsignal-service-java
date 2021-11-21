@@ -1,5 +1,6 @@
 package org.whispersystems.signalservice.api.messages;
 
+import java.util.Optional;
 import org.whispersystems.signalservice.api.push.SignalServiceAddress;
 
 public final class SignalServiceMetadata {
@@ -53,5 +54,13 @@ public final class SignalServiceMetadata {
 
   public boolean isNeedsReceipt() {
     return needsReceipt;
+  }
+  
+  public String getServerGuid() {
+      return null;
+  }
+  
+  public Optional<byte[]> getGroupId() {
+      return Optional.empty();
   }
 }

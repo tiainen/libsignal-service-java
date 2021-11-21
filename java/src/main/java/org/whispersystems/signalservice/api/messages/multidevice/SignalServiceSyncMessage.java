@@ -42,6 +42,8 @@ public class SignalServiceSyncMessage {
                                    Optional<KeysMessage>                       keys,
                                    Optional<MessageRequestResponseMessage>     messageRequestResponse)
   {
+      Thread.dumpStack();
+      System.err.println("SSSM constructor");
     this.sent                   = sent;
     this.contacts               = contacts;
     this.groups                 = groups;
