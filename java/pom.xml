@@ -35,7 +35,7 @@
         <dependency>
           <groupId>org.signal</groupId>
           <artifactId>zkgroup-java</artifactId>
-          <version>0.7.0</version>
+          <version>0.8.2</version>
         </dependency>
         <dependency>
           <groupId>com.squareup.okhttp3</groupId>
@@ -119,8 +119,8 @@
         <artifactId>protobuf-maven-plugin</artifactId>
         <version>0.6.1</version>
         <configuration>
-          <protocExecutable>/usr/local/bin/protoc</protocExecutable>
-          <!-- <protocExecutable>/usr/bin/protoc</protocExecutable> -->
+          <!-- <protocExecutable>/usr/local/bin/protoc</protocExecutable> -->
+          <protocExecutable>/usr/bin/protoc</protocExecutable>
         </configuration>
         <executions>
           <execution>
