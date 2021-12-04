@@ -151,6 +151,10 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
+import org.whispersystems.libsignal.InvalidKeyException;
+import org.whispersystems.signalservice.api.storage.SignalStorageManifest;
+import org.whispersystems.signalservice.api.storage.SignalStorageModels;
+import org.whispersystems.signalservice.api.storage.StorageKey;
 
 /**
  * @author Moxie Marlinspike
@@ -857,6 +861,10 @@ public class PushServiceSocket {
 
     return StorageManifest.parseFrom(readBodyBytes(response));
   }
+  
+    public SignalStorageManifest getSignalStorageManifest(String authToken, StorageKey storageKey) throws IOException, InvalidKeyException {
+        return SignalStorageModels.remoteToLocalStorageManifest(getStorageManifest(authToken), storageKey);
+    }
 
   public StorageManifest getStorageManifestIfDifferentVersion(String authToken, long version) throws IOException {
     ResponseBody response = makeStorageRequest(authToken, "/v1/storage/manifest/version/" + version, "GET", null);

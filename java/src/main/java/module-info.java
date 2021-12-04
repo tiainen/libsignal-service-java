@@ -19,11 +19,15 @@ module org.whispersystems.service {
     exports org.whispersystems.signalservice.api.groupsv2;
     exports org.whispersystems.signalservice.api.messages;
     exports org.whispersystems.signalservice.api.messages.multidevice;
+    exports org.whispersystems.signalservice.api.profiles;
     exports org.whispersystems.signalservice.api.push;
+    exports org.whispersystems.signalservice.api.storage;
     exports org.whispersystems.signalservice.api.util;
     exports org.whispersystems.signalservice.api.websocket;
     exports org.whispersystems.util;
     opens org.whispersystems.signalservice.api.groupsv2 to com.fasterxml.jackson.databind;
     opens org.whispersystems.signalservice.internal.push to com.fasterxml.jackson.databind;
+    opens org.whispersystems.signalservice.api.profiles to com.fasterxml.jackson.databind;
     opens org.whispersystems.signalservice.api.push to com.fasterxml.jackson.databind;
+    opens org.whispersystems.signalservice.api.storage to com.fasterxml.jackson.databind;
 }

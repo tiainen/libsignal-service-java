@@ -60,6 +60,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.whispersystems.signalservice.api.messages.multidevice.ContactsMessage;
+import org.whispersystems.signalservice.api.messages.multidevice.KeysMessage;
+import org.whispersystems.signalservice.api.storage.StorageKey;
 
 import static org.whispersystems.signalservice.internal.push.SignalServiceProtos.GroupContext.Type.DELIVER;
 
@@ -631,8 +633,15 @@ public final class SignalServiceContent {
          SignalServiceProtos.SyncMessage.Groups groups = content.getGroups();
          SignalServiceAttachmentPointer att = createAttachmentPointer(groups.getBlob());
          return SignalServiceSyncMessage.forGroups(att);
-
     }
+    if (content.hasKeys()) {
+         Log.i(TAG, "content has keys");
+         SignalServiceProtos.SyncMessage.Keys keys = content.getKeys();
+         keys.getStorageService();
+         StorageKey sk = new StorageKey(keys.getStorageService().toByteArray());
+         return SignalServiceSyncMessage.forKeys(new KeysMessage(Optional.of(sk)));
+    }
+    
     if (content.getReadList().size() > 0) {
       List<ReadMessage> readMessages = new LinkedList<>();
 
