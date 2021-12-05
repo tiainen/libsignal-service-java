@@ -9,6 +9,7 @@ module org.whispersystems.service {
     requires com.fasterxml.jackson.annotation;
     requires com.fasterxml.jackson.core;
     requires com.fasterxml.jackson.databind;
+    exports org.signal.storageservice.protos.groups.local;
     exports org.whispersystems.signalservice.internal.configuration;
     exports org.whispersystems.signalservice.internal.push;
     exports org.whispersystems.signalservice.internal.util;
