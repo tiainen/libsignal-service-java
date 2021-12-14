@@ -51,6 +51,10 @@ public class SignalServiceAddress {
     this(uuid, e164, Optional.<String>empty());
   }
 
+  public SignalServiceAddress(UUID uuid) {
+      this(Optional.of(uuid), Optional.empty(), Optional.empty());
+  }
+  
   public Optional<String> getNumber() {
     return e164;
   }

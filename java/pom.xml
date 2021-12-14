@@ -30,7 +30,7 @@
         <dependency>
           <groupId>org.signal</groupId>
           <artifactId>signal-metadata-java</artifactId>
-          <version>0.1.2-gluon-7</version>
+          <version>0.1.2-gluon-8</version>
         </dependency>
         <dependency>
           <groupId>org.signal</groupId>
@@ -55,7 +55,7 @@
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
-            <version>3.18.1</version>
+            <version>3.19.1</version>
         </dependency>
     <dependency>
       <groupId>junit</groupId>
