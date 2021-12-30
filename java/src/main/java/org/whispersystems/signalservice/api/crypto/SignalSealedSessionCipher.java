@@ -14,6 +14,7 @@ import org.signal.libsignal.metadata.SealedSessionCipher;
 import org.signal.libsignal.metadata.SelfSendException;
 import org.signal.libsignal.metadata.certificate.CertificateValidator;
 import org.signal.libsignal.metadata.certificate.SenderCertificate;
+import org.signal.libsignal.metadata.protocol.UnidentifiedSenderMessageContent;
 import org.whispersystems.libsignal.InvalidKeyException;
 import org.whispersystems.libsignal.SignalProtocolAddress;
 import org.whispersystems.signalservice.api.SignalSessionLock;
@@ -36,6 +37,13 @@ public class SignalSealedSessionCipher {
       return cipher.encrypt(destinationAddress, senderCertificate, paddedPlaintext);
     }
   }
+
+  public byte[] encrypt(SignalProtocolAddress destinationAddress, UnidentifiedSenderMessageContent content) throws InvalidKeyException, org.whispersystems.libsignal.UntrustedIdentityException {
+    try (SignalSessionLock.Lock unused = lock.acquire()) {
+      return cipher.encrypt(destinationAddress, content);
+    }
+  }
+
 
   public SealedSessionCipher.DecryptionResult decrypt(CertificateValidator validator, byte[] ciphertext, long timestamp) throws InvalidMetadataMessageException, InvalidMetadataVersionException, ProtocolInvalidMessageException, ProtocolInvalidKeyException, ProtocolNoSessionException, ProtocolLegacyMessageException, ProtocolInvalidVersionException, ProtocolDuplicateMessageException, ProtocolInvalidKeyIdException, ProtocolUntrustedIdentityException, SelfSendException {
     try (SignalSessionLock.Lock unused = lock.acquire()) {

@@ -80,6 +80,23 @@ public class SignalServiceCipher {
     this.localAddress         = localAddress;
     this.certificateValidator = certificateValidator;
   }
+  public OutgoingPushMessage encrypt(SignalProtocolAddress        destination,
+                                     Optional<UnidentifiedAccess> unidentifiedAccess,
+                                     EnvelopeContent              content)
+      throws UntrustedIdentityException, InvalidKeyException
+  {
+    if (unidentifiedAccess.isPresent()) {
+      SignalSessionCipher       sessionCipher        = new SignalSessionCipher(sessionLock, new SessionCipher(signalProtocolStore, destination));
+      SignalSealedSessionCipher sealedSessionCipher  = 
+              new SignalSealedSessionCipher(sessionLock, new SealedSessionCipher(signalProtocolStore, localAddress.getUuid().orElse(null), localAddress.getNumber().orElse(null), 1));
+
+      return content.processSealedSender(sessionCipher, sealedSessionCipher, destination, unidentifiedAccess.get().getUnidentifiedCertificate());
+    } else {
+      SignalSessionCipher sessionCipher = new SignalSessionCipher(sessionLock, new SessionCipher(signalProtocolStore, destination));
+
+      return content.processUnsealedSender(sessionCipher, destination);
+    }
+  }
 
   public OutgoingPushMessage encrypt(SignalProtocolAddress        destination,
                                      Optional<UnidentifiedAccess> unidentifiedAccess,
@@ -141,6 +158,8 @@ public class SignalServiceCipher {
 
         return SignalServiceContent.createFromProto(contentProto);
       } else if (envelope.hasContent()) {
+          System.err.println("SSC will decrypt envelope with type " + envelope.getType()+
+                  " and sourceguid = "+envelope.getSourceUuid().orElse("unknown"));
         Plaintext                   plaintext = decrypt(envelope, envelope.getContent());
           System.err.println("PLAINTEXT = "+plaintext);
         SignalServiceProtos.Content content   = SignalServiceProtos.Content.parseFrom(plaintext.getData());
@@ -194,8 +213,11 @@ public class SignalServiceCipher {
         metadata       = new SignalServiceMetadata(envelope.getSourceAddress(), envelope.getSourceDevice(), envelope.getTimestamp(), envelope.getServerReceivedTimestamp(), envelope.getServerDeliveredTimestamp(), false);
         sessionVersion = sessionCipher.getSessionVersion();
       } else if (envelope.isUnidentifiedSender()) {
+          System.err.println("SSC, UnidentifiedCenter! create SignalSealedSessionCipher");
         SignalSealedSessionCipher sealedSessionCipher = new SignalSealedSessionCipher(sessionLock, new SealedSessionCipher(signalProtocolStore, localAddress.getUuid().orElse(null), localAddress.getNumber().orElse(null), 1));
+          System.err.println("SSC, sealedSessionCipher created, ask to decrypt now");
         DecryptionResult          result              = sealedSessionCipher.decrypt(certificateValidator, ciphertext, envelope.getServerReceivedTimestamp());
+          System.err.println("SSC, sealedsessioncipher decrypted!");
         SignalServiceAddress      resultAddress       = new SignalServiceAddress(UuidUtil.parse(result.getSenderUuid().orElse(null)), result.getSenderE164());
         SignalProtocolAddress     protocolAddress     = getPreferredProtocolAddress(signalProtocolStore, resultAddress, result.getDeviceId());
 

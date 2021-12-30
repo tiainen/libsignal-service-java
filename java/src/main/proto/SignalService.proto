@@ -624,7 +624,7 @@ message PaymentAddress {
   }
 }
 
-message DecryptionErrorMessage {
+message NODecryptionErrorMessage {
   optional bytes  ratchetKey = 1;
   optional uint64 timestamp  = 2;
   optional uint32 deviceId   = 3;

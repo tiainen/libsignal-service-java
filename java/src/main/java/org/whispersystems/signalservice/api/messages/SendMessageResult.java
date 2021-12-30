@@ -1,8 +1,11 @@
 package org.whispersystems.signalservice.api.messages;
 
 
+import java.util.List;
+import java.util.Optional;
 import org.whispersystems.libsignal.IdentityKey;
 import org.whispersystems.signalservice.api.push.SignalServiceAddress;
+import org.whispersystems.signalservice.internal.push.SignalServiceProtos.Content;
 
 public class SendMessageResult {
 
@@ -11,6 +14,10 @@ public class SendMessageResult {
   private final boolean              networkFailure;
   private final boolean              unregisteredFailure;
   private final IdentityFailure      identityFailure;
+  
+  public static SendMessageResult success(SignalServiceAddress address, List<Integer> devices, boolean unidentified, boolean needsSync, long duration, Optional<Content> content) {
+    return new SendMessageResult(address, new Success(unidentified, needsSync, duration, content, devices), false, false, null);
+  }
 
   public static SendMessageResult success(SignalServiceAddress address, boolean unidentified, boolean needsSync, long duration) {
     return new SendMessageResult(address, new Success(unidentified, needsSync, duration), false, false, null);
@@ -48,7 +55,8 @@ public class SendMessageResult {
     return identityFailure;
   }
 
-  private SendMessageResult(SignalServiceAddress address, Success success, boolean networkFailure, boolean unregisteredFailure, IdentityFailure identityFailure) {
+  private SendMessageResult(SignalServiceAddress address, Success success, 
+          boolean networkFailure, boolean unregisteredFailure, IdentityFailure identityFailure) {
     this.address             = address;
     this.success             = success;
     this.networkFailure      = networkFailure;
@@ -60,11 +68,19 @@ public class SendMessageResult {
     private final boolean unidentified;
     private final boolean needsSync;
     private final long    duration;
+    private final Optional<Content> content;
+    private final List<Integer>     devices;
 
     private Success(boolean unidentified, boolean needsSync, long duration) {
+        this(unidentified, needsSync, duration, Optional.empty(), List.of());
+    }
+    
+    private Success(boolean unidentified, boolean needsSync, long duration, Optional<Content> content, List<Integer> devices) {
       this.unidentified = unidentified;
       this.needsSync    = needsSync;
       this.duration     = duration;
+      this.content = content;
+      this.devices = devices;
     }
 
     public boolean isUnidentified() {

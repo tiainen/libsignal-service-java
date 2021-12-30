@@ -26,7 +26,7 @@ public class SignalGroupCipher {
   public byte[] encrypt(UUID distributionId, byte[] paddedPlaintext) throws NoSessionException {
     try (SignalSessionLock.Lock unused = lock.acquire()) {
     //  return cipher.encrypt(distributionId, paddedPlaintext);
-     return cipher.encrypt(paddedPlaintext);
+     return cipher.encrypt(distributionId, paddedPlaintext);
     }
   }
 

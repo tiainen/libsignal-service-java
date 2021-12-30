@@ -113,7 +113,9 @@ import java.util.stream.Collectors;
 import org.whispersystems.libsignal.NoSessionException;
 import org.whispersystems.libsignal.groups.GroupSessionBuilder;
 import org.whispersystems.libsignal.groups.SenderKeyName;
+import org.whispersystems.libsignal.protocol.PlaintextContent;
 import org.whispersystems.libsignal.protocol.SenderKeyDistributionMessage;
+import org.whispersystems.libsignal.protocol.SignalProtos.DecryptionErrorMessage;
 import org.whispersystems.libsignal.state.SignalProtocolStore;
 import org.whispersystems.signalservice.api.crypto.ContentHint;
 import org.whispersystems.signalservice.api.crypto.EnvelopeContent;
@@ -257,7 +259,7 @@ public class SignalServiceMessageSender {
     SignalProtocolAddress self = new SignalProtocolAddress(localAddress.getIdentifier(), SignalServiceAddress.DEFAULT_DEVICE_ID);
     SenderKeyName senderKeyName= new SenderKeyName(distributionId.asUuid().toString(), self);
     return new SignalGroupSessionBuilder(sessionLock, new GroupSessionBuilder(store))
-            .create(senderKeyName, distributionId.asUuid());
+            .create(senderKeyName.getSender(), distributionId.asUuid());
   }
 
    /**
@@ -280,6 +282,13 @@ public class SignalServiceMessageSender {
 //  }
 
 
+  /**
+   * Processes an inbound {@link SenderKeyDistributionMessage}.
+   */
+  public void processSenderKeyDistributionMessage(SignalProtocolAddress sender, SenderKeyDistributionMessage senderKeyDistributionMessage) {
+    new SignalGroupSessionBuilder(sessionLock, new GroupSessionBuilder(store)).process(sender, senderKeyDistributionMessage);
+  }
+
    private byte[] createMultiDeviceRequestContent(RequestMessage request) {
     Content.Builder             container      = Content.newBuilder();
     SyncMessage.Builder         syncMessage    = createSyncMessageBuilder();
@@ -291,6 +300,21 @@ public class SignalServiceMessageSender {
     Log.d(TAG, "SYNCMESSAGE contentmap = "+content.getAllFields());
 
     return content.toByteArray();
+  }
+  /**
+   * Send a retry receipt for a bad-encrypted envelope.
+   */
+  public void sendRetryReceipt(SignalServiceAddress recipient,
+                               Optional<UnidentifiedAccessPair> unidentifiedAccess,
+                               Optional<byte[]> groupId,
+                               DecryptionErrorMessage errorMessage)
+      throws IOException, UntrustedIdentityException
+
+  {
+    PlaintextContent content         = new PlaintextContent(errorMessage);
+    EnvelopeContent  envelopeContent = EnvelopeContent.plaintext(content, groupId);
+
+    sendMessage(recipient, getTargetUnidentifiedAccess(unidentifiedAccess), System.currentTimeMillis(), envelopeContent, false, null);
   }
 
   /**
@@ -1554,7 +1578,87 @@ public class SignalServiceMessageSender {
 
     throw new IOException("Failed to resolve conflicts after 3 attempts!");
   }
+  private SendMessageResult sendMessage(SignalServiceAddress         recipient,
+                                        Optional<UnidentifiedAccess> unidentifiedAccess,
+                                        long                         timestamp,
+                                        EnvelopeContent              content,
+                                        boolean                      online,
+                                        CancelationSignal            cancelationSignal)
+      throws UntrustedIdentityException, IOException
+  {
+    enforceMaxContentSize(content);
 
+    long startTime = System.currentTimeMillis();
+
+    for (int i = 0; i < RETRY_COUNT; i++) {
+      if (cancelationSignal != null && cancelationSignal.isCanceled()) {
+        throw new CancelationException();
+      }    
+
+      try {
+        OutgoingPushMessageList messages = getEncryptedMessages(socket, recipient, unidentifiedAccess, timestamp, content, online);
+
+        if (content.getContent().isPresent() && content.getContent().get().getSyncMessage() != null && content.getContent().get().getSyncMessage().hasSent()) {
+          Log.d(TAG, "[sendMessage][" + timestamp + "] Sending a sent sync message to devices: " + messages.getDevices());
+        } else if (content.getContent().isPresent() && content.getContent().get().hasSenderKeyDistributionMessage()) {
+          Log.d(TAG, "[sendMessage][" + timestamp + "] Sending a SKDM to " + messages.getDestination() + " for devices: " + messages.getDevices());
+        }
+
+        if (cancelationSignal != null && cancelationSignal.isCanceled()) {
+          throw new CancelationException();
+        }
+
+        if (!unidentifiedAccess.isPresent()) {
+          try {
+            SendMessageResponse response = socket.sendMessage(messages, unidentifiedAccess);
+                    
+           //    new MessagingService.SendResponseProcessor<>(messagingService.send(messages, Optional.empty()).blockingGet()).getResultOrThrow();
+            return SendMessageResult.success(recipient, messages.getDevices(), false, response.getNeedsSync() || store.isMultiDevice(), System.currentTimeMillis() - startTime, content.getContent());
+           } catch (IOException e) {
+            Log.w(TAG, e);
+            Log.w(TAG, "[sendMessage][" + timestamp + "] Pipe failed, falling back... (" + e.getClass().getSimpleName() + ": " + e.getMessage() + ")");
+          }
+        } else if (unidentifiedAccess.isPresent()) {
+          try {
+//            SendMessageResponse response = new MessagingService.SendResponseProcessor<>(messagingService.send(messages, unidentifiedAccess).blockingGet()).getResultOrThrow();
+            SendMessageResponse response = socket.sendMessage(messages, unidentifiedAccess);
+            return SendMessageResult.success(recipient, messages.getDevices(), true, response.getNeedsSync() || store.isMultiDevice(), System.currentTimeMillis() - startTime, content.getContent());
+            } catch (IOException e) {
+            Log.w(TAG, e);
+            Log.w(TAG, "[sendMessage][" + timestamp + "] Unidentified pipe failed, falling back...");
+          }
+        }
+
+        if (cancelationSignal != null && cancelationSignal.isCanceled()) {
+          throw new CancelationException();
+        }
+
+        SendMessageResponse response = socket.sendMessage(messages, unidentifiedAccess);
+        return SendMessageResult.success(recipient, messages.getDevices(), unidentifiedAccess.isPresent(), response.getNeedsSync() || store.isMultiDevice(), System.currentTimeMillis() - startTime, content.getContent());
+
+      } catch (InvalidKeyException ike) {
+        Log.w(TAG, ike);
+        unidentifiedAccess = Optional.empty();
+      } catch (AuthorizationFailedException afe) {
+        Log.w(TAG, afe);
+        if (unidentifiedAccess.isPresent()) {
+          unidentifiedAccess = Optional.empty();
+        } else {
+          throw afe;
+        }
+      } catch (MismatchedDevicesException mde) {
+        Log.w(TAG, mde);
+        handleMismatchedDevices(socket, recipient, mde.getMismatchedDevices());
+      } catch (StaleDevicesException ste) {
+        Log.w(TAG, ste);
+        handleStaleDevices(recipient, ste.getStaleDevices());
+      }
+    }
+
+    throw new IOException("Failed to resolve conflicts after " + RETRY_COUNT + " attempts!");
+  }
+
+        
     /**
    * Will send a message using sender keys to all of the specified recipients. It is assumed that
    * all of the recipients have UUIDs.
@@ -1818,6 +1922,67 @@ public class SignalServiceMessageSender {
     return createAttachmentPointer(uploadAttachment(attachment));
   }
 
+  private OutgoingPushMessageList getEncryptedMessages(PushServiceSocket            socket,
+                                                       SignalServiceAddress         recipient,
+                                                       Optional<UnidentifiedAccess> unidentifiedAccess,
+                                                       long                         timestamp,
+                                                       EnvelopeContent              plaintext,
+                                                       boolean                      online)
+      throws IOException, InvalidKeyException, UntrustedIdentityException
+  {
+    List<OutgoingPushMessage> messages = new LinkedList<>();
+
+    if (!recipient.matches(localAddress) || unidentifiedAccess.isPresent()) {
+      messages.add(getEncryptedMessage(socket, recipient, unidentifiedAccess, SignalServiceAddress.DEFAULT_DEVICE_ID, plaintext));
+    }    
+
+    for (int deviceId : store.getSubDeviceSessions(recipient.getIdentifier())) {
+      if (store.containsSession(new SignalProtocolAddress(recipient.getIdentifier(), deviceId))) {
+        messages.add(getEncryptedMessage(socket, recipient, unidentifiedAccess, deviceId, plaintext));
+      }    
+    }    
+
+    return new OutgoingPushMessageList(recipient.getIdentifier(), timestamp, messages, online);
+  }
+
+    private OutgoingPushMessage getEncryptedMessage(PushServiceSocket            socket,
+                                                  SignalServiceAddress         recipient,
+                                                  Optional<UnidentifiedAccess> unidentifiedAccess,
+                                                  int                          deviceId,
+                                                  EnvelopeContent              plaintext)
+      throws IOException, InvalidKeyException, UntrustedIdentityException
+  {
+    SignalProtocolAddress signalProtocolAddress = new SignalProtocolAddress(recipient.getIdentifier(), deviceId);
+    SignalServiceCipher   cipher                = new SignalServiceCipher(localAddress, store, sessionLock, null);
+
+    if (!store.containsSession(signalProtocolAddress)) {
+      try {
+        List<PreKeyBundle> preKeys = socket.getPreKeys(recipient, unidentifiedAccess, deviceId);
+
+        for (PreKeyBundle preKey : preKeys) {
+          try {
+            SignalProtocolAddress preKeyAddress  = new SignalProtocolAddress(recipient.getIdentifier(), preKey.getDeviceId());
+            SignalSessionBuilder  sessionBuilder = new SignalSessionBuilder(sessionLock, new SessionBuilder(store, preKeyAddress));
+            sessionBuilder.process(preKey);
+          } catch (org.whispersystems.libsignal.UntrustedIdentityException e) {
+            throw new UntrustedIdentityException("Untrusted identity key!", recipient.getIdentifier(), preKey.getIdentityKey());
+          }
+        }
+
+        if (eventListener.isPresent()) {
+          eventListener.get().onSecurityEvent(recipient);
+        }
+      } catch (InvalidKeyException e) {
+        throw new IOException(e);
+      }
+    }
+
+    try {
+      return cipher.encrypt(signalProtocolAddress, unidentifiedAccess, plaintext);
+    } catch (org.whispersystems.libsignal.UntrustedIdentityException e) {
+      throw new UntrustedIdentityException("Untrusted on send", recipient.getIdentifier(), e.getUntrustedIdentity());
+    }
+  }
 
   private OutgoingPushMessageList getEncryptedMessages(PushServiceSocket            socket,
                                                        SignalServiceAddress         recipient,
@@ -1950,6 +2115,14 @@ public class SignalServiceMessageSender {
   private byte[] enforceMaxContentSize(byte[] content) {
     if (maxEnvelopeSize > 0 && content.length > maxEnvelopeSize) {
       throw new ContentTooLargeException(content.length);
+    }
+    return content;
+  }
+  
+  private EnvelopeContent enforceMaxContentSize(EnvelopeContent content) {
+    int size = content.size();
+    if (maxEnvelopeSize > 0 && size > maxEnvelopeSize) {
+      throw new ContentTooLargeException(size);
     }
     return content;
   }

@@ -22,15 +22,15 @@ public class SignalGroupSessionBuilder {
     this.builder = builder;
   }
 
-  public void process(SenderKeyName sender, SenderKeyDistributionMessage senderKeyDistributionMessage) {
+  public void process(SignalProtocolAddress sender, SenderKeyDistributionMessage senderKeyDistributionMessage) {
     try (SignalSessionLock.Lock unused = lock.acquire()) {
       builder.process(sender, senderKeyDistributionMessage);
     }
   }
 
-  public SenderKeyDistributionMessage create(SenderKeyName sender, UUID distributionId) {
+  public SenderKeyDistributionMessage create(SignalProtocolAddress sender, UUID distributionId) {
     try (SignalSessionLock.Lock unused = lock.acquire()) {
-      return builder.create(sender);
+      return builder.create(sender, distributionId);
     }
   }
 }
