@@ -1993,9 +1993,9 @@ public class SignalServiceMessageSender {
       throws IOException, InvalidKeyException, UntrustedIdentityException
   {
     List<OutgoingPushMessage> messages = new LinkedList<>();
-      Log.d(TAG, "recipient = "+recipient.getIdentifier()+ "or leg "+recipient.getLegacyIdentifier()
+      Log.d(TAG, "recipient = "+recipient.getIdentifier()
       + " with nr = "+recipient.getNumber()+" and uuid = "+recipient.getUuid());
-      Log.d(TAG, "localaddress = "+localAddress.getIdentifier()+" or leg "+localAddress.getLegacyIdentifier());
+      Log.d(TAG, "localaddress = "+localAddress.getIdentifier());
       OutgoingPushMessage encryptedMessage = getEncryptedMessage(socket, recipient, unidentifiedAccess, SignalServiceAddress.DEFAULT_DEVICE_ID, plaintext); 
       Log.d(TAG, "processed encryptedmessage even if we might nog need it, but it will update the subdevicesessions");
       if (!recipient.matches(localAddress) || unidentifiedAccess.isPresent()) {

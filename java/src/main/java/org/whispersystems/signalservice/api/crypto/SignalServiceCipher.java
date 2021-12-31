@@ -7,6 +7,7 @@
 package org.whispersystems.signalservice.api.crypto;
 
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.util.Arrays;
 
 import org.signal.libsignal.metadata.InvalidMetadataMessageException;
 import org.signal.libsignal.metadata.InvalidMetadataVersionException;
@@ -162,6 +163,7 @@ public class SignalServiceCipher {
                   " and sourceguid = "+envelope.getSourceUuid().orElse("unknown"));
         Plaintext                   plaintext = decrypt(envelope, envelope.getContent());
           System.err.println("PLAINTEXT = "+plaintext);
+          System.err.println("plaindata = "+Arrays.toString(plaintext.data));
         SignalServiceProtos.Content content   = SignalServiceProtos.Content.parseFrom(plaintext.getData());
           System.err.println("CONTENT = "+content);
         SignalServiceContentProto contentProto = SignalServiceContentProto.newBuilder()
@@ -199,14 +201,14 @@ public class SignalServiceCipher {
       }
 
       if (envelope.isPreKeySignalMessage()) {
-        SignalProtocolAddress sourceAddress = getPreferredProtocolAddress(signalProtocolStore, envelope.getSourceAddress(), envelope.getSourceDevice());
+        SignalProtocolAddress sourceAddress =  new SignalProtocolAddress(envelope.getSourceUuid().get(), envelope.getSourceDevice());
         SignalSessionCipher   sessionCipher = new SignalSessionCipher(sessionLock, new SessionCipher(signalProtocolStore, sourceAddress));
 
         paddedMessage  = sessionCipher.decrypt(new PreKeySignalMessage(ciphertext));
         metadata       = new SignalServiceMetadata(envelope.getSourceAddress(), envelope.getSourceDevice(), envelope.getTimestamp(), envelope.getServerReceivedTimestamp(), envelope.getServerDeliveredTimestamp(), false);
         sessionVersion = sessionCipher.getSessionVersion();
       } else if (envelope.isSignalMessage()) {
-        SignalProtocolAddress sourceAddress = getPreferredProtocolAddress(signalProtocolStore, envelope.getSourceAddress(), envelope.getSourceDevice());
+        SignalProtocolAddress sourceAddress = new SignalProtocolAddress(envelope.getSourceUuid().get(), envelope.getSourceDevice());
         SignalSessionCipher   sessionCipher = new SignalSessionCipher(sessionLock, new SessionCipher(signalProtocolStore, sourceAddress));
 
         paddedMessage  = sessionCipher.decrypt(new SignalMessage(ciphertext));
@@ -219,16 +221,17 @@ public class SignalServiceCipher {
         DecryptionResult          result              = sealedSessionCipher.decrypt(certificateValidator, ciphertext, envelope.getServerReceivedTimestamp());
           System.err.println("SSC, sealedsessioncipher decrypted!");
         SignalServiceAddress      resultAddress       = new SignalServiceAddress(UuidUtil.parse(result.getSenderUuid().orElse(null)), result.getSenderE164());
-        SignalProtocolAddress     protocolAddress     = getPreferredProtocolAddress(signalProtocolStore, resultAddress, result.getDeviceId());
+  //      SignalProtocolAddress     protocolAddress     = getPreferredProtocolAddress(signalProtocolStore, resultAddress, result.getDeviceId());
 
         paddedMessage  = result.getPaddedMessage();
         metadata       = new SignalServiceMetadata(resultAddress, result.getDeviceId(), envelope.getTimestamp(), envelope.getServerReceivedTimestamp(), envelope.getServerDeliveredTimestamp(), true);
-        sessionVersion = sealedSessionCipher.getSessionVersion(protocolAddress);
+    //    sessionVersion = sealedSessionCipher.getSessionVersion(protocolAddress);
       } else {
         throw new InvalidMetadataMessageException("Unknown type: " + envelope.getType());
       }
 
-      PushTransportDetails transportDetails = new PushTransportDetails(sessionVersion);
+    //  PushTransportDetails transportDetails = new PushTransportDetails(sessionVersion);
+      PushTransportDetails transportDetails = new PushTransportDetails();
       byte[]               data             = transportDetails.getStrippedPaddingMessageBody(paddedMessage);
 
       return new Plaintext(metadata, data);
@@ -251,18 +254,18 @@ public class SignalServiceCipher {
     }
   }
 
-  private static SignalProtocolAddress getPreferredProtocolAddress(SignalProtocolStore store, SignalServiceAddress address, int sourceDevice) {
-    SignalProtocolAddress uuidAddress = address.getUuid().isPresent() ? new SignalProtocolAddress(address.getUuid().get().toString(), sourceDevice) : null;
-    SignalProtocolAddress e164Address = address.getNumber().isPresent() ? new SignalProtocolAddress(address.getNumber().get(), sourceDevice) : null;
-
-    if (uuidAddress != null && store.containsSession(uuidAddress)) {
-      return uuidAddress;
-    } else if (e164Address != null && store.containsSession(e164Address)) {
-      return e164Address;
-    } else {
-      return new SignalProtocolAddress(address.getLegacyIdentifier(), sourceDevice);
-    }
-  }
+//  private static SignalProtocolAddress getPreferredProtocolAddress(SignalProtocolStore store, SignalServiceAddress address, int sourceDevice) {
+//    SignalProtocolAddress uuidAddress = address.getUuid().isPresent() ? new SignalProtocolAddress(address.getUuid().get().toString(), sourceDevice) : null;
+//    SignalProtocolAddress e164Address = address.getNumber().isPresent() ? new SignalProtocolAddress(address.getNumber().get(), sourceDevice) : null;
+//
+//    if (uuidAddress != null && store.containsSession(uuidAddress)) {
+//      return uuidAddress;
+//    } else if (e164Address != null && store.containsSession(e164Address)) {
+//      return e164Address;
+//    } else {
+//      return new SignalProtocolAddress(address.getLegacyIdentifier(), sourceDevice);
+//    }
+//  }
 
   private static class Plaintext {
     private final SignalServiceMetadata metadata;

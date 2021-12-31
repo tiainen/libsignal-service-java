@@ -16,7 +16,7 @@ public class PushTransportDetails {
   private final int messageVersion;
 
   public PushTransportDetails() {
-    this.messageVersion = 2;
+    this.messageVersion = 3;
   }
   
   public PushTransportDetails(int messageVersion) {
