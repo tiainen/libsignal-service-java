@@ -44,6 +44,7 @@ import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -182,7 +183,16 @@ public class SignalServiceMessagePipe {
       }
     }
   }
-
+  public Future<SendMessageResponse> send(OutgoingPushMessageList list, byte[] unidentifiedAccess) throws IOException {
+    List<String> headers = new LinkedList<String>() {{
+      add("content-type:application/json");
+    }};
+    if (unidentifiedAccess != null) {
+      headers.add("Unidentified-Access-Key:" + unidentifiedAccess);
+    }
+    return send (list, headers);
+  }
+  
   public Future<SendMessageResponse> send(OutgoingPushMessageList list, Optional<UnidentifiedAccess> unidentifiedAccess) throws IOException {
     List<String> headers = new LinkedList<String>() {{
       add("content-type:application/json");
@@ -191,7 +201,11 @@ public class SignalServiceMessagePipe {
     if (unidentifiedAccess.isPresent()) {
       headers.add("Unidentified-Access-Key:" + Base64.encodeBytes(unidentifiedAccess.get().getUnidentifiedAccessKey()));
     }
-
+    return send (list, headers);
+  }
+  
+  private Future<SendMessageResponse> send(OutgoingPushMessageList list, List<String> headers) throws IOException {
+      
     WebSocketRequestMessage requestMessage = WebSocketRequestMessage.newBuilder()
                                                                     .setId(new SecureRandom().nextLong())
                                                                     .setVerb("PUT")
@@ -220,6 +234,46 @@ public class SignalServiceMessagePipe {
     });
   }
 
+   public Future sendToGroup(byte[] body, byte[] joinedUnidentifiedAccess, long timestamp, boolean online) throws IOException {
+    List<String> headers = new LinkedList<String>() {{
+      add("content-type:application/vnd.signal-messenger.mrm");
+      add("Unidentified-Access-Key:" + Base64.encodeBytes(joinedUnidentifiedAccess));
+    }};
+
+    String path = String.format(Locale.US, "/v1/messages/multi_recipient?ts=%s&online=%s", timestamp, online);
+
+    WebSocketRequestMessage requestMessage = WebSocketRequestMessage.newBuilder()
+                                                                    .setId(new SecureRandom().nextLong())
+                                                                    .setVerb("PUT")
+                                                                    .setPath(path)
+                                                                    .addAllHeaders(headers)
+                                                                    .setBody(ByteString.copyFrom(body))
+                                                                    .build();
+    
+    ListenableFuture<WebsocketResponse> response = websocket.sendRequest(requestMessage);
+
+      ListenableFuture<SendMessageResponse> answer = FutureTransformers.map(response, value -> {
+          if (value.getStatus() == 404) {
+              System.err.println("ERROR: sendGroup -> 404");
+              Thread.dumpStack();
+              throw new IOException();
+//        throw new UnregisteredUserException(list.getDestination(), new NotFoundException("not found"));
+          } else if (value.getStatus() == 508) {
+              throw new ServerRejectedException();
+          } else if (value.getStatus() < 200 || value.getStatus() >= 300) {
+              System.err.println("will throw IOexception, response = "+value.getBody());
+              throw new IOException("Non-successful response: " + value.getStatus());
+          }
+          
+          if (Util.isEmpty(value.getBody())) {
+              return new SendMessageResponse(false);
+          } else {
+              return JsonUtil.fromJson(value.getBody(), SendMessageResponse.class);
+          }
+      });return answer;
+   }
+    
+    
   public ListenableFuture<ProfileAndCredential> getProfile(SignalServiceAddress address,
                                                            Optional<ProfileKey> profileKey,
                                                            Optional<UnidentifiedAccess> unidentifiedAccess,

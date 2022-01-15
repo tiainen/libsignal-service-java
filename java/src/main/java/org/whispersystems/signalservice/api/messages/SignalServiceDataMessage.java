@@ -15,6 +15,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.signal.zkgroup.groups.GroupSecretParams;
 
 /**
  * Represents a decrypted Signal Service data message.
@@ -225,6 +226,19 @@ public class SignalServiceDataMessage {
 
   public Optional<GroupCallUpdate> getGroupCallUpdate() {
     return groupCallUpdate;
+  }
+
+  public Optional<byte[]> getGroupId() {
+    byte[] groupId = null;
+
+    if (getGroupContext().isPresent() && getGroupContext().get().getGroupV2().isPresent()) {
+      SignalServiceGroupV2 gv2 = getGroupContext().get().getGroupV2().get();
+      groupId = GroupSecretParams.deriveFromMasterKey(gv2.getMasterKey())
+                                 .getPublicParams()
+                                 .getGroupIdentifier()
+                                 .serialize();
+    }
+    return Optional.ofNullable(groupId);
   }
 
   public static class Builder {

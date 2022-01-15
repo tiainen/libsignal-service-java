@@ -23,7 +23,7 @@ public class SignalGroupCipher {
     this.cipher = cipher;
   }
 
-  public byte[] encrypt(UUID distributionId, byte[] paddedPlaintext) throws NoSessionException {
+  public CiphertextMessage encrypt(UUID distributionId, byte[] paddedPlaintext) throws NoSessionException {
     try (SignalSessionLock.Lock unused = lock.acquire()) {
     //  return cipher.encrypt(distributionId, paddedPlaintext);
      return cipher.encrypt(distributionId, paddedPlaintext);

@@ -404,8 +404,11 @@ public class PushServiceSocket {
       throws IOException
   {
     try {
-      String responseText = makeServiceRequest(String.format(MESSAGE_PATH, bundle.getDestination()), "PUT", JsonUtil.toJson(bundle), NO_HEADERS, unidentifiedAccess);
-
+        int rnd = (int)(1000* Math.random());
+        Log.i(TAG,"[PSS] Sending message "+rnd+", unident? "+unidentifiedAccess);
+        String responseText = makeServiceRequest(String.format(MESSAGE_PATH, bundle.getDestination()), "PUT", JsonUtil.toJson(bundle), NO_HEADERS, unidentifiedAccess);
+        Log.i(TAG, "[PSS] response for " + rnd+": "+responseText);
+      
       if (responseText == null) return new SendMessageResponse(false);
       else                      return JsonUtil.fromJson(responseText, SendMessageResponse.class);
     } catch (NotFoundException nfe) {

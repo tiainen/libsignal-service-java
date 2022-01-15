@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 import org.whispersystems.libsignal.IdentityKey;
 import org.whispersystems.signalservice.api.push.SignalServiceAddress;
+import org.whispersystems.signalservice.api.push.exceptions.ProofRequiredException;
 import org.whispersystems.signalservice.internal.push.SignalServiceProtos.Content;
 
 public class SendMessageResult {
@@ -14,6 +15,8 @@ public class SendMessageResult {
   private final boolean              networkFailure;
   private final boolean              unregisteredFailure;
   private final IdentityFailure      identityFailure;
+  private final ProofRequiredException proofRequiredFailure;
+
   
   public static SendMessageResult success(SignalServiceAddress address, List<Integer> devices, boolean unidentified, boolean needsSync, long duration, Optional<Content> content) {
     return new SendMessageResult(address, new Success(unidentified, needsSync, duration, content, devices), false, false, null);
@@ -35,12 +38,20 @@ public class SendMessageResult {
     return new SendMessageResult(address, null, false, false, new IdentityFailure(identityKey));
   }
 
+  public static SendMessageResult proofRequiredFailure(SignalServiceAddress address, ProofRequiredException proofRequiredException) {
+    return new SendMessageResult(address, null, false, false, null, proofRequiredException);
+  }
+
   public SignalServiceAddress getAddress() {
     return address;
   }
 
   public Success getSuccess() {
     return success;
+  }
+  
+  public boolean isSuccess() {
+      return success != null;
   }
 
   public boolean isNetworkFailure() {
@@ -54,14 +65,19 @@ public class SendMessageResult {
   public IdentityFailure getIdentityFailure() {
     return identityFailure;
   }
-
   private SendMessageResult(SignalServiceAddress address, Success success, 
           boolean networkFailure, boolean unregisteredFailure, IdentityFailure identityFailure) {
+      this(address, success, networkFailure, unregisteredFailure, identityFailure, null);
+  }
+  private SendMessageResult(SignalServiceAddress address, Success success, 
+          boolean networkFailure, boolean unregisteredFailure, IdentityFailure identityFailure,
+          ProofRequiredException proofRequiredFailure) {
     this.address             = address;
     this.success             = success;
     this.networkFailure      = networkFailure;
     this.unregisteredFailure = unregisteredFailure;
     this.identityFailure     = identityFailure;
+    this.proofRequiredFailure = proofRequiredFailure;
   }
 
   public static class Success {

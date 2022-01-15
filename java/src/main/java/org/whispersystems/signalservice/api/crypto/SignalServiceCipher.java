@@ -8,6 +8,7 @@ package org.whispersystems.signalservice.api.crypto;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Arrays;
+import java.util.List;
 
 import org.signal.libsignal.metadata.InvalidMetadataMessageException;
 import org.signal.libsignal.metadata.InvalidMetadataVersionException;
@@ -54,7 +55,11 @@ import org.whispersystems.signalservice.internal.serialize.protos.SignalServiceC
 import org.whispersystems.util.Base64;
 
 import java.util.Optional;
+import org.signal.libsignal.metadata.certificate.SenderCertificate;
+import org.signal.libsignal.metadata.protocol.UnidentifiedSenderMessageContent;
+import org.whispersystems.libsignal.groups.GroupCipher;
 import org.whispersystems.signalservice.api.InvalidMessageStructureException;
+import org.whispersystems.signalservice.api.push.DistributionId;
 
 /**
  * This is used to decrypt received {@link SignalServiceEnvelope}s.
@@ -253,6 +258,28 @@ public class SignalServiceCipher {
       throw new ProtocolNoSessionException(e, envelope.getSourceIdentifier(), envelope.getSourceDevice());
     }
   }
+  
+    public byte[] encryptForGroup(DistributionId distributionId,
+                                List<SignalProtocolAddress> destinations,
+                                SenderCertificate senderCertificate,
+                                byte[] unpaddedMessage,
+                                ContentHint contentHint,
+                                byte[] groupId)
+      throws NoSessionException, UntrustedIdentityException, InvalidKeyException //, InvalidRegistrationIdException
+  {
+    PushTransportDetails             transport            = new PushTransportDetails();
+    SignalProtocolAddress            localProtocolAddress = new SignalProtocolAddress(localAddress.getIdentifier(), SignalServiceAddress.DEFAULT_DEVICE_ID);
+    SignalGroupCipher                groupCipher          = new SignalGroupCipher(sessionLock, new GroupCipher(signalProtocolStore, localProtocolAddress));
+    SignalSealedSessionCipher        sessionCipher        = new SignalSealedSessionCipher(sessionLock, new SealedSessionCipher(signalProtocolStore, localAddress.getAci().uuid(), localAddress.getNumber().orElse(null), 1));
+    CiphertextMessage                message              = groupCipher.encrypt(distributionId.asUuid(), transport.getPaddedMessageBody(unpaddedMessage));
+    UnidentifiedSenderMessageContent messageContent       = new UnidentifiedSenderMessageContent(message,
+                                                                                                 senderCertificate,
+                                                                                                 contentHint.getType(),
+                                                                                                 Optional.of(groupId));
+
+    return sessionCipher.multiRecipientEncrypt(destinations, messageContent);
+  }
+
 
 //  private static SignalProtocolAddress getPreferredProtocolAddress(SignalProtocolStore store, SignalServiceAddress address, int sourceDevice) {
 //    SignalProtocolAddress uuidAddress = address.getUuid().isPresent() ? new SignalProtocolAddress(address.getUuid().get().toString(), sourceDevice) : null;

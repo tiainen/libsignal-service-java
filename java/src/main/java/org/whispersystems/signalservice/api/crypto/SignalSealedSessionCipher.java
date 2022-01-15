@@ -1,5 +1,6 @@
 package org.whispersystems.signalservice.api.crypto;
 
+import java.util.List;
 import org.signal.libsignal.metadata.InvalidMetadataMessageException;
 import org.signal.libsignal.metadata.InvalidMetadataVersionException;
 import org.signal.libsignal.metadata.ProtocolDuplicateMessageException;
@@ -44,7 +45,13 @@ public class SignalSealedSessionCipher {
     }
   }
 
-
+    public byte[] multiRecipientEncrypt(List<SignalProtocolAddress> recipients, UnidentifiedSenderMessageContent content) {
+//        try (SignalSessionLock.Lock unused = lock.acquire()) {
+//            return cipher.multiRecipientEncrypt(recipients, content);
+//        }
+throw new RuntimeException("Not yet implemented");
+    }
+    
   public SealedSessionCipher.DecryptionResult decrypt(CertificateValidator validator, byte[] ciphertext, long timestamp) throws InvalidMetadataMessageException, InvalidMetadataVersionException, ProtocolInvalidMessageException, ProtocolInvalidKeyException, ProtocolNoSessionException, ProtocolLegacyMessageException, ProtocolInvalidVersionException, ProtocolDuplicateMessageException, ProtocolInvalidKeyIdException, ProtocolUntrustedIdentityException, SelfSendException {
     try (SignalSessionLock.Lock unused = lock.acquire()) {
       return cipher.decrypt(validator, ciphertext, timestamp);
@@ -62,4 +69,5 @@ public class SignalSealedSessionCipher {
       return cipher.getRemoteRegistrationId(remoteAddress);
     }
   }
+
 }
