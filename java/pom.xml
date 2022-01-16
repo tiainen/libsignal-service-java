@@ -120,6 +120,7 @@
         <artifactId>protobuf-maven-plugin</artifactId>
         <version>0.6.1</version>
         <configuration>
+          <javaOptions>lite</javaOptions>
           <!-- <protocExecutable>/usr/local/bin/protoc</protocExecutable> -->
           <protocExecutable>/usr/bin/protoc</protocExecutable>
         </configuration>
