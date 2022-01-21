@@ -86,23 +86,26 @@ public class SignalServiceCipher {
     this.localAddress         = localAddress;
     this.certificateValidator = certificateValidator;
   }
-  public OutgoingPushMessage encrypt(SignalProtocolAddress        destination,
-                                     Optional<UnidentifiedAccess> unidentifiedAccess,
-                                     EnvelopeContent              content)
-      throws UntrustedIdentityException, InvalidKeyException
-  {
-    if (unidentifiedAccess.isPresent()) {
-      SignalSessionCipher       sessionCipher        = new SignalSessionCipher(sessionLock, new SessionCipher(signalProtocolStore, destination));
-      SignalSealedSessionCipher sealedSessionCipher  = 
-              new SignalSealedSessionCipher(sessionLock, new SealedSessionCipher(signalProtocolStore, localAddress.getUuid().orElse(null), localAddress.getNumber().orElse(null), 1));
+  
+    public OutgoingPushMessage encrypt(SignalProtocolAddress destination,
+            Optional<UnidentifiedAccess> unidentifiedAccess,
+            EnvelopeContent content)
+            throws UntrustedIdentityException, InvalidKeyException {
+        if (unidentifiedAccess.isPresent()) {
+            System.err.println("SSC, encrypt for destination " + destination + " and content = " + content);
+            SignalSessionCipher sessionCipher = new SignalSessionCipher(sessionLock, 
+                    new SessionCipher(signalProtocolStore, destination));
+            SignalSealedSessionCipher sealedSessionCipher
+                    = new SignalSealedSessionCipher(sessionLock, 
+                            new SealedSessionCipher(signalProtocolStore, localAddress.getUuid().orElse(null), localAddress.getNumber().orElse(null), 1));
 
-      return content.processSealedSender(sessionCipher, sealedSessionCipher, destination, unidentifiedAccess.get().getUnidentifiedCertificate());
-    } else {
-      SignalSessionCipher sessionCipher = new SignalSessionCipher(sessionLock, new SessionCipher(signalProtocolStore, destination));
+            return content.processSealedSender(sessionCipher, sealedSessionCipher, destination, unidentifiedAccess.get().getUnidentifiedCertificate());
+        } else {
+            SignalSessionCipher sessionCipher = new SignalSessionCipher(sessionLock, new SessionCipher(signalProtocolStore, destination));
 
-      return content.processUnsealedSender(sessionCipher, destination);
+            return content.processUnsealedSender(sessionCipher, destination);
+        }
     }
-  }
 
   public OutgoingPushMessage encrypt(SignalProtocolAddress        destination,
                                      Optional<UnidentifiedAccess> unidentifiedAccess,

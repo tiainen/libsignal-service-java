@@ -139,7 +139,7 @@ public class SignalServiceMessageSender {
 
   private static final String TAG = SignalServiceMessageSender.class.getSimpleName();
 
-  private static final int RETRY_COUNT = 4;
+  private static final int RETRY_COUNT = 1;
 
   private  PushServiceSocket                                   socket;
   private final SignalServiceProtocolStore                          store;
@@ -153,43 +153,6 @@ public class SignalServiceMessageSender {
 
   private  ExecutorService                                     executor;
   private  long                                                maxEnvelopeSize;
-
-  
-  
-   public SignalServiceMessageSender(CredentialsProvider credentialsProvider,
-                                        SignalServiceProtocolStore store,
-                                        SignalSessionLock lock) {
-       this.localAddress     = new SignalServiceAddress(credentialsProvider.getUuid(), credentialsProvider.getE164());
-       this.store = store;
-       this.sessionLock = lock;
-   }
-
-  /**
-   * Construct a SignalServiceMessageSender.
-   *
-   * @param urls The URL of the Signal Service.
-   * @param uuid The Signal Service UUID.
-   * @param e164 The Signal Service phone number.
-   * @param password The Signal Service user password.
-   * @param store The SignalProtocolStore.
-   * @param eventListener An optional event listener, which fires whenever sessions are
-   *                      setup or torn down for a recipient.
-   */
-  public SignalServiceMessageSender(SignalServiceConfiguration urls,
-                                    UUID uuid, String e164, String password,
-                                    SignalServiceProtocolStore store,
-                                    SignalSessionLock sessionLock,
-                                    String signalAgent,
-                                    boolean isMultiDevice,
-                                    Optional<SignalServiceMessagePipe> pipe,
-                                    Optional<SignalServiceMessagePipe> unidentifiedPipe,
-                                    Optional<EventListener> eventListener,
-                                    ClientZkProfileOperations clientZkProfileOperations,
-                                    ExecutorService executor,
-                                    boolean automaticNetworkRetry)
-  {
-    this(urls, new StaticCredentialsProvider(uuid, e164, password), store, sessionLock, signalAgent, isMultiDevice, pipe, unidentifiedPipe, eventListener, clientZkProfileOperations, executor, 0, automaticNetworkRetry);
-  }
 
   public SignalServiceMessageSender(SignalServiceConfiguration urls,
                                     CredentialsProvider credentialsProvider,
@@ -216,6 +179,103 @@ public class SignalServiceMessageSender {
     this.executor         = executor != null ? executor : Executors.newSingleThreadExecutor();
     this.maxEnvelopeSize  = maxEnvelopeSize;
   }
+  
+  
+  /**
+   * Send a read receipt for a received message.
+   *
+   * @param recipient The sender of the received message you're acknowledging.
+   * @param message The read receipt to deliver.
+   * @throws IOException
+   * @throws UntrustedIdentityException
+   */
+  public void sendReceipt(SignalServiceAddress recipient,
+                          Optional<UnidentifiedAccessPair> unidentifiedAccess,
+                          SignalServiceReceiptMessage message)
+      throws IOException, UntrustedIdentityException
+  {
+    byte[] content = createReceiptContent(message);
+
+    sendMessage(recipient, getTargetUnidentifiedAccess(unidentifiedAccess), message.getWhen(), content, false, null);
+  }
+  
+   /**
+   * Send a retry receipt for a bad-encrypted envelope.
+   */
+  public void sendRetryReceipt(SignalServiceAddress recipient,
+                               Optional<UnidentifiedAccessPair> unidentifiedAccess,
+                               Optional<byte[]> groupId,
+                               DecryptionErrorMessage errorMessage)
+      throws IOException, UntrustedIdentityException
+
+  {
+    PlaintextContent content         = new PlaintextContent(errorMessage);
+    EnvelopeContent  envelopeContent = EnvelopeContent.plaintext(content, groupId);
+
+    sendMessage(recipient, getTargetUnidentifiedAccess(unidentifiedAccess), System.currentTimeMillis(), envelopeContent, false, null);
+  }
+
+  /**
+   * Send a typing indicator.
+   *
+   * @param recipient The destination
+   * @param message The typing indicator to deliver
+   * @throws IOException
+   * @throws UntrustedIdentityException
+   */
+  public void sendTyping(SignalServiceAddress recipient,
+                         Optional<UnidentifiedAccessPair> unidentifiedAccess,
+                         SignalServiceTypingMessage message)
+      throws IOException, UntrustedIdentityException
+  {
+    byte[] content = createTypingContent(message);
+
+    sendMessage(recipient, getTargetUnidentifiedAccess(unidentifiedAccess), message.getTimestamp(), content, true, null);
+  }
+
+  public void sendTyping(List<SignalServiceAddress>             recipients,
+                         List<Optional<UnidentifiedAccessPair>> unidentifiedAccess,
+                         SignalServiceTypingMessage             message,
+                         CancelationSignal                      cancelationSignal)
+      throws IOException
+  {
+    byte[] content = createTypingContent(message);
+    sendMessage(recipients, getTargetUnidentifiedAccess(unidentifiedAccess), message.getTimestamp(), content, true, cancelationSignal);
+  }
+
+  /**  
+   * Send a typing indicator a group. Doesn't bother with return results, since these are best-effort.
+   */
+  public void sendGroupTyping(DistributionId              distributionId,
+                              List<SignalServiceAddress>  recipients,
+                              List<UnidentifiedAccess>    unidentifiedAccess,
+                              SignalServiceTypingMessage  message)
+      throws IOException, UntrustedIdentityException, InvalidKeyException, NoSessionException //, InvalidRegistrationIdException
+  {
+      throw new RuntimeException ("Implement me now");
+//    Content content = createTypingContent(message);
+//    sendGroupMessage(distributionId, recipients, unidentifiedAccess, message.getTimestamp(), content, ContentHint.IMPLICIT, message.getGroupId().orNull(), true, SenderKeyGroupEvents.EMPTY);
+  }
+
+
+  /**  
+   * Send a call setup message to a single recipient.
+   *
+   * @param recipient The message's destination.
+   * @param message The call message.
+   * @throws IOException
+   */
+  public void sendCallMessage(SignalServiceAddress recipient,
+                              Optional<UnidentifiedAccessPair> unidentifiedAccess,
+                              SignalServiceCallMessage message)
+      throws IOException, UntrustedIdentityException
+  {
+    Content         content         = createCallContent(message);
+    EnvelopeContent envelopeContent = EnvelopeContent.encrypted(content, ContentHint.DEFAULT, Optional.empty());
+
+    sendMessage(recipient, getTargetUnidentifiedAccess(unidentifiedAccess), System.currentTimeMillis(), envelopeContent, false, null);
+  }
+
  public OutgoingPushMessageList createMessageBundle(SignalServiceSyncMessage message, Optional<UnidentifiedAccessPair> unidentifiedAccess)
       throws IOException, UntrustedIdentityException, InvalidKeyException
   {
@@ -225,7 +285,7 @@ public class SignalServiceMessageSender {
       content = createMultiDeviceContactsContent(message.getContacts().get().getContactsStream().asStream(),
                                                  message.getContacts().get().isComplete());
     } else if (message.getGroups().isPresent()) {
-      content = createMultiDeviceGroupsContent(message.getGroups().get().asStream());
+      content = createMultiDeviceGroupsContent(message.getGroups().get().asStream()).toByteArray();
     } else if (message.getRead().isPresent()) {
       content = createMultiDeviceReadContent(message.getRead().get());
     } else if (message.getViewOnceOpen().isPresent()) {
@@ -264,9 +324,9 @@ public class SignalServiceMessageSender {
    */
   public SenderKeyDistributionMessage getOrCreateNewGroupSession(DistributionId distributionId) {
     SignalProtocolAddress self = new SignalProtocolAddress(localAddress.getIdentifier(), SignalServiceAddress.DEFAULT_DEVICE_ID);
-    SenderKeyName senderKeyName= new SenderKeyName(distributionId.asUuid().toString(), self);
+    //SenderKeyName senderKeyName= new SenderKeyName(distributionId.asUuid().toString(), self);
     return new SignalGroupSessionBuilder(sessionLock, new GroupSessionBuilder(store))
-            .create(senderKeyName.getSender(), distributionId.asUuid());
+            .create(self, distributionId.asUuid());
   }
 
   /**
@@ -307,85 +367,7 @@ public class SignalServiceMessageSender {
 
     return content.toByteArray();
   }
-  /**
-   * Send a retry receipt for a bad-encrypted envelope.
-   */
-  public void sendRetryReceipt(SignalServiceAddress recipient,
-                               Optional<UnidentifiedAccessPair> unidentifiedAccess,
-                               Optional<byte[]> groupId,
-                               DecryptionErrorMessage errorMessage)
-      throws IOException, UntrustedIdentityException
-
-  {
-    PlaintextContent content         = new PlaintextContent(errorMessage);
-    EnvelopeContent  envelopeContent = EnvelopeContent.plaintext(content, groupId);
-
-    sendMessage(recipient, getTargetUnidentifiedAccess(unidentifiedAccess), System.currentTimeMillis(), envelopeContent, false, null);
-  }
-
-  /**
-   * Send a read receipt for a received message.
-   *
-   * @param recipient The sender of the received message you're acknowledging.
-   * @param message The read receipt to deliver.
-   * @throws IOException
-   * @throws UntrustedIdentityException
-   */
-  public void sendReceipt(SignalServiceAddress recipient,
-                          Optional<UnidentifiedAccessPair> unidentifiedAccess,
-                          SignalServiceReceiptMessage message)
-      throws IOException, UntrustedIdentityException
-  {
-    byte[] content = createReceiptContent(message);
-
-    sendMessage(recipient, getTargetUnidentifiedAccess(unidentifiedAccess), message.getWhen(), content, false, null);
-  }
-
-  /**
-   * Send a typing indicator.
-   *
-   * @param recipient The destination
-   * @param message The typing indicator to deliver
-   * @throws IOException
-   * @throws UntrustedIdentityException
-   */
-  public void sendTyping(SignalServiceAddress recipient,
-                         Optional<UnidentifiedAccessPair> unidentifiedAccess,
-                         SignalServiceTypingMessage message)
-      throws IOException, UntrustedIdentityException
-  {
-    byte[] content = createTypingContent(message);
-
-    sendMessage(recipient, getTargetUnidentifiedAccess(unidentifiedAccess), message.getTimestamp(), content, true, null);
-  }
-
-  public void sendTyping(List<SignalServiceAddress>             recipients,
-                         List<Optional<UnidentifiedAccessPair>> unidentifiedAccess,
-                         SignalServiceTypingMessage             message,
-                         CancelationSignal                      cancelationSignal)
-      throws IOException
-  {
-    byte[] content = createTypingContent(message);
-    sendMessage(recipients, getTargetUnidentifiedAccess(unidentifiedAccess), message.getTimestamp(), content, true, cancelationSignal);
-  }
-
-
-  /**
-   * Send a call setup message to a single recipient.
-   *
-   * @param recipient The message's destination.
-   * @param message The call message.
-   * @throws IOException
-   */
-  public void sendCallMessage(SignalServiceAddress recipient,
-                              Optional<UnidentifiedAccessPair> unidentifiedAccess,
-                              SignalServiceCallMessage message)
-      throws IOException, UntrustedIdentityException
-  {
-    byte[] content = createCallContent(message);
-    sendMessage(recipient, getTargetUnidentifiedAccess(unidentifiedAccess), System.currentTimeMillis(), content, false, null);
-  }
-
+ 
   /**
    * Send an http request on behalf of the calling infrastructure.
    *
@@ -486,7 +468,7 @@ public class SignalServiceMessageSender {
       content = createMultiDeviceContactsContent(message.getContacts().get().getContactsStream().asStream(),
                                                  message.getContacts().get().isComplete());
     } else if (message.getGroups().isPresent()) {
-      content = createMultiDeviceGroupsContent(message.getGroups().get().asStream());
+      content = createMultiDeviceGroupsContent(message.getGroups().get().asStream()).toByteArray();
     } else if (message.getRead().isPresent()) {
       content = createMultiDeviceReadContent(message.getRead().get());
     } else if (message.getViewOnceOpen().isPresent()) {
@@ -1075,7 +1057,7 @@ public class SignalServiceMessageSender {
     return enforceMaxContentSize(container.setDataMessage(builder).build());
   }
 
-  private byte[] createCallContent(SignalServiceCallMessage callMessage) {
+  private Content createCallContent(SignalServiceCallMessage callMessage) {
     Content.Builder     container = Content.newBuilder();
     CallMessage.Builder builder   = CallMessage.newBuilder();
 
@@ -1155,7 +1137,7 @@ public class SignalServiceMessageSender {
     }
 
     container.setCallMessage(builder);
-    return container.build().toByteArray();
+    return container.build();
   }
 
   private byte[] createMultiDeviceContactsContent(SignalServiceAttachmentStream contacts, boolean complete) throws IOException {
@@ -1168,13 +1150,13 @@ public class SignalServiceMessageSender {
     return container.setSyncMessage(builder).build().toByteArray();
   }
 
-  private byte[] createMultiDeviceGroupsContent(SignalServiceAttachmentStream groups) throws IOException {
+  private Content createMultiDeviceGroupsContent(SignalServiceAttachmentStream groups) throws IOException {
     Content.Builder     container = Content.newBuilder();
     SyncMessage.Builder builder   = createSyncMessageBuilder();
     builder.setGroups(SyncMessage.Groups.newBuilder()
                                         .setBlob(createAttachmentPointer(groups)));
 
-    return container.setSyncMessage(builder).build().toByteArray();
+    return container.setSyncMessage(builder).build();
   }
 
   private Content createMultiDeviceSentTranscriptContent(SentTranscriptMessage transcript, Optional<UnidentifiedAccessPair> unidentifiedAccess) throws IOException {
