@@ -1,5 +1,6 @@
 package org.whispersystems.signalservice.api.crypto;
 
+import java.util.Arrays;
 import java.util.Optional;
 import org.signal.libsignal.metadata.certificate.SenderCertificate;
 import org.signal.libsignal.metadata.protocol.UnidentifiedSenderMessageContent;
@@ -88,7 +89,7 @@ public interface EnvelopeContent {
       byte[] ciphertext           = sealedSessionCipher.encrypt(destination, messageContent);
       String body                 = Base64.encodeBytes(ciphertext);
       int    remoteRegistrationId = sealedSessionCipher.getRemoteRegistrationId(destination);
-
+      System.err.println("[EC] Secure, sealed, encryptedsize = "+ciphertext.length+" and enc = "+Arrays.toString(ciphertext));
       return new OutgoingPushMessage(Type.UNIDENTIFIED_SENDER_VALUE, destination.getDeviceId(), remoteRegistrationId, body);
     }
 
@@ -106,6 +107,7 @@ public interface EnvelopeContent {
         case CiphertextMessage.WHISPER_TYPE: type = Type.CIPHERTEXT_VALUE;    break;
         default: throw new AssertionError("Bad type: " + message.getType());
       }
+        System.err.println("[EC] Secure, unsealed, encryptedsize = "+message.serialize().length+" and enc = "+Arrays.toString(message.serialize()));
 
       return new OutgoingPushMessage(type, destination.getDeviceId(), remoteRegistrationId, body);
     }
@@ -146,6 +148,7 @@ public interface EnvelopeContent {
       byte[] ciphertext           = sealedSessionCipher.encrypt(destination, messageContent);
       String body                 = Base64.encodeBytes(ciphertext);
       int    remoteRegistrationId = sealedSessionCipher.getRemoteRegistrationId(destination);
+      System.err.println("[EC] UNSecure, sealed, encryptedsize = "+ciphertext.length+" and enc = "+Arrays.toString(ciphertext));
 
       return new OutgoingPushMessage(Type.UNIDENTIFIED_SENDER_VALUE, destination.getDeviceId(), remoteRegistrationId, body);
     }
@@ -154,6 +157,7 @@ public interface EnvelopeContent {
     public OutgoingPushMessage processUnsealedSender(SignalSessionCipher sessionCipher, SignalProtocolAddress destination) {
       String body                 = Base64.encodeBytes(plaintextContent.serialize());
       int    remoteRegistrationId = sessionCipher.getRemoteRegistrationId();
+      System.err.println("[EC] UNSecure, unsealed, encryptedsize ");
 
       return new OutgoingPushMessage(Type.PLAINTEXT_CONTENT_VALUE, destination.getDeviceId(), remoteRegistrationId, body);
     }

@@ -57,6 +57,7 @@ import org.whispersystems.util.Base64;
 import java.util.Optional;
 import org.signal.libsignal.metadata.certificate.SenderCertificate;
 import org.signal.libsignal.metadata.protocol.UnidentifiedSenderMessageContent;
+import org.whispersystems.libsignal.InvalidRegistrationIdException;
 import org.whispersystems.libsignal.groups.GroupCipher;
 import org.whispersystems.signalservice.api.InvalidMessageStructureException;
 import org.whispersystems.signalservice.api.push.DistributionId;
@@ -91,6 +92,7 @@ public class SignalServiceCipher {
             Optional<UnidentifiedAccess> unidentifiedAccess,
             EnvelopeContent content)
             throws UntrustedIdentityException, InvalidKeyException {
+        System.err.println("[SSC] encrypt, ua present = "+unidentifiedAccess.isPresent());
         if (unidentifiedAccess.isPresent()) {
             System.err.println("SSC, encrypt for destination " + destination + " and content = " + content);
             SignalSessionCipher sessionCipher = new SignalSessionCipher(sessionLock, 
@@ -102,7 +104,6 @@ public class SignalServiceCipher {
             return content.processSealedSender(sessionCipher, sealedSessionCipher, destination, unidentifiedAccess.get().getUnidentifiedCertificate());
         } else {
             SignalSessionCipher sessionCipher = new SignalSessionCipher(sessionLock, new SessionCipher(signalProtocolStore, destination));
-
             return content.processUnsealedSender(sessionCipher, destination);
         }
     }
@@ -268,7 +269,7 @@ public class SignalServiceCipher {
                                 byte[] unpaddedMessage,
                                 ContentHint contentHint,
                                 byte[] groupId)
-      throws NoSessionException, UntrustedIdentityException, InvalidKeyException //, InvalidRegistrationIdException
+      throws NoSessionException, UntrustedIdentityException, InvalidKeyException, InvalidRegistrationIdException
   {
     PushTransportDetails             transport            = new PushTransportDetails();
     SignalProtocolAddress            localProtocolAddress = new SignalProtocolAddress(localAddress.getIdentifier(), SignalServiceAddress.DEFAULT_DEVICE_ID);

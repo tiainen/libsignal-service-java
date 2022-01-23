@@ -113,6 +113,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import org.signal.libsignal.metadata.certificate.SenderCertificate;
+import org.whispersystems.libsignal.InvalidRegistrationIdException;
 import org.whispersystems.libsignal.NoSessionException;
 import org.whispersystems.libsignal.groups.GroupSessionBuilder;
 import org.whispersystems.libsignal.groups.SenderKeyName;
@@ -342,7 +343,6 @@ public class SignalServiceMessageSender {
     Content         content           = Content.newBuilder().setSenderKeyDistributionMessage(distributionBytes).build();
     EnvelopeContent envelopeContent   = EnvelopeContent.encrypted(content, ContentHint.IMPLICIT, Optional.of(groupId));
     long            timestamp         = System.currentTimeMillis();
-
     Log.d(TAG, "[" + timestamp + "] Sending SKDM to " + recipients.size() + " recipients for DistributionId " + distributionId);
     return sendMessage(recipients, getTargetUnidentifiedAccess(unidentifiedAccess), timestamp, envelopeContent, false, null);
   }
@@ -651,7 +651,7 @@ public class SignalServiceMessageSender {
                                                       ContentHint                contentHint,
                                                       SignalServiceDataMessage   message,
                                                       SenderKeyGroupEvents       sendEvents)
-      throws IOException, UntrustedIdentityException, NoSessionException, InvalidKeyException //, InvalidRegistrationIdException
+      throws IOException, UntrustedIdentityException, NoSessionException, InvalidKeyException, InvalidRegistrationIdException
   {
     Log.d(TAG, "[" + message.getTimestamp() + "] Sending a group data message to " + recipients.size() + " recipients using DistributionId " + distributionId);
 
@@ -686,7 +686,7 @@ public class SignalServiceMessageSender {
                                                    byte[]                     groupId,
                                                    boolean                    online,
                                                    SenderKeyGroupEvents       sendEvents)
-      throws IOException, UntrustedIdentityException, NoSessionException, InvalidKeyException //, InvalidRegistrationIdException
+      throws IOException, UntrustedIdentityException, NoSessionException, InvalidKeyException, InvalidRegistrationIdException
   {
     if (recipients.isEmpty()) {
       Log.w(TAG, "[sendGroupMessage][" + timestamp + "] Empty recipient list!");
@@ -786,6 +786,12 @@ public class SignalServiceMessageSender {
         headers.add("Unidentified-Access-Key:" + Base64.encodeBytes(joinedUnidentifiedAccess));
     
       SignalServiceMessagePipe up = this.unidentifiedPipe.get().get();
+        System.err.println("WAIT 10 seconds before sending the message");
+        try {
+            Thread.sleep(10000);
+        } catch (InterruptedException ex) {
+ex.printStackTrace();        }
+        System.err.println("done waiting, let's send");
       Future<SendMessageResponse> sendToGroup = up.sendToGroup(ciphertext, joinedUnidentifiedAccess, timestamp, online);
         try {
           SendMessageResponse get = sendToGroup.get(10, TimeUnit.SECONDS);
