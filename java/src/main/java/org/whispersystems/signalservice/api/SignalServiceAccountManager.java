@@ -481,7 +481,7 @@ public class SignalServiceAccountManager {
         Log.w(TAG, "No type found! Skipping.");
       }
     }
-
+      System.err.println("SSAM, resultsize = "+result.size()+" and itemssize = "+items.getItemsCount());
     return result;
   }
   /**

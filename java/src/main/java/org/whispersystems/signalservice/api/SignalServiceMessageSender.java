@@ -117,9 +117,9 @@ import org.whispersystems.libsignal.InvalidRegistrationIdException;
 import org.whispersystems.libsignal.NoSessionException;
 import org.whispersystems.libsignal.groups.GroupSessionBuilder;
 import org.whispersystems.libsignal.groups.SenderKeyName;
+import org.whispersystems.libsignal.protocol.DecryptionErrorMessage;
 import org.whispersystems.libsignal.protocol.PlaintextContent;
 import org.whispersystems.libsignal.protocol.SenderKeyDistributionMessage;
-import org.whispersystems.libsignal.protocol.SignalProtos.DecryptionErrorMessage;
 import org.whispersystems.libsignal.state.SignalProtocolStore;
 import org.whispersystems.signalservice.api.crypto.ContentHint;
 import org.whispersystems.signalservice.api.crypto.EnvelopeContent;
@@ -693,7 +693,7 @@ public class SignalServiceMessageSender {
       return Collections.emptyList();
     }
     if (recipients.size() != unidentifiedAccess.size()) {
-        Log.w(TAG,"[" + timestamp + "] Unidentified access mismatch!" );
+        Log.w(TAG,"[" + timestamp + "] Unidentified access mismatch! recipeints = "+recipients+" and ua = "+unidentifiedAccess );
         throw new IllegalArgumentException("Unidentified access mismatch");
     }
 

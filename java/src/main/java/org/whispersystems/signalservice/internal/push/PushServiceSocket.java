@@ -118,6 +118,7 @@ import java.io.UnsupportedEncodingException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -850,6 +851,7 @@ public class PushServiceSocket {
 
   public String getStorageAuth() throws IOException {
     String              response     = makeServiceRequest("/v1/storage/auth", "GET", null);
+      System.err.println("Response from getStorageAuth = "+response);
     StorageAuthResponse authResponse = JsonUtil.fromJson(response, StorageAuthResponse.class);
 
     return Credentials.basic(authResponse.getUsername(), authResponse.getPassword());
@@ -885,7 +887,7 @@ public class PushServiceSocket {
     if (response == null) {
       throw new IOException("Missing body!");
     }
-
+  //    System.err.println("StorageItems: "+ Arrays.toString(readBodyBytes(response)));
     return StorageItems.parseFrom(readBodyBytes(response));
   }
 
@@ -1666,7 +1668,7 @@ public class PushServiceSocket {
                                                         .readTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
                                                         .build();
 
-//    Log.d(TAG, "Opening URL: " + connectionHolder.getUrl());
+    Log.d(TAG, "Opening URL: " + connectionHolder.getUrl());
 
     Request.Builder request = new Request.Builder().url(connectionHolder.getUrl() + path);
     request.method(method, body);
