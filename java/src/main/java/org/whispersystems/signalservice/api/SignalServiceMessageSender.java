@@ -786,11 +786,7 @@ public class SignalServiceMessageSender {
         headers.add("Unidentified-Access-Key:" + Base64.encodeBytes(joinedUnidentifiedAccess));
     
       SignalServiceMessagePipe up = this.unidentifiedPipe.get().get();
-        System.err.println("WAIT 10 seconds before sending the message");
-        try {
-            Thread.sleep(10000);
-        } catch (InterruptedException ex) {
-ex.printStackTrace();        }
+
         System.err.println("done waiting, let's send");
       Future<SendMessageResponse> sendToGroup = up.sendToGroup(ciphertext, joinedUnidentifiedAccess, timestamp, online);
         try {
