@@ -10,6 +10,7 @@ package org.whispersystems.signalservice.internal.util;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonDeserializer;
@@ -25,6 +26,7 @@ import org.whispersystems.util.Base64;
 
 import java.io.IOException;
 import java.util.UUID;
+import org.whispersystems.signalservice.api.push.exceptions.MalformedResponseException;
 
 public class JsonUtil {
 
@@ -55,7 +57,33 @@ public class JsonUtil {
     return objectMapper.readValue(json, clazz);
   }
   
-  public static class IdentityKeySerializer extends JsonSerializer<IdentityKey> {
+    public static <T> T fromJson(String json, TypeReference<T> typeRef)
+      throws IOException
+  {
+    return objectMapper.readValue(json, typeRef);
+  }
+
+  public static <T> T fromJsonResponse(String json, TypeReference<T> typeRef)
+      throws MalformedResponseException
+  {
+    try {
+      return JsonUtil.fromJson(json, typeRef);
+    } catch (IOException e) {
+      throw new MalformedResponseException("Unable to parse entity", e);
+    }
+  }
+
+  public static <T> T fromJsonResponse(String body, Class<T> clazz)
+      throws MalformedResponseException
+  {
+    try {
+      return JsonUtil.fromJson(body, clazz);
+    } catch (IOException e) {
+      throw new MalformedResponseException("Unable to parse entity", e);
+    }
+  }
+
+    public static class IdentityKeySerializer extends JsonSerializer<IdentityKey> {
     @Override
     public void serialize(IdentityKey value, JsonGenerator gen, SerializerProvider serializers)
         throws IOException
