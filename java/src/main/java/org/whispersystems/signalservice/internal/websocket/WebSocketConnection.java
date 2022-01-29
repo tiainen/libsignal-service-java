@@ -300,8 +300,10 @@ public class WebSocketConnection extends WebSocketListener {
                 OutgoingRequest listener = outgoingRequests.get(message.getResponse().getId());
                 Log.d(TAG, "listener for id " + message.getResponse().getId() + " = " + listener);
                 if (listener != null) {
-                    listener.getResponseFuture().set(new WebsocketResponse(message.getResponse().getStatus(),
-                            new String(message.getResponse().getBody().toByteArray())));
+                    listener.getResponseFuture().set(
+                            new WebsocketResponse(message.getResponse().getStatus(),
+                            new String(message.getResponse().getBody().toByteArray()),
+                            message.getResponse().getHeadersList()));
                 }
             }
 

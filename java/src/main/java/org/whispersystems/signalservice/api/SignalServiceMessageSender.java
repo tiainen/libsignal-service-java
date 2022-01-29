@@ -654,11 +654,11 @@ public class SignalServiceMessageSender {
       throws IOException, UntrustedIdentityException, NoSessionException, InvalidKeyException, InvalidRegistrationIdException
   {
     Log.d(TAG, "[" + message.getTimestamp() + "] Sending a group data message to " + recipients.size() + " recipients using DistributionId " + distributionId);
-
+      System.err.println("timestamp = "+message.getTimestamp());
     Content                 content = createMessageContent(message);
     Optional<byte[]>        groupId = message.getGroupId();
     List<SendMessageResult> results = sendGroupMessage(distributionId, recipients, unidentifiedAccess, message.getTimestamp(), content, contentHint, groupId.orElse(null), false, sendEvents);
-
+    System.err.println("After sending, results = "+results);
     sendEvents.onMessageSent();
 
     if (store.isMultiDevice()) {
@@ -668,6 +668,7 @@ public class SignalServiceMessageSender {
       sendMessage(localAddress, Optional.empty(), message.getTimestamp(), syncMessageContent, false, null);
     }
     sendEvents.onSyncMessageSent();
+    System.err.println("SSMS, return results from sendGroupDataMessage: "+results);
     return results;
   }
 
@@ -787,11 +788,11 @@ public class SignalServiceMessageSender {
     
       SignalServiceMessagePipe up = this.unidentifiedPipe.get().get();
 
-        System.err.println("done waiting, let's send");
-      Future<SendMessageResponse> sendToGroup = up.sendToGroup(ciphertext, joinedUnidentifiedAccess, timestamp, online);
+      Future<SendGroupMessageResponse> sendToGroup = up.sendToGroup(ciphertext, joinedUnidentifiedAccess, timestamp, online);
         try {
-          SendMessageResponse get = sendToGroup.get(10, TimeUnit.SECONDS);
-          return null;
+          SendGroupMessageResponse response = sendToGroup.get(10, TimeUnit.SECONDS);
+          List<SendMessageResult> messageResults = transformGroupResponseToMessageResults(targetInfo.devices, response, content);
+          return messageResults;
           
 //
 //      SendGroupMessageResponse response = new MessagingService.SendResponseProcessor<>(messagingService.sendToGroup(ciphertext, joinedUnidentifiedAccess, timestamp, online).blockingGet()).getResultOrThrow();

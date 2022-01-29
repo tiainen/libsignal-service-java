@@ -52,6 +52,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import org.whispersystems.signalservice.internal.push.SendGroupMessageResponse;
+import org.whispersystems.signalservice.internal.websocket.DefaultResponseMapper;
 
 import static org.whispersystems.signalservice.internal.websocket.WebSocketProtos.WebSocketRequestMessage;
 import static org.whispersystems.signalservice.internal.websocket.WebSocketProtos.WebSocketResponseMessage;
@@ -222,7 +224,7 @@ public class SignalServiceMessagePipe {
       } else if (value.getStatus() == 508) {
         throw new ServerRejectedException();
       } else if (value.getStatus() < 200 || value.getStatus() >= 300) {
-          System.err.println("will throw IOexception, response = "+value.getBody());
+          System.err.println("send will throw IOexception, response = "+value.getBody());
         throw new IOException("Non-successful response: " + value.getStatus());
       }
 
@@ -248,31 +250,31 @@ public class SignalServiceMessagePipe {
                                                                     .setPath(path)
                                                                     .addAllHeaders(headers)
                                                                     .setBody(ByteString.copyFrom(body))
-                                                                    .build();
-    
-    ListenableFuture<WebsocketResponse> response = websocket.sendRequest(requestMessage);
+                .build();
 
-      ListenableFuture<SendMessageResponse> answer = FutureTransformers.map(response, value -> {
-          if (value.getStatus() == 404) {
-              System.err.println("ERROR: sendGroup -> 404");
-              Thread.dumpStack();
-              throw new IOException();
+        ListenableFuture<WebsocketResponse> response = websocket.sendRequest(requestMessage);
+        ListenableFuture<SendGroupMessageResponse> answer = FutureTransformers.map(response, value -> {
+            if (value.getStatus() == 404) {
+                System.err.println("ERROR: sendGroup -> 404");
+                Thread.dumpStack();
+                throw new IOException();
 //        throw new UnregisteredUserException(list.getDestination(), new NotFoundException("not found"));
-          } else if (value.getStatus() == 508) {
-              throw new ServerRejectedException();
-          } else if (value.getStatus() < 200 || value.getStatus() >= 300) {
-              System.err.println("will throw IOexception, response = "+value.getBody());
-              throw new IOException("Non-successful response: " + value.getStatus());
-          }
-          
-          if (Util.isEmpty(value.getBody())) {
-              return new SendMessageResponse(false);
-          } else {
-              return JsonUtil.fromJson(value.getBody(), SendMessageResponse.class);
-          }
-      });return answer;
-   }
-    
+            } else if (value.getStatus() == 508) {
+                throw new ServerRejectedException();
+            } else if (value.getStatus() < 200 || value.getStatus() >= 300) {
+                System.err.println("will throw IOexception, response = " + value.getBody());
+                throw new IOException("Non-successful response: " + value.getStatus());
+            }
+
+            if (Util.isEmpty(value.getBody())) {
+                return new SendGroupMessageResponse();
+            } else {
+                return JsonUtil.fromJson(value.getBody(), SendGroupMessageResponse.class);
+            }
+        });
+        return answer;
+    }
+
     
   public ListenableFuture<ProfileAndCredential> getProfile(SignalServiceAddress address,
                                                            Optional<ProfileKey> profileKey,
