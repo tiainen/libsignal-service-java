@@ -6,6 +6,7 @@
 
 package org.whispersystems.signalservice.api;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.protobuf.ByteString;
 
 import org.signal.zkgroup.VerificationFailedException;
@@ -52,7 +53,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import org.whispersystems.signalservice.api.push.exceptions.MalformedResponseException;
+import org.whispersystems.signalservice.api.push.exceptions.PushNetworkException;
+import org.whispersystems.signalservice.internal.push.MismatchedDevices;
 import org.whispersystems.signalservice.internal.push.SendGroupMessageResponse;
+import org.whispersystems.signalservice.internal.push.exceptions.MismatchedDevicesException;
 import org.whispersystems.signalservice.internal.websocket.DefaultResponseMapper;
 
 import static org.whispersystems.signalservice.internal.websocket.WebSocketProtos.WebSocketRequestMessage;
@@ -221,7 +226,10 @@ public class SignalServiceMessagePipe {
     return FutureTransformers.map(response, value -> {
       if (value.getStatus() == 404) {
         throw new UnregisteredUserException(list.getDestination(), new NotFoundException("not found"));
-      } else if (value.getStatus() == 508) {
+      } else if (value.getStatus() == 409) {
+        MismatchedDevices mismatchedDevices = readBodyJson(value.getBody(), MismatchedDevices.class);
+        throw new MismatchedDevicesException(mismatchedDevices);
+      }else if (value.getStatus() == 508) {
         throw new ServerRejectedException();
       } else if (value.getStatus() < 200 || value.getStatus() >= 300) {
           System.err.println("send will throw IOexception, response = "+value.getBody());
@@ -434,6 +442,21 @@ public class SignalServiceMessagePipe {
   private static class NullMessagePipeCallback implements MessagePipeCallback {
     @Override
     public void onMessage(SignalServiceEnvelope envelope) {}
+  }
+  
+   /* Converts {@link IOException} on body reading to {@link PushNetworkException}.
+   * {@link IOException} during json parsing is converted to a {@link MalformedResponseException}
+   */
+  private static <T> T readBodyJson(String json, Class<T> clazz) throws PushNetworkException, MalformedResponseException {
+   // String json = readBodyString(body);
+    try {
+      return JsonUtil.fromJson(json, clazz);
+    } catch (JsonProcessingException e) {
+      Log.w(TAG, e);
+      throw new MalformedResponseException("Unable to parse entity", e);
+    } catch (IOException e) {
+      throw new PushNetworkException(e);
+    }
   }
 
 }

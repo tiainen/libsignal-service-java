@@ -140,7 +140,7 @@ public class SignalServiceMessageSender {
 
   private static final String TAG = SignalServiceMessageSender.class.getSimpleName();
 
-  private static final int RETRY_COUNT = 1;
+  private static final int RETRY_COUNT = 3;
 
   private  PushServiceSocket                                   socket;
   private final SignalServiceProtocolStore                          store;
@@ -1760,6 +1760,7 @@ public class SignalServiceMessageSender {
       return sendMessage(recipient, unidentifiedAccess, timestamp, content.toByteArray(), 
               online, cancelationSignal);
   }
+  
   private SendMessageResult sendMessage(SignalServiceAddress         recipient,
                                         Optional<UnidentifiedAccess> unidentifiedAccess,
                                         long                         timestamp,
@@ -1773,38 +1774,51 @@ public class SignalServiceMessageSender {
     long startTime = System.currentTimeMillis();
 
     for (int i = 0; i < RETRY_COUNT; i++) {
+        System.err.println("Try sending message, attempt "+i);
       if (cancelationSignal != null && cancelationSignal.isCanceled()) {
         throw new CancelationException();
       }
 
-      try {
-        OutgoingPushMessageList messages = getEncryptedMessages(socket, recipient, unidentifiedAccess, timestamp, content, online);
+        try {
+            OutgoingPushMessageList messages = getEncryptedMessages(socket, recipient, unidentifiedAccess, timestamp, content, online);
 
-        if (cancelationSignal != null && cancelationSignal.isCanceled()) {
-          throw new CancelationException();
-        }
+            if (cancelationSignal != null && cancelationSignal.isCanceled()) {
+                throw new CancelationException();
+            }
 
-        Optional<SignalServiceMessagePipe> pipe             = this.pipe.get();
-        Optional<SignalServiceMessagePipe> unidentifiedPipe = this.unidentifiedPipe.get();
+            Optional<SignalServiceMessagePipe> pipe = this.pipe.get();
+            Optional<SignalServiceMessagePipe> unidentifiedPipe = this.unidentifiedPipe.get();
 
-        if (pipe.isPresent() && !unidentifiedAccess.isPresent()) {
-          try {
-            SendMessageResponse response = pipe.get().send(messages, Optional.empty()).get(10, TimeUnit.SECONDS);
-            Log.d(TAG, "sendMessageResponse = "+response+" with needssync = "+response.getNeedsSync());
-            return SendMessageResult.success(recipient, false, response.getNeedsSync() || isMultiDevice.get(), System.currentTimeMillis() - startTime);
-          } catch (IOException | ExecutionException | InterruptedException | TimeoutException e) {
-            Log.w(TAG, e);
-            Log.w(TAG, "[sendMessage] Pipe failed, falling back...");
-          }
-        } else if (unidentifiedPipe.isPresent() && unidentifiedAccess.isPresent()) {
-          try {
-            SendMessageResponse response = unidentifiedPipe.get().send(messages, unidentifiedAccess).get(10, TimeUnit.SECONDS);
-            return SendMessageResult.success(recipient, true, response.getNeedsSync() || isMultiDevice.get(), System.currentTimeMillis() - startTime);
-          } catch (IOException | ExecutionException | InterruptedException | TimeoutException e) {
-            Log.w(TAG, e);
-            Log.w(TAG, "[sendMessage] Unidentified pipe failed, falling back...");
-          }
-        }
+            if (pipe.isPresent() && !unidentifiedAccess.isPresent()) {
+                try {
+                    SendMessageResponse response = pipe.get().send(messages, Optional.empty()).get(10, TimeUnit.SECONDS);
+                    Log.d(TAG, "sendMessageResponse = " + response + " with needssync = " + response.getNeedsSync());
+                    return SendMessageResult.success(recipient, false, response.getNeedsSync() || isMultiDevice.get(), System.currentTimeMillis() - startTime);
+                } catch (MismatchedDevicesException mde) {
+                    Log.w(TAG, "[sendMessage] send failed with mde");
+                    handleMismatchedDevices(socket, recipient, mde.getMismatchedDevices());
+                } catch (ExecutionException ex) {
+                    Log.w(TAG, ex);
+                    Throwable cause = ex.getCause();
+                    Log.w(TAG, "[sendMessage] send failed, cause = " + cause);
+
+                    if (cause instanceof MismatchedDevicesException) {
+                        MismatchedDevicesException mde = (MismatchedDevicesException) cause;
+                        handleMismatchedDevices(socket, recipient, mde.getMismatchedDevices());
+                    }
+                } catch (IOException | InterruptedException | TimeoutException e) {
+                    Log.w(TAG, e);
+                    Log.w(TAG, "[sendMessage] Pipe failed, falling back...");
+                }
+            } else if (unidentifiedPipe.isPresent() && unidentifiedAccess.isPresent()) {
+                try {
+                    SendMessageResponse response = unidentifiedPipe.get().send(messages, unidentifiedAccess).get(10, TimeUnit.SECONDS);
+                    return SendMessageResult.success(recipient, true, response.getNeedsSync() || isMultiDevice.get(), System.currentTimeMillis() - startTime);
+                } catch (IOException | ExecutionException | InterruptedException | TimeoutException e) {
+                    Log.w(TAG, e);
+                    Log.w(TAG, "[sendMessage] Unidentified pipe failed, falling back...");
+                }
+            }
 
         if (cancelationSignal != null && cancelationSignal.isCanceled()) {
           throw new CancelationException();
@@ -1835,6 +1849,7 @@ public class SignalServiceMessageSender {
 
     throw new IOException("Failed to resolve conflicts after 3 attempts!");
   }
+  
   private SendMessageResult sendMessage(SignalServiceAddress         recipient,
                                         Optional<UnidentifiedAccess> unidentifiedAccess,
                                         long                         timestamp,
@@ -2280,7 +2295,7 @@ public class SignalServiceMessageSender {
         messages.add(encryptedMessage);
       }
       List<Integer> subDeviceSessions = store.getSubDeviceSessions(recipient.getIdentifier());
-      Log.d(TAG, "SubDeviceSessions: "+subDeviceSessions);
+      Log.d(TAG, "SubDeviceSessions asked for "+recipient.getIdentifier()+": "+subDeviceSessions);
     for (int deviceId : subDeviceSessions) {
       if (store.containsSession(new SignalProtocolAddress(recipient.getIdentifier(), deviceId))) {
         messages.add(getEncryptedMessage(socket, recipient, unidentifiedAccess, deviceId, plaintext));
@@ -2335,7 +2350,7 @@ public class SignalServiceMessageSender {
       throws IOException, UntrustedIdentityException
   {
     try {
-      Log.w(TAG, "MISMATCH: extra = " + mismatchedDevices.getExtraDevices()+" and missing = " + mismatchedDevices.getMissingDevices());
+      Log.w(TAG, "handle MISMATCH: extra = " + mismatchedDevices.getExtraDevices()+" and missing = " + mismatchedDevices.getMissingDevices());
       for (int extraDeviceId : mismatchedDevices.getExtraDevices()) {
         if (recipient.getUuid().isPresent()) {
           store.archiveSession(new SignalProtocolAddress(recipient.getUuid().get().toString(), extraDeviceId));
@@ -2346,11 +2361,14 @@ public class SignalServiceMessageSender {
       }
 
       for (int missingDeviceId : mismatchedDevices.getMissingDevices()) {
+        Log.w(TAG, "We miss deviceId "+missingDeviceId+", request a prekey");
         PreKeyBundle preKey = socket.getPreKey(recipient, missingDeviceId);
 
         try {
           SignalSessionBuilder sessionBuilder = new SignalSessionBuilder(sessionLock, new SessionBuilder(store, new SignalProtocolAddress(recipient.getIdentifier(), missingDeviceId)));
           sessionBuilder.process(preKey);
+          Log.w(TAG, "We DID miss deviceId "+missingDeviceId+", processed a prekey");
+
         } catch (org.whispersystems.libsignal.UntrustedIdentityException e) {
           throw new UntrustedIdentityException("Untrusted identity key!", recipient.getIdentifier(), preKey.getIdentityKey());
         }
