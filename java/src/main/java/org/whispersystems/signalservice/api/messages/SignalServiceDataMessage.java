@@ -6,6 +6,7 @@
 
 package org.whispersystems.signalservice.api.messages;
 
+import java.util.Arrays;
 import org.whispersystems.libsignal.InvalidMessageException;
 import org.whispersystems.signalservice.api.messages.shared.SharedContact;
 import org.whispersystems.signalservice.api.push.SignalServiceAddress;
@@ -15,6 +16,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.signal.zkgroup.groups.GroupPublicParams;
 import org.signal.zkgroup.groups.GroupSecretParams;
 
 /**
@@ -233,6 +235,14 @@ public class SignalServiceDataMessage {
 
     if (getGroupContext().isPresent() && getGroupContext().get().getGroupV2().isPresent()) {
       SignalServiceGroupV2 gv2 = getGroupContext().get().getGroupV2().get();
+      byte[] masterKeyBytes = gv2.getMasterKey().serialize();
+      GroupSecretParams gsp = GroupSecretParams.deriveFromMasterKey(gv2.getMasterKey());
+      byte[] gspbytes = gsp.serialize();
+      byte[] publicParamsBytes = gsp.getPublicParams().serialize();
+        System.err.println("GETGROUPID: ");
+        System.err.println("mkb = "+Arrays.toString(masterKeyBytes));
+        System.err.println("gsp = "+Arrays.toString(gspbytes));
+        System.err.println("ppb = "+Arrays.toString(publicParamsBytes));
       groupId = GroupSecretParams.deriveFromMasterKey(gv2.getMasterKey())
                                  .getPublicParams()
                                  .getGroupIdentifier()
