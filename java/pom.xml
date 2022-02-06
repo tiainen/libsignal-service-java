@@ -35,7 +35,7 @@
         <dependency>
           <groupId>org.signal</groupId>
           <artifactId>zkgroup-java</artifactId>
-          <version>0.8.2</version>
+          <version>0.8.2-gluon-3</version>
           <!-- <version>0.8.2-gluon-1</version> -->
         </dependency>
         <dependency>
