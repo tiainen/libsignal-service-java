@@ -48,6 +48,7 @@ import java.util.UUID;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import org.signal.zkgroup.*;
 
 public final class ZkGroupTest extends SecureRandomTest {
 
@@ -81,7 +82,16 @@ private static final byte[] profileKeyPresentationResult = Hex.fromStringCondens
 private static final byte[] pniPresentationResult = Hex.fromStringCondensedAssert(
 "00fecc5f71d40dbd45912d0de9c1ed033c7eb1c4755e19cb6241ede6a6a99f65545e870a806854c5000d436db601a89f72b9b399f0efa277473716e8bc20c984766250937555604f2d2fcdd263c60f2f72b5a04d9bbbc6f95c78085f81aaf07d3316a2dbd1ef85bb642d5da6d00d03fed8097276bf17a113a44018d773c9116c33ac86837d4f5c41fb70153f3d655c0b68982fae01113460db75ea7099ef7e910cbe0bd606870df55522f9d0b1bee1b1ab2f3b9cd3563a422684ebcfdb1fdada27acb4d48c7db9c6b1389c6742a8f8257bb70f5430feb4a438007fb33e7910da3b9a0997d7d35c6c93a8d45949d01f88b497c822b0127b3fc57cfaee90bcf7d41914f6f0f8fa0acd82e004caaad1c9feec2fb67f58936ae7a92a285dc15b23486a0272e864f3ae9769d650fdd0898739ad28e259e8dae73907caa8ff69a53a851e4001000000000000f26c704b8daf38a464810eca8589541521e053221dd830866bf77da025cdc2041e33f73e42c70387709acbac0df46d0155e6bf6f7952ddc3289a16ca682e740df7403cc12cbe0cd54a7b0de08eec4f7cdce52996880ef5db74bcc4e8e78d620da4d21ff137b29df3a1a08d14b9224c91ef05a1ac0a7cfe142b227853c90bb90db0cf3d6311560e49ca52983f9efc54ecb61f552d6a85088871ef4d0f5862dd04aff93fd97b7816181d38bcb30f71eaeb9eff2ba630916eac355f45703a8c780e8579b2793d4fb72e001d15e23bedcb3c827fc559ef7adb6da2ec33291b86bf0db2ad4a3a0cb9233d3af967d9301505b88d157b3436ae6122696718d812b27002cdce4c807610f2de7cec4a03933da64a6319eab4ac0630c99d0e62779974e8038ff5053275378c1b41dd7bb5f8f4c11daa4cd19fdec4d0222850c606857c990e765de9df4cfa5487f360e29e99343e91811baec331c4680985e608ca5d408e21725c6aa1b61d5a8b48d75f4aaa9a3cbe88d3e0f1a54319081f77c72c8f525474fe74409060615679fc115473683d63abd9ced46c7f2ad736046de5a2c7d2522f122895597049cfd7cc5beb6dc72aa990ae9a62ec8e256a1cbf5f3f284233bb0748c03ab4afbf6b8fb0e126c037a0ad4094600dd0e0634d76f88c21087f3cfb485a89bc1e3abc4c95041d1d170eccf02933ec5393d4be1dc573f83c33d3b9a746");
 
-  @Test
+@Test
+public void testGetMasterKey() throws InvalidInputException {
+          byte[] orig = new byte[]{19, 97, 14, -4, 123, -103, 30, -127, 23, -27, 113, -51, -21, -94, -82, 36, -106, 63, 88, 52, -6, -64, 116, -101, 79, -103, 64, 100, -41, -6, -64, -32};
+          GroupMasterKey gmk = new GroupMasterKey(orig);
+          GroupSecretParams gsp = GroupSecretParams.deriveFromMasterKey(gmk);
+          byte[] gspbytes = gsp.serialize();
+          System.err.println("GSPbytes = "+Arrays.toString(gspbytes));
+          assertArrayEquals(orig, gspbytes);
+}
+ // @Test
   public void testAuthIntegration() throws VerificationFailedException, InvalidInputException, InvalidRedemptionTimeException {
 
     UUID uuid           = TEST_UUID;

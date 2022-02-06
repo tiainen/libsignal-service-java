@@ -51,6 +51,7 @@ public class Sho {
             outputHasherPrefix.init(new SecretKeySpec(this.cv, "HmacSHA256"));
             System.err.println("in squeeze, inited with cv[0] = " + this.cv[0]);
             int i = 0;
+            int remainingBytes = outlen;
             while (i * HASH_LEN < outlen) {
                 Mac workMac = outputHasherPrefix;
 
@@ -58,7 +59,10 @@ public class Sho {
                 workMac.update((byte) 1);
                 byte[] part = workMac.doFinal();
                 System.err.println("in squeeze, part0 = " + part[0] + ", " + part[1] + ", " + part[2]);
-                results.writeBytes(part);
+                int    stepSize   = Math.min(remainingBytes, part.length);
+
+                results.write(part, 0, stepSize);
+                remainingBytes = remainingBytes - stepSize;
                 i += 1;
             }
             return results.toByteArray();

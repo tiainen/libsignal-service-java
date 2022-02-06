@@ -83,28 +83,35 @@ public final class GroupSecretParams extends ByteArray {
 
     public static GroupSecretParams deriveFromMasterKey(GroupMasterKey groupMasterKey) {
         byte[] info = "Signal_ZKGroup_20200424_GroupMasterKey_GroupSecretParams_DeriveFromMasterKey".getBytes();
-        byte[] bt = new HKDFv3().deriveSecrets(groupMasterKey.serialize(), info, GROUP_SECRET_PARAMS_LEN);
-        byte[] groupIdBytes = new byte[GROUP_IDENTIFIER_LEN];
-        Curve.decodePrivatePoint(bt);
-
-// byte[] newContents = Native.GroupSecretParams_DeriveFromMasterKey(groupMasterKey.getInternalContentsForJNI());
-        byte[] answer = new byte[GROUP_SECRET_PARAMS_LEN];
-        try {
-            byte[] priv = new byte[32];
-            System.arraycopy(bt, 0, priv, 0, 32);
-            ECPrivateKey privateKey = Curve.decodePrivatePoint(priv);
-            ECPublicKey pubKey = Curve.createPublicKeyFromPrivateKey(priv);
-            ECKeyPair ecp1  = new ECKeyPair(pubKey, privateKey);
-            ECKeyPair ecp2 = new ECKeyPair(pubKey, privateKey);
-            byte[] pkBytes = pubKey.serialize();
-            System.arraycopy(pkBytes, 0, answer, 1 + 7 * 32, 32);
-
-            return new GroupSecretParams(groupMasterKey, ecp1, ecp2);
-        } catch (IllegalArgumentException e) {
-            throw new AssertionError(e);
-        } catch (InvalidKeyException ex) {
-            throw new AssertionError(ex);
-        }
+      Sho sho = new Sho(info);
+      sho.absorb(groupMasterKey.serialize());
+      sho.ratchet();
+        byte[] squeeze = sho.squeeze(GROUP_SECRET_PARAMS_LEN);
+        System.err.println("length of retrieved bytes = "+squeeze.length+" and asked = "+ GROUP_SECRET_PARAMS_LEN);
+      return new GroupSecretParams(squeeze);
+//      
+//        byte[] bt = new HKDFv3().deriveSecrets(groupMasterKey.serialize(), info, GROUP_SECRET_PARAMS_LEN);
+//        byte[] groupIdBytes = new byte[GROUP_IDENTIFIER_LEN];
+//        Curve.decodePrivatePoint(bt);
+//
+//// byte[] newContents = Native.GroupSecretParams_DeriveFromMasterKey(groupMasterKey.getInternalContentsForJNI());
+//        byte[] answer = new byte[GROUP_SECRET_PARAMS_LEN];
+//        try {
+//            byte[] priv = new byte[32];
+//            System.arraycopy(bt, 0, priv, 0, 32);
+//            ECPrivateKey privateKey = Curve.decodePrivatePoint(priv);
+//            ECPublicKey pubKey = Curve.createPublicKeyFromPrivateKey(priv);
+//            ECKeyPair ecp1  = new ECKeyPair(pubKey, privateKey);
+//            ECKeyPair ecp2 = new ECKeyPair(pubKey, privateKey);
+//            byte[] pkBytes = pubKey.serialize();
+//            System.arraycopy(pkBytes, 0, answer, 1 + 7 * 32, 32);
+//
+//            return new GroupSecretParams(groupMasterKey, ecp1, ecp2);
+//        } catch (IllegalArgumentException e) {
+//            throw new AssertionError(e);
+//        } catch (InvalidKeyException ex) {
+//            throw new AssertionError(ex);
+//        }
     }
 
 
