@@ -239,7 +239,7 @@ public class SignalServiceDataMessage {
       GroupSecretParams gsp = GroupSecretParams.deriveFromMasterKey(gv2.getMasterKey());
       byte[] gspbytes = gsp.serialize();
       byte[] publicParamsBytes = gsp.getPublicParams().serialize();
-        System.err.println("GETGROUPID: ");
+        System.err.println("GETGROUPID::: ");
         System.err.println("mkb = "+Arrays.toString(masterKeyBytes));
         System.err.println("gsp = "+Arrays.toString(gspbytes));
         System.err.println("ppb = "+Arrays.toString(publicParamsBytes));
