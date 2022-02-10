@@ -4,7 +4,7 @@
 
     <groupId>org.whispersystems</groupId>
     <artifactId>signal-service-java</artifactId>
-    <version>2.15.4-gluon-18-SNAPSHOT</version>
+    <version>2.15.4-gluon-18</version>
     <packaging>jar</packaging>
 
     <name>signal-service-java</name>
@@ -30,12 +30,12 @@
         <dependency>
           <groupId>org.signal</groupId>
           <artifactId>signal-metadata-java</artifactId>
-          <version>0.1.2-gluon-10</version>
+          <version>0.1.2-gluon-11</version>
         </dependency>
         <dependency>
           <groupId>org.signal</groupId>
           <artifactId>zkgroup-java</artifactId>
-          <version>0.8.2-gluon-3</version>
+          <version>0.8.2-gluon-5</version>
           <!-- <version>0.8.2-gluon-1</version> -->
         </dependency>
         <dependency>
