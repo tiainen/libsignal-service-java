@@ -61,6 +61,7 @@ import java.util.UUID;
 import org.whispersystems.libsignal.protocol.SignalProtos.DecryptionErrorMessage;
 import org.whispersystems.signalservice.api.messages.multidevice.ContactsMessage;
 import org.whispersystems.signalservice.api.messages.multidevice.KeysMessage;
+import org.whispersystems.signalservice.api.push.ACI;
 import org.whispersystems.signalservice.api.storage.StorageKey;
 
 import static org.whispersystems.signalservice.internal.push.SignalServiceProtos.GroupContext.Type.DELIVER;
@@ -1014,19 +1015,17 @@ public final class SignalServiceContent {
     }
 
     SignalServiceProtos.DataMessage.Reaction reaction = content.getReaction();
-    UUID                                     uuid     = UuidUtil.parseOrNull(reaction.getTargetAuthorUuid());
+    ACI                                     uuid     = ACI.parseOrNull(reaction.getTargetAuthorUuid());
 
     if (uuid == null) {
       Log.w(TAG, "Cannot parse author UUID on reaction");
       return null;
     }
-      System.err.println("REACTION not yet supported");
-      Thread.dumpStack();
-      return null;
-//    return new SignalServiceDataMessage.Reaction(reaction.getEmoji(),
-//                        reaction.getRemove(),
-//                        new SignalServiceAddress(uuid),
-//                        reaction.getTargetSentTimestamp());
+
+    return new SignalServiceDataMessage.Reaction(reaction.getEmoji(),
+                        reaction.getRemove(),
+                        new SignalServiceAddress(uuid),
+                        reaction.getTargetSentTimestamp());
   }
 
   private static SignalServiceDataMessage.RemoteDelete createRemoteDelete(SignalServiceProtos.DataMessage content) {
