@@ -1,4 +1,5 @@
 module org.whispersystems.service {
+    requires java.logging;
     requires org.whispersystems.metadata;
     requires org.whispersystems.protocol;
     requires zkgroup.java;

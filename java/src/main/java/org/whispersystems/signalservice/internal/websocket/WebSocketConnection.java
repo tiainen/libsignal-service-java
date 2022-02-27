@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import java.util.logging.Logger;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocketFactory;
@@ -73,6 +74,9 @@ public class WebSocketConnection extends WebSocketListener {
     private int attempts;
     private boolean connected;
     private Consumer callback;
+    
+    private static final Logger LOG = Logger.getLogger(WebSocketConnection.class.getName());
+
 
     public WebSocketConnection(String httpUri,
             TrustStore trustStore,
@@ -117,12 +121,12 @@ public class WebSocketConnection extends WebSocketListener {
         } else {
             this.wsUri = uri + "/v1/websocket/" + path;
         }
-        Log.i(TAG, "WebSocketConnection created with url = " + this.wsUri + ": " + this);
+        LOG.info("WebSocketConnection created with url = " + this.wsUri + ": " + this);
 
     }
 
     public synchronized void connect() {
-        Log.i(TAG, "connect() for " + this);
+        LOG.info("connect() for " + this);
 
         if (client == null) {
             String filledUri;
@@ -196,7 +200,6 @@ public class WebSocketConnection extends WebSocketListener {
 
         while (client != null && incomingRequests.isEmpty() && elapsedTime(startTime) < timeoutMillis) {
             long et = elapsedTime(startTime);
-//            System.err.println("WAIT "+(timeoutMillis-et));
             Util.wait(this, Math.max(1, timeoutMillis - et));
         }
 
@@ -205,7 +208,7 @@ public class WebSocketConnection extends WebSocketListener {
         } else if (incomingRequests.isEmpty()) {
             throw new TimeoutException("Timeout exceeded");
         } else {
-            Log.d(TAG, "[WSC] readrequest will handover " + Objects.hashCode(incomingRequests.getFirst()));
+            LOG.fine("readrequest will handover " + Objects.hashCode(incomingRequests.getFirst()));
             return incomingRequests.removeFirst();
         }
     }
@@ -221,9 +224,9 @@ public class WebSocketConnection extends WebSocketListener {
                 .build();
 
         SettableFuture<WebsocketResponse> future = new SettableFuture<>();
-        Log.d(TAG, "[WSC] putting outgoingrequest " + request.getId() + " on queue");
+        LOG.fine("putting outgoingrequest " + request.getId() + " on queue");
         outgoingRequests.put(request.getId(), new OutgoingRequest(future, System.currentTimeMillis()));
-        Log.d(TAG, "outgoingRequests is now " + outgoingRequests);
+        LOG.fine("outgoingRequests now has " + outgoingRequests.size()+" elements.");
         if (!client.send(ByteString.of(message.toByteArray()))) {
             throw new IOException("Write failed!");
         }
@@ -287,18 +290,16 @@ public class WebSocketConnection extends WebSocketListener {
     public synchronized void onMessage(WebSocket webSocket, ByteString payload) {
         long mid = 0;
         try {
-            Log.d(TAG, "[WSC] "+ Thread.currentThread()+" onMessage invoked on "
-                    +webSocket+" with WSC = " + this+" with queuesize = "+webSocket.queueSize());
             WebSocketMessage message = WebSocketMessage.parseFrom(payload.toByteArray());
-           mid = Objects.hashCode(message.getRequest());
-            Log.d(TAG, "[WSC] " + Thread.currentThread() + " onMessage with type " + message.getType());
+            LOG.info("Websocket gets message of type " + message.getType()+
+                    ", with queuesize = "+webSocket.queueSize());
+            mid = Objects.hashCode(message.getRequest());
             if (message.getType().getNumber() == WebSocketMessage.Type.REQUEST_VALUE) {
-                Log.d(TAG, "[WSCOM] message = " + message);
                 incomingRequests.add(message.getRequest());
-                Log.d(TAG, "[WCOM] message added to incomingRequests " + Objects.hashCode(message.getRequest()));
+                LOG.info("Message with id "+mid+" added to incomingRequests, queuesize = "+incomingRequests.size());
             } else if (message.getType().getNumber() == WebSocketMessage.Type.RESPONSE_VALUE) {
                 OutgoingRequest listener = outgoingRequests.get(message.getResponse().getId());
-                Log.d(TAG, "listener for id " + message.getResponse().getId() + " = " + listener);
+                LOG.info("incoming message is response for request with id " + message.getResponse().getId() + " and listener = " + listener);
                 if (listener != null) {
                     listener.getResponseFuture().set(
                             new WebsocketResponse(message.getResponse().getStatus(),
@@ -311,7 +312,7 @@ public class WebSocketConnection extends WebSocketListener {
         } catch (InvalidProtocolBufferException e) {
             Log.w(TAG, e);
         }
-         Log.d(TAG, "[WSC] "+ Thread.currentThread()+" handled onMessage "+mid);
+        LOG.finer(Thread.currentThread()+" handled onMessage "+mid);
     }
 
     @Override
@@ -408,7 +409,7 @@ public class WebSocketConnection extends WebSocketListener {
                 try {
                     sleepTimer.sleep(TimeUnit.SECONDS.toMillis(KEEPALIVE_TIMEOUT_SECONDS));
 
-                    Log.d(TAG, "Sending keep alive for " + this);
+                    LOG.finest("Sending keep alive for " + this);
                     sendKeepAlive();
                 } catch (Throwable e) {
                     Log.d(TAG, "FAILED Sending keep alive for " + this);

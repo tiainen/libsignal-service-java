@@ -20,7 +20,6 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 
 import org.whispersystems.libsignal.IdentityKey;
 import org.whispersystems.libsignal.InvalidKeyException;
-import org.whispersystems.libsignal.logging.Log;
 import org.whispersystems.signalservice.api.util.UuidUtil;
 import org.whispersystems.util.Base64;
 
@@ -29,8 +28,6 @@ import java.util.UUID;
 import org.whispersystems.signalservice.api.push.exceptions.MalformedResponseException;
 
 public class JsonUtil {
-
-  private static final String TAG = JsonUtil.class.getSimpleName();
 
   private static final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -41,12 +38,9 @@ public class JsonUtil {
   public static String toJson(Object object) {
     try {
       String answer = objectMapper.writeValueAsString(object);
-      Log.d(TAG, "I created json based on "+object);
-      Log.d(TAG, "json = "+answer);
       return answer;
     } catch (JsonProcessingException e) {
         e.printStackTrace();
-      Log.w(TAG, e);
       return "";
     }
   }

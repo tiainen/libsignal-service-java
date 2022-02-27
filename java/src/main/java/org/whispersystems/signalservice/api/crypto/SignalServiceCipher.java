@@ -55,6 +55,7 @@ import org.whispersystems.signalservice.internal.serialize.protos.SignalServiceC
 import org.whispersystems.util.Base64;
 
 import java.util.Optional;
+import java.util.logging.Logger;
 import org.signal.libsignal.metadata.certificate.SenderCertificate;
 import org.signal.libsignal.metadata.protocol.UnidentifiedSenderMessageContent;
 import org.whispersystems.libsignal.InvalidRegistrationIdException;
@@ -71,6 +72,7 @@ public class SignalServiceCipher {
 
   @SuppressWarnings("unused")
   private static final String TAG = SignalServiceCipher.class.getSimpleName();
+  private static final Logger LOG = Logger.getLogger(SignalServiceCipher.class.getName());
 
   private final SignalProtocolStore  signalProtocolStore;
   private final SignalSessionLock    sessionLock;
@@ -92,9 +94,9 @@ public class SignalServiceCipher {
             Optional<UnidentifiedAccess> unidentifiedAccess,
             EnvelopeContent content)
             throws UntrustedIdentityException, InvalidKeyException {
-        System.err.println("[SSC] encrypt, ua present = "+unidentifiedAccess.isPresent());
+        LOG.finer("[SSC] encrypt, ua present = "+unidentifiedAccess.isPresent());
         if (unidentifiedAccess.isPresent()) {
-            System.err.println("SSC, encrypt for destination " + destination + " and content = " + content);
+            LOG.finer("SSC, encrypt for destination " + destination + " and content = " + content);
             SignalSessionCipher sessionCipher = new SignalSessionCipher(sessionLock, 
                     new SessionCipher(signalProtocolStore, destination));
             SignalSealedSessionCipher sealedSessionCipher
@@ -168,13 +170,11 @@ public class SignalServiceCipher {
 
         return SignalServiceContent.createFromProto(contentProto);
       } else if (envelope.hasContent()) {
-          System.err.println("SSC will decrypt envelope with type " + envelope.getType()+
+          LOG.info("SSC will decrypt envelope with type " + envelope.getType()+
                   " and sourceguid = "+envelope.getSourceUuid().orElse("unknown"));
         Plaintext                   plaintext = decrypt(envelope, envelope.getContent());
-          System.err.println("PLAINTEXT = "+plaintext);
-          System.err.println("plaindata = "+Arrays.toString(plaintext.data));
         SignalServiceProtos.Content content   = SignalServiceProtos.Content.parseFrom(plaintext.getData());
-          System.err.println("CONTENT = "+content);
+        LOG.info("CONTENT = "+content);
         SignalServiceContentProto contentProto = SignalServiceContentProto.newBuilder()
                                                                           .setLocalAddress(SignalServiceAddressProtobufSerializer.toProtobuf(localAddress))
                                                                           .setMetadata(SignalServiceMetadataProtobufSerializer.toProtobuf(plaintext.metadata))
@@ -224,11 +224,9 @@ public class SignalServiceCipher {
         metadata       = new SignalServiceMetadata(envelope.getSourceAddress(), envelope.getSourceDevice(), envelope.getTimestamp(), envelope.getServerReceivedTimestamp(), envelope.getServerDeliveredTimestamp(), false);
         sessionVersion = sessionCipher.getSessionVersion();
       } else if (envelope.isUnidentifiedSender()) {
-          System.err.println("SSC, UnidentifiedCenter! create SignalSealedSessionCipher");
+          LOG.fine("decrypt message with unidentified sender");
         SignalSealedSessionCipher sealedSessionCipher = new SignalSealedSessionCipher(sessionLock, new SealedSessionCipher(signalProtocolStore, localAddress.getUuid().orElse(null), localAddress.getNumber().orElse(null), 1));
-          System.err.println("SSC, sealedSessionCipher created, ask to decrypt now");
         DecryptionResult          result              = sealedSessionCipher.decrypt(certificateValidator, ciphertext, envelope.getServerReceivedTimestamp());
-          System.err.println("SSC, sealedsessioncipher decrypted!");
         SignalServiceAddress      resultAddress       = new SignalServiceAddress(UuidUtil.parse(result.getSenderUuid().orElse(null)), result.getSenderE164());
   //      SignalProtocolAddress     protocolAddress     = getPreferredProtocolAddress(signalProtocolStore, resultAddress, result.getDeviceId());
 
