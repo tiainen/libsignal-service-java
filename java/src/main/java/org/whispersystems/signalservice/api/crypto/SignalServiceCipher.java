@@ -9,6 +9,7 @@ package org.whispersystems.signalservice.api.crypto;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 import org.signal.libsignal.metadata.InvalidMetadataMessageException;
 import org.signal.libsignal.metadata.InvalidMetadataVersionException;
@@ -170,11 +171,13 @@ public class SignalServiceCipher {
 
         return SignalServiceContent.createFromProto(contentProto);
       } else if (envelope.hasContent()) {
-          LOG.info("SSC will decrypt envelope with type " + envelope.getType()+
-                  " and sourceguid = "+envelope.getSourceUuid().orElse("unknown"));
+          LOG.info("Decrypt envelope with type " + envelope.getType()+
+                  " and sourceUuid = "+envelope.getSourceUuid().orElse("unknown"));
         Plaintext                   plaintext = decrypt(envelope, envelope.getContent());
         SignalServiceProtos.Content content   = SignalServiceProtos.Content.parseFrom(plaintext.getData());
-        LOG.info("CONTENT = "+content);
+        LOG.info("Contentinfo = "+shortDebug(content));
+        LOG.finest("Content = "+content);
+        
         SignalServiceContentProto contentProto = SignalServiceContentProto.newBuilder()
                                                                           .setLocalAddress(SignalServiceAddressProtobufSerializer.toProtobuf(localAddress))
                                                                           .setMetadata(SignalServiceMetadataProtobufSerializer.toProtobuf(plaintext.metadata))
@@ -295,6 +298,32 @@ public class SignalServiceCipher {
 //      return new SignalProtocolAddress(address.getLegacyIdentifier(), sourceDevice);
 //    }
 //  }
+    
+    static String shortDebug(SignalServiceProtos.Content content) {
+        int myHash = Objects.hashCode(content);
+        String answer = "Content@"+myHash;
+        if (content.hasDataMessage()) {
+            SignalServiceProtos.DataMessage dataMessage = content.getDataMessage();
+            answer = "DataMessage@"+myHash;
+            return answer;
+        }
+        if (content.hasReceiptMessage()) {
+            answer = "ReceiptMessage@"+myHash;
+        }
+        if (content.hasSyncMessage()) {
+            answer = "SyncMessage@"+myHash;
+        }
+        if (content.hasTypingMessage()) {
+            answer = "TypingMessage@"+myHash;
+        }
+        if (content.hasSenderKeyDistributionMessage()) {
+            answer = "SenderKeyDistributionMessage@"+myHash;
+        }
+        if (content.hasDecryptionErrorMessage()) {
+            answer = "DecryptionErrorMessage@"+myHash;
+        }
+        return answer;
+    }
 
   private static class Plaintext {
     private final SignalServiceMetadata metadata;

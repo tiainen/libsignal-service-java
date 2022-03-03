@@ -2372,12 +2372,12 @@ public class SignalServiceMessageSender {
             throws IOException, InvalidKeyException, UntrustedIdentityException {
         SignalProtocolAddress signalProtocolAddress = new SignalProtocolAddress(recipient.getIdentifier(), deviceId);
         SignalServiceCipher cipher = new SignalServiceCipher(localAddress, store, sessionLock, null);
-        Log.d(TAG, "[SSMS] " + Thread.currentThread() + " encrypting outgoing message");
+        LOG.fine("[SSMS] " + Thread.currentThread() + " encrypting outgoing message");
         if (!store.containsSession(signalProtocolAddress)) {
             try {
-                Log.i(TAG, "We need to get prekeys before we can encrypt a message");
+                LOG.info("We need to get prekeys before we can encrypt a message to "+signalProtocolAddress);
                 List<PreKeyBundle> preKeys = socket.getPreKeys(recipient, unidentifiedAccess, deviceId);
-                Log.i(TAG, "We got " + preKeys.size() + " preKeys.");
+                LOG.info("We got " + preKeys.size() + " preKeys for "+signalProtocolAddress);
                 for (PreKeyBundle preKey : preKeys) {
                     try {
                         SignalProtocolAddress preKeyAddress = new SignalProtocolAddress(recipient.getIdentifier(), preKey.getDeviceId());

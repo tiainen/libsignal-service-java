@@ -53,6 +53,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.logging.Logger;
 import org.whispersystems.signalservice.api.push.exceptions.MalformedResponseException;
 import org.whispersystems.signalservice.api.push.exceptions.PushNetworkException;
 import org.whispersystems.signalservice.internal.push.MismatchedDevices;
@@ -77,6 +78,7 @@ public class SignalServiceMessagePipe {
   private final WebSocketConnection           websocket;
   private final Optional<CredentialsProvider> credentialsProvider;
   private final ClientZkProfileOperations     clientZkProfile;
+    private static final Logger LOG = Logger.getLogger(SignalServiceMessagePipe.class.getName());
 
   SignalServiceMessagePipe(WebSocketConnection websocket,
                            Optional<CredentialsProvider> credentialsProvider,
@@ -155,9 +157,9 @@ public class SignalServiceMessagePipe {
 
     while (true) {
       WebSocketRequestMessage  request  = websocket.readRequest(unit.toMillis(timeout));
-      Log.d(TAG, "[SSMP] "+Thread.currentThread()+" readOrEmpty will deal with "+Objects.hashCode(request));
+      LOG.info(Thread.currentThread().getName()+" will deal with "+Objects.hashCode(request));
       WebSocketResponseMessage response = createWebSocketResponse(request);
-      Log.d(TAG, "[SSMP] readOrEmpty has a response ready");
+      LOG.finer("We have a response ready");
       try {
         if (isSignalServiceEnvelope(request)) {
           Optional<String> timestampHeader = findHeader(request, SERVER_DELIVERED_TIMESTAMP_HEADER);
@@ -167,26 +169,22 @@ public class SignalServiceMessagePipe {
             try {
               timestamp = Long.parseLong(timestampHeader.get());
             } catch (NumberFormatException e) {
-              Log.w(TAG, "Failed to parse " + SERVER_DELIVERED_TIMESTAMP_HEADER);
+              LOG.warning("Failed to parse " + SERVER_DELIVERED_TIMESTAMP_HEADER);
             }
           }
 
           SignalServiceEnvelope envelope = new SignalServiceEnvelope(request.getBody().toByteArray(), timestamp);
-          Log.d(TAG, "[SSMP] request "+Objects.hashCode(request)+ " has envelope "+Objects.hashCode(envelope));
+          LOG.finer("Request "+Objects.hashCode(request)+ " has envelope "+Objects.hashCode(envelope));
           callback.onMessage(envelope);
-          Log.d(TAG, "[SSMP] callback invoked on envelope "+Objects.hashCode(envelope));
+          LOG.finer("Return envelope "+Objects.hashCode(envelope));
           return Optional.of(envelope);
         } else if (isSocketEmptyRequest(request)) {
           return Optional.empty();
         }
-      } catch (Throwable t) {
-          System.err.println("THROWABLE!!! "+t);
-          t.printStackTrace();
       } finally {
-        Log.d(TAG, "[SSMP] readOrEmpty will send response");
+        LOG.finer("[SSMP] readOrEmpty will send response");
         websocket.sendResponse(response);
-        Log.d(TAG, "[SSMP] readOrEmpty did send response");
-
+        LOG.fine("[SSMP] readOrEmpty did send response");
       }
     }
   }

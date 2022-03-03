@@ -292,11 +292,11 @@ public class WebSocketConnection extends WebSocketListener {
         try {
             WebSocketMessage message = WebSocketMessage.parseFrom(payload.toByteArray());
             LOG.info("Websocket gets message of type " + message.getType()+
-                    ", with queuesize = "+webSocket.queueSize());
+                    ", with websocket queuesize = "+webSocket.queueSize());
             mid = Objects.hashCode(message.getRequest());
             if (message.getType().getNumber() == WebSocketMessage.Type.REQUEST_VALUE) {
                 incomingRequests.add(message.getRequest());
-                LOG.info("Message with id "+mid+" added to incomingRequests, queuesize = "+incomingRequests.size());
+                LOG.info("Message with id "+mid+" added to incomingRequestsqueue, queuesize = "+incomingRequests.size());
             } else if (message.getType().getNumber() == WebSocketMessage.Type.RESPONSE_VALUE) {
                 OutgoingRequest listener = outgoingRequests.get(message.getResponse().getId());
                 LOG.info("incoming message is response for request with id " + message.getResponse().getId() + " and listener = " + listener);
