@@ -268,13 +268,14 @@ public class WebSocketConnection extends WebSocketListener {
 
     @Override
     public synchronized void onOpen(WebSocket webSocket, Response response) {
+        LOG.info("Establishing WebSocket connection "+webSocket+" called in thread "+Thread.currentThread());
         Log.d(TAG, "[WSC] onOpen for " + this+", response = "+response);
         if (client != null && keepAliveSender == null) {
-            Log.i(TAG, "onOpen() connected, client = " + client);
+            LOG.info("onOpen() connected, client = " + client);
             attempts = 0;
             connected = true;
             keepAliveSender = new KeepAliveSender();
-            Log.i(TAG, "keepalive thread = " + keepAliveSender);
+            LOG.info("keepalive thread = " + keepAliveSender);
             keepAliveSender.start();
 
             if (listener != null) {
@@ -295,7 +296,9 @@ public class WebSocketConnection extends WebSocketListener {
                     ", with websocket queuesize = "+webSocket.queueSize());
             mid = Objects.hashCode(message.getRequest());
             if (message.getType().getNumber() == WebSocketMessage.Type.REQUEST_VALUE) {
-                incomingRequests.add(message.getRequest());
+                WebSocketRequestMessage req = message.getRequest();
+                LOG.info("Received message: got request "+req.getVerb()+" "+req.getPath());
+                incomingRequests.add(req);
                 LOG.info("Message with id "+mid+" added to incomingRequestsqueue, queuesize = "+incomingRequests.size());
             } else if (message.getType().getNumber() == WebSocketMessage.Type.RESPONSE_VALUE) {
                 OutgoingRequest listener = outgoingRequests.get(message.getResponse().getId());

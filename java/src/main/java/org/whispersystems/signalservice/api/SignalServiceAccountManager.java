@@ -288,6 +288,7 @@ public class SignalServiceAccountManager {
                                                 discoverableByPhoneNumber);
   }
 
+
   /**
    * Register an identity key, signed prekey, and list of one time prekeys
    * with the server.

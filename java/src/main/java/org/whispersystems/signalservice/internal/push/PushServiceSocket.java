@@ -131,6 +131,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 
 import javax.net.SocketFactory;
 import javax.net.ssl.SSLContext;
@@ -199,6 +200,8 @@ public class PushServiceSocket {
 
   private static final String PROFILE_PATH              = "/v1/profile/%s";
   private static final String PROFILE_USERNAME_PATH     = "/v1/profile/username/%s";
+  
+  private static final String REGISTER_CAPABILITIES_PATH= "/v1/devices/capabilities/%s";
 
   private static final String SENDER_CERTIFICATE_PATH         = "/v1/certificate/delivery";
   private static final String SENDER_CERTIFICATE_NO_E164_PATH = "/v1/certificate/delivery?includeE164=false";
@@ -244,6 +247,8 @@ public class PushServiceSocket {
   private final SecureRandom                     random;
   private final ClientZkProfileOperations        clientZkProfileOperations;
   private final boolean                          automaticNetworkRetry;
+
+    private static final Logger LOG = Logger.getLogger(PushServiceSocket.class.getName());
 
   public PushServiceSocket(SignalServiceConfiguration configuration,
                            CredentialsProvider credentialsProvider,
@@ -452,6 +457,13 @@ public class PushServiceSocket {
   public void acknowledgeMessage(String uuid) throws IOException {
     makeServiceRequest(String.format(UUID_ACK_MESSAGE_PATH, uuid), "DELETE", null);
   }
+
+    public String registerCapabilities(Object capabilities)
+            throws IOException {
+        String payload = JsonUtil.toJson(capabilities);
+        System.err.println("PAYLOAD = "+payload);
+        return makeServiceRequest(String.format(REGISTER_CAPABILITIES_PATH, ""), "PUT", payload);
+    }
 
   public String registerPreKeys(IdentityKey identityKey,
                               SignedPreKeyRecord signedPreKey,
@@ -1354,7 +1366,7 @@ public class PushServiceSocket {
   private String makeServiceRequest(String urlFragment, String method, String jsonBody, Map<String, String> headers, ResponseCodeHandler responseCodeHandler, Optional<UnidentifiedAccess> unidentifiedAccessKey)
       throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException
   {
-      System.err.println("need to create request for jsonbody = "+jsonBody);
+    LOG.fine("need to create request for jsonbody = "+jsonBody);
     ResponseBody responseBody = makeServiceBodyRequest(urlFragment, method, jsonRequestBody(jsonBody), headers, responseCodeHandler, unidentifiedAccessKey);
     try {
       return responseBody.string();
@@ -1417,25 +1429,23 @@ public class PushServiceSocket {
   {
     return makeServiceRequest(urlFragment, method, body, headers, responseCodeHandler, unidentifiedAccessKey).body();
   }
+    
+    private Response makeServiceRequest(String urlFragment,
+            String method,
+            RequestBody body,
+            Map<String, String> headers,
+            ResponseCodeHandler responseCodeHandler,
+            Optional<UnidentifiedAccess> unidentifiedAccessKey)
+            throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException {
+        LOG.info("urlFrag = " + urlFragment + " and method = " + method);
+        System.err.println("PSS, body = " + ((body == null) ? "NULL" : body.toString()));
+        System.err.println("headers = " + headers);
+        Response response = getServiceConnection(urlFragment, method, body, headers, unidentifiedAccessKey);
+        LOG.info("responsecode = " + response.code() + " and msg = " + response.message());
+        responseCodeHandler.handle(response.code());
 
-  private Response makeServiceRequest(String urlFragment,
-                                      String method,
-                                      RequestBody body,
-                                      Map<String, String> headers,
-                                      ResponseCodeHandler responseCodeHandler,
-                                      Optional<UnidentifiedAccess> unidentifiedAccessKey)
-      throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException
-  {
-      System.err.println("PSS, makeServiceReq, urlFrag = "+urlFragment+" and method = "+method);
-     // Thread.dumpStack();
-      System.err.println("PSS, body = "+body);
-      System.err.println("headers = "+headers);
-      Response response = getServiceConnection(urlFragment, method, body, headers, unidentifiedAccessKey);
-
-    responseCodeHandler.handle(response.code());
-
-    return validateServiceResponse(response);
-  }
+        return validateServiceResponse(response);
+    }
 
   private Response validateServiceResponse(Response response)
       throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException {
