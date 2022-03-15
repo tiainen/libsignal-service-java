@@ -111,6 +111,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.signal.libsignal.metadata.certificate.SenderCertificate;
@@ -395,6 +396,7 @@ public class SignalServiceMessageSender {
 
         if (result.getSuccess() != null && result.getSuccess().isNeedsSync()) {
             Content syncMessage = createMultiDeviceSentTranscriptContent(content, Optional.of(recipient), timestamp, Collections.singletonList(result), false);
+            LOG.info("Message sent successfully, now send syncmessage");
             sendMessage(localAddress, Optional.<UnidentifiedAccess>empty(), timestamp, syncMessage.toByteArray(), false, null);
         }
 
@@ -427,6 +429,7 @@ public class SignalServiceMessageSender {
             boolean isRecipientUpdate,
             SignalServiceDataMessage message)
             throws IOException, UntrustedIdentityException {
+        LOG.info("Send message to a group with unregisteed members");
         Content content = createMessageContent(message);
         long timestamp = message.getTimestamp();
         List<SendMessageResult> results = sendMessage(recipients, getTargetUnidentifiedAccess(unidentifiedAccess), timestamp, content.toByteArray(), false, null);
@@ -440,6 +443,7 @@ public class SignalServiceMessageSender {
         }
 
         if (needsSyncInResults || isMultiDevice.get()) {
+            LOG.info("We are multidevice OR we need to sync");
             Optional<SignalServiceAddress> recipient = Optional.empty();
             if (!message.getGroupContext().isPresent() && recipients.size() == 1) {
                 recipient = Optional.of(recipients.get(0));
@@ -490,9 +494,9 @@ public class SignalServiceMessageSender {
 
         long timestamp = message.getSent().isPresent() ? message.getSent().get().getTimestamp()
                 : System.currentTimeMillis();
-
+        LOG.info("Will now invoke sendMessage");
         SendMessageResult result = sendMessage(localAddress, Optional.<UnidentifiedAccess>empty(), timestamp, content, false, null);
-        Log.d(TAG, "Result of sendMessage = " + result);
+        LOG.info("Result of sendMessage = " + result);
     }
 
     public void setSoTimeoutMillis(long soTimeoutMillis) {
@@ -651,8 +655,10 @@ public class SignalServiceMessageSender {
         if (store.isMultiDevice()) {
             Content syncMessage = createMultiDeviceSentTranscriptContent(content, Optional.empty(), message.getTimestamp(), results, isRecipientUpdate);
             EnvelopeContent syncMessageContent = EnvelopeContent.encrypted(syncMessage, ContentHint.IMPLICIT, Optional.empty());
-
+            LOG.info("Will NOW send sycmessage to our other devices");
             sendMessage(localAddress, Optional.empty(), message.getTimestamp(), syncMessageContent, false, null);
+            LOG.info("Did sent sycmessage to our other devices");
+
         }
         sendEvents.onSyncMessageSent();
         System.err.println("SSMS, return results from sendGroupDataMessage: " + results);
@@ -1835,12 +1841,13 @@ public class SignalServiceMessageSender {
             boolean online,
             CancelationSignal cancelationSignal)
             throws UntrustedIdentityException, IOException {
+        LOG.info("send message to recipient "+recipient.getIdentifier());
         enforceMaxContentSize(content);
 
         long startTime = System.currentTimeMillis();
 
         for (int i = 0; i < RETRY_COUNT; i++) {
-            System.err.println("Try sending message, attempt " + i);
+            LOG.fine("Try sending message, attempt " + i);
             if (cancelationSignal != null && cancelationSignal.isCanceled()) {
                 throw new CancelationException();
             }
@@ -1866,7 +1873,7 @@ public class SignalServiceMessageSender {
                     } catch (ExecutionException ex) {
                         Log.w(TAG, ex);
                         Throwable cause = ex.getCause();
-                        Log.w(TAG, "[sendMessage] send failed, cause = " + cause);
+                        LOG.log(java.util.logging.Level.WARNING, "[sendMessage] send failed, cause = ", cause);
 
                         if (cause instanceof MismatchedDevicesException) {
                             MismatchedDevicesException mde = (MismatchedDevicesException) cause;
@@ -1905,10 +1912,12 @@ public class SignalServiceMessageSender {
                     throw afe;
                 }
             } catch (MismatchedDevicesException mde) {
+                LOG.log(Level.WARNING, "MismatchedDevices", mde);
                 Log.w(TAG, mde);
                 handleMismatchedDevices(socket, recipient, mde.getMismatchedDevices());
             } catch (StaleDevicesException ste) {
                 Log.w(TAG, ste);
+                LOG.log(Level.WARNING, "StaleDevices", ste);
                 handleStaleDevices(recipient, ste.getStaleDevices());
             }
         }
