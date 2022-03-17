@@ -222,7 +222,6 @@ public class WebSocketConnection extends WebSocketListener {
                 .setType(WebSocketMessage.Type.REQUEST)
                 .setRequest(request)
                 .build();
-
         SettableFuture<WebsocketResponse> future = new SettableFuture<>();
         LOG.fine("putting outgoingrequest " + request.getId() + " on queue");
         outgoingRequests.put(request.getId(), new OutgoingRequest(future, System.currentTimeMillis()));

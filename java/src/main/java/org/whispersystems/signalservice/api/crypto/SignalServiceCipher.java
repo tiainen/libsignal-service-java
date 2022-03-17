@@ -78,9 +78,11 @@ public class SignalServiceCipher {
   private final SignalProtocolStore  signalProtocolStore;
   private final SignalSessionLock    sessionLock;
   private final SignalServiceAddress localAddress;
+  private final int localDeviceId;
   private final CertificateValidator certificateValidator;
 
   public SignalServiceCipher(SignalServiceAddress localAddress,
+          int localDeviceId,
                              SignalProtocolStore signalProtocolStore,
                              SignalSessionLock sessionLock,
                              CertificateValidator certificateValidator)
@@ -88,6 +90,7 @@ public class SignalServiceCipher {
     this.signalProtocolStore  = signalProtocolStore;
     this.sessionLock          = sessionLock;
     this.localAddress         = localAddress;
+    this.localDeviceId = localDeviceId;
     this.certificateValidator = certificateValidator;
   }
   
@@ -273,7 +276,7 @@ public class SignalServiceCipher {
       throws NoSessionException, UntrustedIdentityException, InvalidKeyException, InvalidRegistrationIdException
   {
     PushTransportDetails             transport            = new PushTransportDetails();
-    SignalProtocolAddress            localProtocolAddress = new SignalProtocolAddress(localAddress.getIdentifier(), SignalServiceAddress.DEFAULT_DEVICE_ID);
+    SignalProtocolAddress            localProtocolAddress = new SignalProtocolAddress(localAddress.getIdentifier(), localDeviceId);
     SignalGroupCipher                groupCipher          = new SignalGroupCipher(sessionLock, new GroupCipher(signalProtocolStore, localProtocolAddress));
     SignalSealedSessionCipher        sessionCipher        = new SignalSealedSessionCipher(sessionLock, new SealedSessionCipher(signalProtocolStore, localAddress.getAci().uuid(), localAddress.getNumber().orElse(null), 1));
     CiphertextMessage                message              = groupCipher.encrypt(distributionId.asUuid(), transport.getPaddedMessageBody(unpaddedMessage));

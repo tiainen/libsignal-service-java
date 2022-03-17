@@ -151,6 +151,7 @@ public class SignalServiceMessageSender {
     private final SignalServiceProtocolStore store;
     private final SignalSessionLock sessionLock;
     private final SignalServiceAddress localAddress;
+    private final int localDeviceId;
     private Optional<EventListener> eventListener;
 
     private AtomicReference<Optional<SignalServiceMessagePipe>> pipe;
@@ -177,6 +178,7 @@ public class SignalServiceMessageSender {
         this.store = store;
         this.sessionLock = sessionLock;
         this.localAddress = new SignalServiceAddress(credentialsProvider.getUuid(), credentialsProvider.getE164());
+        this.localDeviceId = credentialsProvider.getDeviceId();
         this.pipe = new AtomicReference<>(pipe);
         this.unidentifiedPipe = new AtomicReference<>(unidentifiedPipe);
         this.isMultiDevice = new AtomicBoolean(isMultiDevice);
@@ -250,11 +252,10 @@ public class SignalServiceMessageSender {
             List<SignalServiceAddress> recipients,
             List<UnidentifiedAccess> unidentifiedAccess,
             SignalServiceTypingMessage message)
-            throws IOException, UntrustedIdentityException, InvalidKeyException, NoSessionException //, InvalidRegistrationIdException
+            throws IOException, UntrustedIdentityException, InvalidKeyException, NoSessionException, InvalidRegistrationIdException
     {
-        throw new RuntimeException("Implement me now");
-//    Content content = createTypingContent(message);
-//    sendGroupMessage(distributionId, recipients, unidentifiedAccess, message.getTimestamp(), content, ContentHint.IMPLICIT, message.getGroupId().orNull(), true, SenderKeyGroupEvents.EMPTY);
+        byte[] content = createTypingContent(message);
+        sendGroupMessage(distributionId, recipients, unidentifiedAccess, message.getTimestamp(), content, ContentHint.IMPLICIT, message.getGroupId().orElse(null), true, SenderKeyGroupEvents.EMPTY);
     }
 
     /**
@@ -322,8 +323,7 @@ public class SignalServiceMessageSender {
      * sender key session for the provided DistributionId if one doesn't exist.
      */
     public SenderKeyDistributionMessage getOrCreateNewGroupSession(DistributionId distributionId) {
-        SignalProtocolAddress self = new SignalProtocolAddress(localAddress.getIdentifier(), SignalServiceAddress.DEFAULT_DEVICE_ID);
-        //SenderKeyName senderKeyName= new SenderKeyName(distributionId.asUuid().toString(), self);
+        SignalProtocolAddress self = new SignalProtocolAddress(localAddress.getIdentifier(), localDeviceId);
         return new SignalGroupSessionBuilder(sessionLock, new GroupSessionBuilder(store))
                 .create(self, distributionId.asUuid());
     }
@@ -737,7 +737,7 @@ public class SignalServiceMessageSender {
         LOG.info("[" + message.getTimestamp() + "] Sending a group data message to " + recipients.size() + " recipients using DistributionId " + distributionId + " and msg = " + message.getBody());
         Content content = createMessageContent(message);
         Optional<byte[]> groupId = message.getGroupId();
-        List<SendMessageResult> results = sendGroupMessage(distributionId, recipients, unidentifiedAccess, message.getTimestamp(), content, contentHint, groupId.orElse(null), false, sendEvents);
+        List<SendMessageResult> results = sendGroupMessage(distributionId, recipients, unidentifiedAccess, message.getTimestamp(), content.toByteArray(), contentHint, groupId.orElse(null), false, sendEvents);
         sendEvents.onMessageSent();
 
         if (store.isMultiDevice()) {
@@ -764,12 +764,13 @@ public class SignalServiceMessageSender {
             List<SignalServiceAddress> recipients,
             List<UnidentifiedAccess> unidentifiedAccess,
             long timestamp,
-            Content content,
+            byte[] content,
             ContentHint contentHint,
             byte[] groupId,
             boolean online,
             SenderKeyGroupEvents sendEvents)
             throws IOException, UntrustedIdentityException, NoSessionException, InvalidKeyException, InvalidRegistrationIdException {
+        LOG.info("send to "+ recipients);
         if (recipients.isEmpty()) {
             Log.w(TAG, "[sendGroupMessage][" + timestamp + "] Empty recipient list!");
             return Collections.emptyList();
@@ -847,12 +848,12 @@ public class SignalServiceMessageSender {
 
             sendEvents.onSenderKeyShared();
 
-            SignalServiceCipher cipher = new SignalServiceCipher(localAddress, store, sessionLock, null);
+            SignalServiceCipher cipher = new SignalServiceCipher(localAddress, localDeviceId, store, sessionLock, null);
             SenderCertificate senderCertificate = unidentifiedAccess.get(0).getUnidentifiedCertificate();
 
             byte[] ciphertext;
             try {
-                ciphertext = cipher.encryptForGroup(distributionId, targetInfo.destinations, senderCertificate, content.toByteArray(), contentHint, groupId);
+                ciphertext = cipher.encryptForGroup(distributionId, targetInfo.destinations, senderCertificate, content, contentHint, groupId);
             } catch (org.whispersystems.libsignal.UntrustedIdentityException e) {
                 throw new UntrustedIdentityException("Untrusted during group encrypt", e.getName(), e.getUntrustedIdentity());
             }
@@ -1914,17 +1915,6 @@ public class SignalServiceMessageSender {
     private SendMessageResult sendMessage(SignalServiceAddress recipient,
             Optional<UnidentifiedAccess> unidentifiedAccess,
             long timestamp,
-            Content content,
-            boolean online,
-            CancelationSignal cancelationSignal)
-            throws UntrustedIdentityException, IOException {
-        return sendMessage(recipient, unidentifiedAccess, timestamp, content.toByteArray(),
-                online, cancelationSignal);
-    }
-
-    private SendMessageResult sendMessage(SignalServiceAddress recipient,
-            Optional<UnidentifiedAccess> unidentifiedAccess,
-            long timestamp,
             byte[] content,
             boolean online,
             CancelationSignal cancelationSignal)
@@ -2047,7 +2037,7 @@ public class SignalServiceMessageSender {
                         SendMessageResponse response = socket.sendMessage(messages, unidentifiedAccess);
 
                         //    new MessagingService.SendResponseProcessor<>(messagingService.send(messages, Optional.empty()).blockingGet()).getResultOrThrow();
-                        return SendMessageResult.success(recipient, messages.getDevices(), false, response.getNeedsSync() || store.isMultiDevice(), System.currentTimeMillis() - startTime, content.getContent());
+                        return SendMessageResult.success(recipient, messages.getDevices(), false, response.getNeedsSync() || store.isMultiDevice(), System.currentTimeMillis() - startTime, content.getContent().get().toByteArray());
                     } catch (IOException e) {
                         Log.w(TAG, e);
                         Log.w(TAG, "[sendMessage][" + timestamp + "] Pipe failed, falling back... (" + e.getClass().getSimpleName() + ": " + e.getMessage() + ")");
@@ -2056,7 +2046,7 @@ public class SignalServiceMessageSender {
                     try {
 //            SendMessageResponse response = new MessagingService.SendResponseProcessor<>(messagingService.send(messages, unidentifiedAccess).blockingGet()).getResultOrThrow();
                         SendMessageResponse response = socket.sendMessage(messages, unidentifiedAccess);
-                        return SendMessageResult.success(recipient, messages.getDevices(), true, response.getNeedsSync() || store.isMultiDevice(), System.currentTimeMillis() - startTime, content.getContent());
+                        return SendMessageResult.success(recipient, messages.getDevices(), true, response.getNeedsSync() || store.isMultiDevice(), System.currentTimeMillis() - startTime, content.getContent().get().toByteArray());
                     } catch (IOException e) {
                         Log.w(TAG, e);
                         Log.w(TAG, "[sendMessage][" + timestamp + "] Unidentified pipe failed, falling back...");
@@ -2068,7 +2058,7 @@ public class SignalServiceMessageSender {
                 }
 
                 SendMessageResponse response = socket.sendMessage(messages, unidentifiedAccess);
-                return SendMessageResult.success(recipient, messages.getDevices(), unidentifiedAccess.isPresent(), response.getNeedsSync() || store.isMultiDevice(), System.currentTimeMillis() - startTime, content.getContent());
+                return SendMessageResult.success(recipient, messages.getDevices(), unidentifiedAccess.isPresent(), response.getNeedsSync() || store.isMultiDevice(), System.currentTimeMillis() - startTime, content.getContent().get().toByteArray());
 
             } catch (InvalidKeyException ike) {
                 Log.w(TAG, ike);
@@ -2092,152 +2082,6 @@ public class SignalServiceMessageSender {
         throw new IOException("Failed to resolve conflicts after " + RETRY_COUNT + " attempts!");
     }
 
-    /**
-     * Will send a message using sender keys to all of the specified recipients.
-     * It is assumed that all of the recipients have UUIDs.
-     *
-     * This method will handle sending out SenderKeyDistributionMessages as
-     * necessary.
-     */
-//  private List<SendMessageResult> sendGroupMessage(DistributionId             distributionId,
-//                                                   List<SignalServiceAddress> recipients,
-//                                                   List<UnidentifiedAccess>   unidentifiedAccess,
-//                                                   long                       timestamp,
-//                                                   Content                    content,
-//                                                   ContentHint                contentHint,
-//                                                   byte[]                     groupId,
-//                                                   boolean                    online,
-//                                                   SenderKeyGroupEvents       sendEvents)
-//      throws IOException, UntrustedIdentityException, NoSessionException, InvalidKeyException
-//  {
-//    if (recipients.isEmpty()) {
-//      Log.w(TAG, "[sendGroupMessage][" + timestamp + "] Empty recipient list!");
-//      return Collections.emptyList();
-//    }
-//
-//    if (recipients.size() == unidentifiedAccess.size()) {
-//        System.err.println(" Unidentified access mismatch");
-//        Thread.dumpStack();
-//    }
-//    Map<UUID, UnidentifiedAccess>   accessByAci     = new HashMap<>();
-//    Iterator<SignalServiceAddress> addressIterator = recipients.iterator();
-//    Iterator<UnidentifiedAccess>   accessIterator  = unidentifiedAccess.iterator();
-//
-//    while (addressIterator.hasNext()) {
-//      accessByAci.put(addressIterator.next().getUuid().get(), accessIterator.next());
-//    }
-//
-//    for (int i = 0; i < RETRY_COUNT; i++) {
-//      GroupTargetInfo            targetInfo     = buildGroupTargetInfo(recipients);
-//      Set<SignalProtocolAddress> sharedWith     = store.getSenderKeySharedWith(distributionId);
-//      List<SignalServiceAddress> needsSenderKey = targetInfo.destinations.stream()
-//                                                                         .filter(a -> !sharedWith.contains(a))
-//                                                                         .map(a -> UUID.fromString(a.getName()))
-//                                                                         .distinct()
-//                                                                         .map(SignalServiceAddress::new)
-//                                                                         .collect(Collectors.toList());
-//      if (needsSenderKey.size() > 0) {
-//        Log.i(TAG, "[sendGroupMessage][" + timestamp + "] Need to send the distribution message to " + needsSenderKey.size() + " addresses.");
-//        SenderKeyDistributionMessage           message = getOrCreateNewGroupSession(distributionId);
-//        List<Optional<UnidentifiedAccessPair>> access  = needsSenderKey.stream()
-//                                                                       .map(r -> {
-//                                                                         UnidentifiedAccess targetAccess = accessByAci.get(r.getAci());
-//                                                                         return Optional.of(new UnidentifiedAccessPair(targetAccess, targetAccess));
-//                                                                       })
-//                                                                       .collect(Collectors.toList());
-//
-//        List<SendMessageResult> results = sendSenderKeyDistributionMessage(distributionId, needsSenderKey, access, message, groupId);
-//
-//        List<SignalServiceAddress> successes = results.stream()
-//                                                      .filter(SendMessageResult::isSuccess)
-//                                                      .map(SendMessageResult::getAddress)
-//                                                      .collect(Collectors.toList());
-//
-//        Set<String>                successAcis      = successes.stream().map(a -> a.getAci().toString()).collect(Collectors.toSet());
-//        Set<SignalProtocolAddress> successAddresses = targetInfo.destinations.stream().filter(a -> successAcis.contains(a.getName())).collect(Collectors.toSet());
-//
-//        store.markSenderKeySharedWith(distributionId, successAddresses);
-//
-//        Log.i(TAG, "[sendGroupMessage][" + timestamp + "] Successfully sent sender keys to " + successes.size() + "/" + needsSenderKey.size() + " recipients.");
-//
-//        int failureCount = results.size() - successes.size();
-//        if (failureCount > 0) {
-//          Log.w(TAG, "[sendGroupMessage][" + timestamp + "] Failed to send sender keys to " + failureCount + " recipients. Sending back failed results now.");
-//
-//          List<SendMessageResult> trueFailures = results.stream()
-//                                                        .filter(r -> !r.isSuccess())
-//                                                        .collect(Collectors.toList());
-//
-//          Set<SignalServiceAddress> failedAddresses = trueFailures.stream()
-//                                                                  .map(SendMessageResult::getAddress)
-//                                                                  .collect(Collectors.toSet());
-//
-//          List<SendMessageResult> fakeNetworkFailures = recipients.stream()
-//                                                                  .filter(r -> !failedAddresses.contains(r))
-//                                                                  .map(SendMessageResult::networkFailure)
-//                                                                  .collect(Collectors.toList());
-//
-//          List<SendMessageResult> modifiedResults = new LinkedList<>();
-//          modifiedResults.addAll(trueFailures);
-//          modifiedResults.addAll(fakeNetworkFailures);
-//
-//          return modifiedResults;
-//        } else {
-//          targetInfo = buildGroupTargetInfo(recipients);
-//        }
-//      }
-//      sendEvents.onSenderKeyShared();
-//
-//      SignalServiceCipher cipher            = new SignalServiceCipher(localAddress, store, sessionLock, null);
-//      SenderCertificate   senderCertificate = unidentifiedAccess.get(0).getUnidentifiedCertificate();
-//
-//      byte[] ciphertext;
-//      try {
-//        ciphertext = cipher.encryptForGroup(distributionId, targetInfo.destinations, senderCertificate, content.toByteArray(), contentHint, groupId);
-//      } catch (org.whispersystems.libsignal.UntrustedIdentityException e) {
-//        throw new UntrustedIdentityException("Untrusted during group encrypt", e.getName(), e.getUntrustedIdentity());
-//      }
-//
-//      sendEvents.onMessageEncrypted();
-//
-//      byte[] joinedUnidentifiedAccess = new byte[16];
-//      for (UnidentifiedAccess access : unidentifiedAccess) {
-//        joinedUnidentifiedAccess = ByteArrayUtil.xor(joinedUnidentifiedAccess, access.getUnidentifiedAccessKey());
-//      }
-//
-//      try {
-//        SendGroupMessageResponse response = new MessagingService.SendResponseProcessor<>(messagingService.sendToGroup(ciphertext, joinedUnidentifiedAccess, timestamp, online).blockingGet()).getResultOrThrow();
-//        return transformGroupResponseToMessageResults(targetInfo.devices, response, content);
-//      } catch (WebSocketUnavailableException e) {
-//        Log.i(TAG, "[sendGroupMessage][" + timestamp + "] Pipe unavailable, falling back... (" + e.getClass().getSimpleName() + ": " + e.getMessage() + ")");
-//      } catch (IOException e) {
-//        Log.w(TAG, "[sendGroupMessage][" + timestamp + "] Pipe failed, falling back... (" + e.getClass().getSimpleName() + ": " + e.getMessage() + ")");
-//      }
-//
-//      try {
-//        SendGroupMessageResponse response = socket.sendGroupMessage(ciphertext, joinedUnidentifiedAccess, timestamp, online);
-//        return transformGroupResponseToMessageResults(targetInfo.devices, response, content);
-//      } catch (GroupMismatchedDevicesException e) {
-//        Log.w(TAG, "[sendGroupMessage][" + timestamp + "] Handling mismatched devices.", e);
-//        for (GroupMismatchedDevices mismatched : e.getMismatchedDevices()) {
-//          SignalServiceAddress address = new SignalServiceAddress(ACI.parseOrThrow(mismatched.getUuid()), Optional.absent());
-//          handleMismatchedDevices(socket, address, mismatched.getDevices());
-//        }
-//      } catch (GroupStaleDevicesException e) {
-//        Log.w(TAG, "[sendGroupMessage][" + timestamp + "] Handling stale devices.", e);
-//        for (GroupStaleDevices stale : e.getStaleDevices()) {
-//          SignalServiceAddress address = new SignalServiceAddress(ACI.parseOrThrow(stale.getUuid()), Optional.absent());
-//          handleStaleDevices(address, stale.getDevices());
-//        }
-//      }
-//      
-//
-//      Log.w(TAG, "[sendGroupMessage][" + timestamp + "] Attempt failed (i = " + i + ")");
-//    }
-//
-//    throw new IOException("Failed to resolve conflicts after " + RETRY_COUNT + " attempts!");
-//  }     
-//  
     private GroupTargetInfo buildGroupTargetInfo(List<SignalServiceAddress> recipients) {
         List<String> addressNames = recipients.stream().map(SignalServiceAddress::getIdentifier).collect(Collectors.toList());
         Set<SignalProtocolAddress> destinations = store.getAllAddressesWithActiveSessions(addressNames);
@@ -2275,7 +2119,7 @@ public class SignalServiceMessageSender {
         }
     }
 
-    private List<SendMessageResult> transformGroupResponseToMessageResults(Map<SignalServiceAddress, List<Integer>> recipients, SendGroupMessageResponse response, Content content) {
+    private List<SendMessageResult> transformGroupResponseToMessageResults(Map<SignalServiceAddress, List<Integer>> recipients, SendGroupMessageResponse response, byte[] content) {
         Set<ACI> unregistered = response.getUnsentTargets();
 
         List<SendMessageResult> failures = unregistered.stream()
@@ -2286,7 +2130,7 @@ public class SignalServiceMessageSender {
         List<SendMessageResult> success = recipients.keySet()
                 .stream()
                 .filter(r -> !unregistered.contains(r.getAci()))
-                .map(a -> SendMessageResult.success(a, recipients.get(a), true, store.isMultiDevice(), -1, Optional.of(content)))
+                .map(a -> SendMessageResult.success(a, recipients.get(a), true, store.isMultiDevice(), -1, content))
                 .collect(Collectors.toList());
 
         List<SendMessageResult> results = new ArrayList<>(success.size() + failures.size());
@@ -2403,7 +2247,7 @@ public class SignalServiceMessageSender {
             EnvelopeContent plaintext)
             throws IOException, InvalidKeyException, UntrustedIdentityException {
         SignalProtocolAddress signalProtocolAddress = new SignalProtocolAddress(recipient.getIdentifier(), deviceId);
-        SignalServiceCipher cipher = new SignalServiceCipher(localAddress, store, sessionLock, null);
+        SignalServiceCipher cipher = new SignalServiceCipher(localAddress, localDeviceId, store, sessionLock, null);
 
         if (!store.containsSession(signalProtocolAddress)) {
             try {
@@ -2468,7 +2312,7 @@ public class SignalServiceMessageSender {
             byte[] plaintext)
             throws IOException, InvalidKeyException, UntrustedIdentityException {
         SignalProtocolAddress signalProtocolAddress = new SignalProtocolAddress(recipient.getIdentifier(), deviceId);
-        SignalServiceCipher cipher = new SignalServiceCipher(localAddress, store, sessionLock, null);
+        SignalServiceCipher cipher = new SignalServiceCipher(localAddress, localDeviceId, store, sessionLock, null);
         LOG.fine("[SSMS] " + Thread.currentThread() + " encrypting outgoing message");
         if (!store.containsSession(signalProtocolAddress)) {
             try {
