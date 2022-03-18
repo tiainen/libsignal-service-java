@@ -23,6 +23,7 @@ module org.whispersystems.service {
     exports org.whispersystems.signalservice.api.messages.multidevice;
     exports org.whispersystems.signalservice.api.profiles;
     exports org.whispersystems.signalservice.api.push;
+    exports org.whispersystems.signalservice.api.push.exceptions;
     exports org.whispersystems.signalservice.api.storage;
     exports org.whispersystems.signalservice.api.util;
     exports org.whispersystems.signalservice.api.websocket;
