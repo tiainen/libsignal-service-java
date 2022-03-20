@@ -2,6 +2,7 @@ package org.whispersystems.signalservice.api.crypto;
 
 import java.util.Arrays;
 import java.util.Optional;
+import java.util.logging.Logger;
 import org.signal.libsignal.metadata.certificate.SenderCertificate;
 import org.signal.libsignal.metadata.protocol.UnidentifiedSenderMessageContent;
 import org.whispersystems.libsignal.InvalidKeyException;
@@ -127,6 +128,7 @@ public interface EnvelopeContent {
 
     private final PlaintextContent plaintextContent;
     private final Optional<byte[]> groupId;
+    private static final Logger LOG = Logger.getLogger(Plaintext.class.getName());
 
     public Plaintext(PlaintextContent plaintextContent, Optional<byte[]> groupId) {
       this.plaintextContent = plaintextContent;
@@ -146,9 +148,10 @@ public interface EnvelopeContent {
                                                                                              groupId);
 
       byte[] ciphertext           = sealedSessionCipher.encrypt(destination, messageContent);
+      LOG.info("SealedSender, ciphertextlength = "+ciphertext.length);
       String body                 = Base64.encodeBytes(ciphertext);
       int    remoteRegistrationId = sealedSessionCipher.getRemoteRegistrationId(destination);
-      System.err.println("[EC] UNSecure, sealed, encryptedsize = "+ciphertext.length+" and enc = "+Arrays.toString(ciphertext));
+      LOG.finest("[EC] UNSecure, sealed, encryptedsize = "+ciphertext.length+" and enc = "+Arrays.toString(ciphertext));
 
       return new OutgoingPushMessage(Type.UNIDENTIFIED_SENDER_VALUE, destination.getDeviceId(), remoteRegistrationId, body);
     }
@@ -157,7 +160,7 @@ public interface EnvelopeContent {
     public OutgoingPushMessage processUnsealedSender(SignalSessionCipher sessionCipher, SignalProtocolAddress destination) {
       String body                 = Base64.encodeBytes(plaintextContent.serialize());
       int    remoteRegistrationId = sessionCipher.getRemoteRegistrationId();
-      System.err.println("[EC] UNSecure, unsealed, encryptedsize ");
+      LOG.finest("[EC] UNSecure, unsealed, encryptedsize ");
 
       return new OutgoingPushMessage(Type.PLAINTEXT_CONTENT_VALUE, destination.getDeviceId(), remoteRegistrationId, body);
     }

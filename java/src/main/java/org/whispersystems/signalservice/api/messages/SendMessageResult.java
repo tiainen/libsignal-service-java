@@ -17,6 +17,9 @@ public class SendMessageResult {
   private final IdentityFailure      identityFailure;
   private final ProofRequiredException proofRequiredFailure;
 
+  public static SendMessageResult success(SignalServiceAddress address, List<Integer> devices, boolean unidentified, boolean needsSync, long duration, Optional<Content> content) {
+    return new SendMessageResult(address, new Success(unidentified, needsSync, duration, content, devices), false, false, null);
+  }
   
   public static SendMessageResult success(SignalServiceAddress address, List<Integer> devices, boolean unidentified, boolean needsSync, long duration, byte[] content) {
     return new SendMessageResult(address, new Success(unidentified, needsSync, duration, content, devices), false, false, null);
@@ -90,7 +93,19 @@ public class SendMessageResult {
     private Success(boolean unidentified, boolean needsSync, long duration) {
         this(unidentified, needsSync, duration, new byte[0], List.of());
     }
-    
+
+    private Success(boolean unidentified, boolean needsSync, long duration, Optional<Content>content, List<Integer> devices) {
+      this.unidentified = unidentified;
+      this.needsSync    = needsSync;
+      this.duration     = duration;
+      if (content.isPresent()) {
+          this.content = content.get().toByteArray();
+      } else {
+          this.content = new byte[0];
+      }
+      this.devices = devices;
+    }
+
     private Success(boolean unidentified, boolean needsSync, long duration, byte[] content, List<Integer> devices) {
       this.unidentified = unidentified;
       this.needsSync    = needsSync;

@@ -94,6 +94,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -212,9 +213,9 @@ public class SignalServiceMessageSender {
             Optional<byte[]> groupId,
             DecryptionErrorMessage errorMessage)
             throws IOException, UntrustedIdentityException {
+        LOG.info("About to send retry receipt, errormsg = "+errorMessage);
         PlaintextContent content = new PlaintextContent(errorMessage);
         EnvelopeContent envelopeContent = EnvelopeContent.plaintext(content, groupId);
-
         sendMessage(recipient, getTargetUnidentifiedAccess(unidentifiedAccess), System.currentTimeMillis(), envelopeContent, false, null);
     }
 
@@ -2018,14 +2019,13 @@ public class SignalServiceMessageSender {
             if (cancelationSignal != null && cancelationSignal.isCanceled()) {
                 throw new CancelationException();
             }
-
             try {
                 OutgoingPushMessageList messages = getEncryptedMessages(socket, recipient, unidentifiedAccess, timestamp, content, online);
-
+                LOG.info("Prepare to send envelopecontent to "+recipient);
                 if (content.getContent().isPresent() && content.getContent().get().getSyncMessage() != null && content.getContent().get().getSyncMessage().hasSent()) {
-                    Log.d(TAG, "[sendMessage][" + timestamp + "] Sending a sent sync message to devices: " + messages.getDevices());
+                    LOG.info("Sending a sent sync message to devices: " + messages.getDevices());
                 } else if (content.getContent().isPresent() && content.getContent().get().hasSenderKeyDistributionMessage()) {
-                    Log.d(TAG, "[sendMessage][" + timestamp + "] Sending a SKDM to " + messages.getDestination() + " for devices: " + messages.getDevices());
+                    LOG.info("Sending a SKDM to " + messages.getDestination() + " for devices: " + messages.getDevices());
                 }
 
                 if (cancelationSignal != null && cancelationSignal.isCanceled()) {
@@ -2037,7 +2037,7 @@ public class SignalServiceMessageSender {
                         SendMessageResponse response = socket.sendMessage(messages, unidentifiedAccess);
 
                         //    new MessagingService.SendResponseProcessor<>(messagingService.send(messages, Optional.empty()).blockingGet()).getResultOrThrow();
-                        return SendMessageResult.success(recipient, messages.getDevices(), false, response.getNeedsSync() || store.isMultiDevice(), System.currentTimeMillis() - startTime, content.getContent().get().toByteArray());
+                        return SendMessageResult.success(recipient, messages.getDevices(), false, response.getNeedsSync() || store.isMultiDevice(), System.currentTimeMillis() - startTime, content.getContent());
                     } catch (IOException e) {
                         Log.w(TAG, e);
                         Log.w(TAG, "[sendMessage][" + timestamp + "] Pipe failed, falling back... (" + e.getClass().getSimpleName() + ": " + e.getMessage() + ")");
@@ -2046,7 +2046,7 @@ public class SignalServiceMessageSender {
                     try {
 //            SendMessageResponse response = new MessagingService.SendResponseProcessor<>(messagingService.send(messages, unidentifiedAccess).blockingGet()).getResultOrThrow();
                         SendMessageResponse response = socket.sendMessage(messages, unidentifiedAccess);
-                        return SendMessageResult.success(recipient, messages.getDevices(), true, response.getNeedsSync() || store.isMultiDevice(), System.currentTimeMillis() - startTime, content.getContent().get().toByteArray());
+                        return SendMessageResult.success(recipient, messages.getDevices(), true, response.getNeedsSync() || store.isMultiDevice(), System.currentTimeMillis() - startTime, content.getContent());
                     } catch (IOException e) {
                         Log.w(TAG, e);
                         Log.w(TAG, "[sendMessage][" + timestamp + "] Unidentified pipe failed, falling back...");
@@ -2246,6 +2246,7 @@ public class SignalServiceMessageSender {
             int deviceId,
             EnvelopeContent plaintext)
             throws IOException, InvalidKeyException, UntrustedIdentityException {
+        LOG.info("need to generate encryptedMessage for plaintext: "+plaintext);
         SignalProtocolAddress signalProtocolAddress = new SignalProtocolAddress(recipient.getIdentifier(), deviceId);
         SignalServiceCipher cipher = new SignalServiceCipher(localAddress, localDeviceId, store, sessionLock, null);
 

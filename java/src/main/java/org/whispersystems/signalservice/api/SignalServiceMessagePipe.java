@@ -222,6 +222,7 @@ public class SignalServiceMessagePipe {
     ListenableFuture<WebsocketResponse> response = websocket.sendRequest(requestMessage);
 
     return FutureTransformers.map(response, value -> {
+      LOG.fine("GOT RESPONSE answer for "+response+", valstatus = "+value.getStatus());
       if (value.getStatus() == 404) {
         throw new UnregisteredUserException(list.getDestination(), new NotFoundException("not found"));
       } else if (value.getStatus() == 409) {
@@ -235,8 +236,10 @@ public class SignalServiceMessagePipe {
       }
 
       if (Util.isEmpty(value.getBody())) {
+        LOG.fine("EMPTY response!");
         return new SendMessageResponse(false);
       } else {
+        LOG.fine("VALID response = "+value.getBody());
         return JsonUtil.fromJson(value.getBody(), SendMessageResponse.class);
       }
     });
