@@ -146,7 +146,7 @@ public class SignalServiceMessageSender {
 
     private static final String TAG = SignalServiceMessageSender.class.getSimpleName();
 
-    private static final int RETRY_COUNT = 3;
+    private static final int RETRY_COUNT = 2;
 
     private PushServiceSocket socket;
     private final SignalServiceProtocolStore store;
@@ -409,7 +409,6 @@ public class SignalServiceMessageSender {
     if (result.getSuccess() != null && result.getSuccess().isNeedsSync()) {
       Content         syncMessage        = createMultiDeviceSentTranscriptContent(content, Optional.of(recipient), timestamp, Collections.singletonList(result), false); 
       EnvelopeContent syncMessageContent = EnvelopeContent.encrypted(syncMessage, ContentHint.IMPLICIT, Optional.empty());
-
       sendMessage(localAddress, Optional.empty(), timestamp, syncMessageContent, false, null);
     }
 
@@ -481,12 +480,13 @@ public class SignalServiceMessageSender {
             throws UntrustedIdentityException, IOException {
         Content content = createMessageContent(message);
         long timestamp = message.getTimestamp();
+        LOG.info("sending with unidentifiedAccess = "+unidentifiedAccess);
         SendMessageResult result = sendMessage(recipient, getTargetUnidentifiedAccess(unidentifiedAccess), timestamp, content.toByteArray(), false, null);
 
         if (result.getSuccess() != null && result.getSuccess().isNeedsSync()) {
             Content syncMessage = createMultiDeviceSentTranscriptContent(content, Optional.of(recipient), timestamp, Collections.singletonList(result), false);
             LOG.info("Message sent successfully, now send syncmessage");
-            sendMessage(localAddress, Optional.<UnidentifiedAccess>empty(), timestamp, syncMessage.toByteArray(), false, null);
+            sendMessage(localAddress, Optional.empty(), timestamp, syncMessage.toByteArray(), false, null);
         }
 
         // TODO [greyson][session] Delete this when we delete the button
@@ -1920,7 +1920,7 @@ public class SignalServiceMessageSender {
             boolean online,
             CancelationSignal cancelationSignal)
             throws UntrustedIdentityException, IOException {
-        LOG.info("send message to recipient "+recipient.getIdentifier());
+        LOG.info("send message to recipient "+recipient.getIdentifier()+", ua = "+unidentifiedAccess);
         enforceMaxContentSize(content);
 
         long startTime = System.currentTimeMillis();
@@ -2390,6 +2390,9 @@ public class SignalServiceMessageSender {
 
     private Optional<UnidentifiedAccess> getTargetUnidentifiedAccess(Optional<UnidentifiedAccessPair> unidentifiedAccess) {
         if (unidentifiedAccess.isPresent()) {
+            LOG.info("GTE, pair = "+unidentifiedAccess.get()+", me = "+
+                    Arrays.toString(unidentifiedAccess.get().getSelfUnidentifiedAccess().get().getUnidentifiedAccessKey())+
+                    " and them = "+Arrays.toString(unidentifiedAccess.get().getTargetUnidentifiedAccess().get().getUnidentifiedAccessKey()));
             return unidentifiedAccess.get().getTargetUnidentifiedAccess();
         }
 

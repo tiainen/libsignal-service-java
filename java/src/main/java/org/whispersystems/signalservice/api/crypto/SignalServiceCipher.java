@@ -119,6 +119,7 @@ public class SignalServiceCipher {
                                      byte[]                       unpaddedMessage)
       throws UntrustedIdentityException, InvalidKeyException
   {
+      LOG.info("Do we use unidentifiedAccess? "+unidentifiedAccess.isPresent());
     if (unidentifiedAccess.isPresent()) {
       SignalSealedSessionCipher sessionCipher        = new SignalSealedSessionCipher(sessionLock, new SealedSessionCipher(signalProtocolStore, localAddress.getUuid().orElse(null), localAddress.getNumber().orElse(null), 1));
       PushTransportDetails      transportDetails     = new PushTransportDetails(sessionCipher.getSessionVersion(destination));

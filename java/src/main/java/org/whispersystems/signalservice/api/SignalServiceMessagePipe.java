@@ -188,28 +188,17 @@ public class SignalServiceMessagePipe {
       }
     }
   }
-  public Future<SendMessageResponse> send(OutgoingPushMessageList list, byte[] unidentifiedAccess) throws IOException {
-    List<String> headers = new LinkedList<String>() {{
-      add("content-type:application/json");
-    }};
-    if (unidentifiedAccess != null) {
-      headers.add("Unidentified-Access-Key:" + unidentifiedAccess);
-    }
-    return send (list, headers);
-  }
-  
+
   public Future<SendMessageResponse> send(OutgoingPushMessageList list, Optional<UnidentifiedAccess> unidentifiedAccess) throws IOException {
     List<String> headers = new LinkedList<String>() {{
       add("content-type:application/json");
     }};
-
-    if (unidentifiedAccess.isPresent()) {
-      headers.add("Unidentified-Access-Key:" + Base64.encodeBytes(unidentifiedAccess.get().getUnidentifiedAccessKey()));
-    }
-    return send (list, headers);
+    unidentifiedAccess.ifPresent(ua ->headers.add("Unidentified-Access-Key:" + Base64.encodeBytes(ua.getUnidentifiedAccessKey())));
+    LOG.info("headers = "+headers);
+    return send (list, headers, unidentifiedAccess);
   }
   
-  private Future<SendMessageResponse> send(OutgoingPushMessageList list, List<String> headers) throws IOException {
+  private Future<SendMessageResponse> send(OutgoingPushMessageList list, List<String> headers, Optional<UnidentifiedAccess> unidentifiedAccess) throws IOException {
       
     WebSocketRequestMessage requestMessage = WebSocketRequestMessage.newBuilder()
                                                                     .setId(new SecureRandom().nextLong())
@@ -218,11 +207,11 @@ public class SignalServiceMessagePipe {
                                                                     .addAllHeaders(headers)
                                                                     .setBody(ByteString.copyFrom(JsonUtil.toJson(list).getBytes()))
                                                                     .build();
-
     ListenableFuture<WebsocketResponse> response = websocket.sendRequest(requestMessage);
 
     return FutureTransformers.map(response, value -> {
       LOG.fine("GOT RESPONSE answer for "+response+", valstatus = "+value.getStatus());
+
       if (value.getStatus() == 404) {
         throw new UnregisteredUserException(list.getDestination(), new NotFoundException("not found"));
       } else if (value.getStatus() == 409) {
@@ -234,7 +223,10 @@ public class SignalServiceMessagePipe {
           System.err.println("send will throw IOexception, response = "+value.getBody());
         throw new IOException("Non-successful response: " + value.getStatus());
       }
-
+      if (value.getStatus() == 401) {
+          LOG.info("Unauthorized response! try to use identifiedPipeline instead.");
+          return send (list, Optional.empty()).get();
+      }
       if (Util.isEmpty(value.getBody())) {
         LOG.fine("EMPTY response!");
         return new SendMessageResponse(false);
@@ -245,20 +237,22 @@ public class SignalServiceMessagePipe {
     });
   }
 
-   public Future sendToGroup(byte[] body, byte[] joinedUnidentifiedAccess, long timestamp, boolean online) throws IOException {
-    List<String> headers = new LinkedList<String>() {{
-      add("content-type:application/vnd.signal-messenger.mrm");
-      add("Unidentified-Access-Key:" + Base64.encodeBytes(joinedUnidentifiedAccess));
-    }};
+    public Future sendToGroup(byte[] body, byte[] joinedUnidentifiedAccess, long timestamp, boolean online) throws IOException {
+        List<String> headers = new LinkedList<String>() {
+            {
+                add("content-type:application/vnd.signal-messenger.mrm");
+                add("Unidentified-Access-Key:" + Base64.encodeBytes(joinedUnidentifiedAccess));
+            }
+        };
 
-    String path = String.format(Locale.US, "/v1/messages/multi_recipient?ts=%s&online=%s", timestamp, online);
+        String path = String.format(Locale.US, "/v1/messages/multi_recipient?ts=%s&online=%s", timestamp, online);
 
-    WebSocketRequestMessage requestMessage = WebSocketRequestMessage.newBuilder()
-                                                                    .setId(new SecureRandom().nextLong())
-                                                                    .setVerb("PUT")
-                                                                    .setPath(path)
-                                                                    .addAllHeaders(headers)
-                                                                    .setBody(ByteString.copyFrom(body))
+        WebSocketRequestMessage requestMessage = WebSocketRequestMessage.newBuilder()
+                .setId(new SecureRandom().nextLong())
+                .setVerb("PUT")
+                .setPath(path)
+                .addAllHeaders(headers)
+                .setBody(ByteString.copyFrom(body))
                 .build();
 
         ListenableFuture<WebsocketResponse> response = websocket.sendRequest(requestMessage);

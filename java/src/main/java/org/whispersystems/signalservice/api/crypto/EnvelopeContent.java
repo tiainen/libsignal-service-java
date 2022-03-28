@@ -21,6 +21,7 @@ import org.whispersystems.util.Base64;
  * An abstraction over the different types of message contents we can have.
  */
 public interface EnvelopeContent {
+   static final Logger LOG = Logger.getLogger(EnvelopeContent.class.getName());
 
   /**
    * Processes the content using sealed sender.
@@ -80,6 +81,7 @@ public interface EnvelopeContent {
                                                    SenderCertificate senderCertificate)
         throws UntrustedIdentityException, InvalidKeyException
     {
+        LOG.info("destination = "+destination);
       PushTransportDetails             transportDetails = new PushTransportDetails();
       CiphertextMessage                message          = sessionCipher.encrypt(transportDetails.getPaddedMessageBody(content.toByteArray()));
       UnidentifiedSenderMessageContent messageContent   = new UnidentifiedSenderMessageContent(message,
@@ -90,7 +92,6 @@ public interface EnvelopeContent {
       byte[] ciphertext           = sealedSessionCipher.encrypt(destination, messageContent);
       String body                 = Base64.encodeBytes(ciphertext);
       int    remoteRegistrationId = sealedSessionCipher.getRemoteRegistrationId(destination);
-      System.err.println("[EC] Secure, sealed, encryptedsize = "+ciphertext.length+" and enc = "+Arrays.toString(ciphertext));
       return new OutgoingPushMessage(Type.UNIDENTIFIED_SENDER_VALUE, destination.getDeviceId(), remoteRegistrationId, body);
     }
 
@@ -108,7 +109,7 @@ public interface EnvelopeContent {
         case CiphertextMessage.WHISPER_TYPE: type = Type.CIPHERTEXT_VALUE;    break;
         default: throw new AssertionError("Bad type: " + message.getType());
       }
-        System.err.println("[EC] Secure, unsealed, encryptedsize = "+message.serialize().length+" and enc = "+Arrays.toString(message.serialize()));
+        LOG.info("destination = "+destination);
 
       return new OutgoingPushMessage(type, destination.getDeviceId(), remoteRegistrationId, body);
     }
