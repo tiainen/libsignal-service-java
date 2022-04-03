@@ -432,15 +432,14 @@ public class SignalServiceMessageSender {
                                                  CancelationSignal                      cancelationSignal)
       throws IOException, UntrustedIdentityException
   {
-    Log.d(TAG, "[" + message.getTimestamp() + "] Sending a data message to " + recipients.size() + " recipients.");
+    LOG.info("[" + message.getTimestamp() + "] Sending a data message to " + recipients.size() + " recipients.");
 
     Content                 content            = createMessageContent(message);
     EnvelopeContent         envelopeContent    = EnvelopeContent.encrypted(content, contentHint, message.getGroupId());
     long                    timestamp          = message.getTimestamp();
     List<SendMessageResult> results            = sendMessage(recipients, getTargetUnidentifiedAccess(unidentifiedAccess), timestamp, envelopeContent, false, partialListener, cancelationSignal);
     boolean                 needsSyncInResults = false;
-
-    sendEvents.onMessageSent();
+    if (sendEvents != null) sendEvents.onMessageSent();
 
     for (SendMessageResult result : results) {
       if (result.getSuccess() != null && result.getSuccess().isNeedsSync()) {
@@ -460,8 +459,7 @@ public class SignalServiceMessageSender {
 
       sendMessage(localAddress, Optional.empty(), timestamp, syncMessageContent, false, null);
     }
-
-    sendEvents.onSyncMessageSent();
+    if (sendEvents != null) sendEvents.onSyncMessageSent();
 
     return results;
   }
@@ -480,7 +478,7 @@ public class SignalServiceMessageSender {
             throws UntrustedIdentityException, IOException {
         Content content = createMessageContent(message);
         long timestamp = message.getTimestamp();
-        LOG.info("sending with unidentifiedAccess = "+unidentifiedAccess);
+        LOG.info("sending to recipient " + recipient.getIdentifier()+ " with unidentifiedAccess = "+unidentifiedAccess);
         SendMessageResult result = sendMessage(recipient, getTargetUnidentifiedAccess(unidentifiedAccess), timestamp, content.toByteArray(), false, null);
 
         if (result.getSuccess() != null && result.getSuccess().isNeedsSync()) {
