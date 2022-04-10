@@ -131,7 +131,9 @@ import org.whispersystems.signalservice.api.crypto.SignalGroupSessionBuilder;
 import org.whispersystems.signalservice.api.messages.multidevice.RequestMessage;
 import org.whispersystems.signalservice.api.push.ACI;
 import org.whispersystems.signalservice.api.push.DistributionId;
+import org.whispersystems.signalservice.internal.push.GroupMismatchedDevices;
 import org.whispersystems.signalservice.internal.push.SendGroupMessageResponse;
+import org.whispersystems.signalservice.internal.push.exceptions.GroupMismatchedDevicesException;
 import org.whispersystems.signalservice.internal.websocket.WebSocketProtos;
 import org.whispersystems.util.ByteArrayUtil;
 
@@ -882,12 +884,17 @@ public class SignalServiceMessageSender {
 //      try {
 //        SendGroupMessageResponse response = socket.sendGroupMessage(ciphertext, joinedUnidentifiedAccess, timestamp, online);
 //        return transformGroupResponseToMessageResults(targetInfo.devices, response, content);
-//      } catch (GroupMismatchedDevicesException e) {
-//        Log.w(TAG, "[sendGroupMessage][" + timestamp + "] Handling mismatched devices.", e);
-//        for (GroupMismatchedDevices mismatched : e.getMismatchedDevices()) {
-//          SignalServiceAddress address = new SignalServiceAddress(ACI.parseOrThrow(mismatched.getUuid()), Optional.absent());
-//          handleMismatchedDevices(socket, address, mismatched.getDevices());
-//        }
+            } catch (ExecutionException ee) {
+                Throwable reason = ee.getCause();
+                if (reason instanceof GroupMismatchedDevicesException) {
+                    GroupMismatchedDevicesException e = (GroupMismatchedDevicesException) reason;
+
+                    LOG.log(Level.WARNING, "[sendGroupMessage][" + timestamp + "] Handling mismatched devices.", e);
+                    for (GroupMismatchedDevices mismatched : e.getMismatchedDevices()) {
+                        SignalServiceAddress address = new SignalServiceAddress(ACI.parseOrThrow(mismatched.getUuid()), Optional.empty());
+                        handleMismatchedDevices(socket, address, mismatched.getDevices());
+                    }
+                }
 //      } catch (GroupStaleDevicesException e) {
 //        Log.w(TAG, "[sendGroupMessage][" + timestamp + "] Handling stale devices.", e);
 //        for (GroupStaleDevices stale : e.getStaleDevices()) {
@@ -896,6 +903,7 @@ public class SignalServiceMessageSender {
 //        }
 //      }
             } catch (Exception ex) {
+                System.err.println("GOT ERR: "+ex);
                 ex.printStackTrace();
             }
 

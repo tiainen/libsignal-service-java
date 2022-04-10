@@ -56,8 +56,10 @@ import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
 import org.whispersystems.signalservice.api.push.exceptions.MalformedResponseException;
 import org.whispersystems.signalservice.api.push.exceptions.PushNetworkException;
+import org.whispersystems.signalservice.internal.push.GroupMismatchedDevices;
 import org.whispersystems.signalservice.internal.push.MismatchedDevices;
 import org.whispersystems.signalservice.internal.push.SendGroupMessageResponse;
+import org.whispersystems.signalservice.internal.push.exceptions.GroupMismatchedDevicesException;
 import org.whispersystems.signalservice.internal.push.exceptions.MismatchedDevicesException;
 import org.whispersystems.signalservice.internal.websocket.DefaultResponseMapper;
 
@@ -261,6 +263,9 @@ public class SignalServiceMessagePipe {
                 System.err.println("ERROR: sendGroup -> 404");
                 Thread.dumpStack();
                 throw new IOException();
+            } else if (value.getStatus() == 409) {
+                GroupMismatchedDevices[] mismatchedDevices = JsonUtil.fromJsonResponse(value.getBody(), GroupMismatchedDevices[].class);
+                throw new GroupMismatchedDevicesException(mismatchedDevices);
 //        throw new UnregisteredUserException(list.getDestination(), new NotFoundException("not found"));
             } else if (value.getStatus() == 508) {
                 throw new ServerRejectedException();
