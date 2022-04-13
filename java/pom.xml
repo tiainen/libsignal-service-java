@@ -121,8 +121,8 @@
         <version>0.6.1</version>
         <configuration>
           <javaOptions>lite</javaOptions>
-          <protocExecutable>protoc</protocExecutable>
-          <!-- <protocExecutable>/usr/local/bin/protoc</protocExecutable> -->
+          <!-- <protocExecutable>protoc</protocExecutable> -->
+          <protocExecutable>/usr/local/bin/protoc</protocExecutable>
         </configuration>
         <executions>
           <execution>
