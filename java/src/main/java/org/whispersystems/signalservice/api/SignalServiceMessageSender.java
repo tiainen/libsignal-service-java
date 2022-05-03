@@ -735,7 +735,7 @@ public class SignalServiceMessageSender {
             SignalServiceDataMessage message,
             SenderKeyGroupEvents sendEvents)
             throws IOException, UntrustedIdentityException, NoSessionException, InvalidKeyException, InvalidRegistrationIdException {
-        LOG.info("[" + message.getTimestamp() + "] Sending a group data message to " + recipients.size() + " recipients using DistributionId " + distributionId + " and msg = " + message.getBody());
+        LOG.info("[" + message.getTimestamp() + "] Sending a group data message to " + recipients.size() + " recipients using DistributionId " + distributionId);
         Content content = createMessageContent(message);
         Optional<byte[]> groupId = message.getGroupId();
         List<SendMessageResult> results = sendGroupMessage(distributionId, recipients, unidentifiedAccess, message.getTimestamp(), content.toByteArray(), contentHint, groupId.orElse(null), false, sendEvents);
