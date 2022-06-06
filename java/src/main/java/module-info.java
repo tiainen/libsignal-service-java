@@ -10,6 +10,7 @@ module org.whispersystems.service {
     requires com.fasterxml.jackson.annotation;
     requires com.fasterxml.jackson.core;
     requires com.fasterxml.jackson.databind;
+    exports org.signal.storageservice.protos.groups;
     exports org.signal.storageservice.protos.groups.local;
     exports org.whispersystems.signalservice.internal.configuration;
     exports org.whispersystems.signalservice.internal.push;
@@ -20,6 +21,7 @@ module org.whispersystems.service {
     exports org.whispersystems.signalservice.api.crypto;
     exports org.whispersystems.signalservice.api.groupsv2;
     exports org.whispersystems.signalservice.api.messages;
+    exports org.whispersystems.signalservice.api.messages.calls;
     exports org.whispersystems.signalservice.api.messages.multidevice;
     exports org.whispersystems.signalservice.api.profiles;
     exports org.whispersystems.signalservice.api.push;
