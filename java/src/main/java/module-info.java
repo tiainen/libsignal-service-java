@@ -16,6 +16,7 @@ module org.whispersystems.service {
     exports org.whispersystems.signalservice.internal.push;
     exports org.whispersystems.signalservice.internal.util;
     exports org.whispersystems.signalservice.internal.util.concurrent;
+    exports org.whispersystems.signalservice.internal.webrtc;
     exports org.whispersystems.signalservice.internal.websocket;
     exports org.whispersystems.signalservice.api;
     exports org.whispersystems.signalservice.api.crypto;
@@ -35,4 +36,5 @@ module org.whispersystems.service {
     opens org.whispersystems.signalservice.api.profiles to com.fasterxml.jackson.databind;
     opens org.whispersystems.signalservice.api.push to com.fasterxml.jackson.databind;
     opens org.whispersystems.signalservice.api.storage to com.fasterxml.jackson.databind;
+    opens org.whispersystems.signalservice.internal.storage.protos to com.google.protobuf;
 }
