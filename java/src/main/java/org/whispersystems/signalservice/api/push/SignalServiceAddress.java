@@ -19,11 +19,29 @@ import java.util.Optional;
 public class SignalServiceAddress {
 
   public static final int DEFAULT_DEVICE_ID = 1;
-  private final ACI              aci;
+
+  private  ServiceId        serviceId;
+  private  ACI              aci;
   private final Optional<String> e164;
   
-//  private final Optional<UUID>   uuid;
-  //private  Optional<String> relay;
+  public SignalServiceAddress(ServiceId serviceId, Optional<String> e164) {
+    this.serviceId = serviceId;
+    this.e164      = e164;
+  }
+
+  @SuppressWarnings("NewApi")
+  public SignalServiceAddress(ServiceId serviceId) {
+    this.serviceId = serviceId;
+    this.e164      = Optional.empty();
+  }
+
+  /**
+   * Convenience constructor that will consider a UUID/E164 string absent if it is null or empty.
+   */
+  public SignalServiceAddress(ServiceId serviceId, String e164) {
+    this(serviceId, OptionalUtil.absentIfEmpty(e164));
+  }
+
   
   /**
    * Construct a PushAddress.

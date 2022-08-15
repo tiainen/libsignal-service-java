@@ -12,6 +12,7 @@ import org.whispersystems.signalservice.internal.storage.protos.StorageRecord;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
 
 public final class SignalStorageModels {
 
@@ -20,9 +21,9 @@ public final class SignalStorageModels {
     ManifestRecord  manifestRecord = ManifestRecord.parseFrom(rawRecord);
     List<StorageId> ids            = new ArrayList<>(manifestRecord.getIdentifiersCount());
 
-      for (ManifestRecord.Identifier id : manifestRecord.getIdentifiersList()) {
-          ids.add(StorageId.forType(id.getRaw().toByteArray(), id.getTypeValue()));
-      }
+    for (ManifestRecord.Identifier id : manifestRecord.getIdentifiersList()) {
+      ids.add(StorageId.forType(id.getRaw().toByteArray(), id.getTypeValue()));
+    }
 
     return new SignalStorageManifest(manifestRecord.getVersion(), ids);
   }
@@ -41,7 +42,13 @@ public final class SignalStorageModels {
       return SignalStorageRecord.forGroupV2(id, new SignalGroupV2Record(id, record.getGroupV2()));
     } else if (record.hasAccount() && type == ManifestRecord.Identifier.Type.ACCOUNT_VALUE) {
       return SignalStorageRecord.forAccount(id, new SignalAccountRecord(id, record.getAccount()));
+    } else if (record.hasStoryDistributionList() && type == ManifestRecord.Identifier.Type.STORY_DISTRIBUTION_LIST_VALUE) {
+      return SignalStorageRecord.forStoryDistributionList(id, new SignalStoryDistributionListRecord(id, record.getStoryDistributionList()));
     } else {
+        if (StorageId.isKnownType(type)) {
+        LOG.warning("StorageId is of known type (" + type + "), but the data is bad! Falling back to unknown.");
+      }
+  
       return SignalStorageRecord.forUnknown(StorageId.forType(key, type));
     }
   }
@@ -57,7 +64,9 @@ public final class SignalStorageModels {
       builder.setGroupV2(record.getGroupV2().get().toProto());
     } else if (record.getAccount().isPresent()) {
       builder.setAccount(record.getAccount().get().toProto());
-    } else {
+    } else if (record.getStoryDistributionList().isPresent()) {
+      builder.setStoryDistributionList(record.getStoryDistributionList().get().toProto());
+    }else {
       throw new InvalidStorageWriteError();
     }
 
@@ -73,4 +82,5 @@ public final class SignalStorageModels {
 
   private static class InvalidStorageWriteError extends Error {
   }
+    private static final Logger LOG = Logger.getLogger(SignalStorageModels.class.getName());
 }

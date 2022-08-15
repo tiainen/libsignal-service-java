@@ -461,9 +461,9 @@ public class SignalServiceAccountManager {
     ReadOperation.Builder     operation = ReadOperation.newBuilder();
     Map<ByteString, Integer>  typeMap   = new HashMap<>();
 
+
     for (StorageId key : storageKeys) {
       typeMap.put(ByteString.copyFrom(key.getRaw()), key.getType());
-
       if (StorageId.isKnownType(key.getType())) {
         operation.addReadKey(ByteString.copyFrom(key.getRaw()));
       } else {

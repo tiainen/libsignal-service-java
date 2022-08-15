@@ -21,12 +21,20 @@ public class StorageId {
     return new StorageId(ManifestRecord.Identifier.Type.GROUPV2_VALUE, raw);
   }
 
+  public static StorageId forStoryDistributionList(byte[] raw) {
+    return new StorageId(ManifestRecord.Identifier.Type.STORY_DISTRIBUTION_LIST_VALUE, raw);
+  }
+
   public static StorageId forAccount(byte[] raw) {
     return new StorageId(ManifestRecord.Identifier.Type.ACCOUNT_VALUE, raw);
   }
 
   public static StorageId forType(byte[] raw, int type) {
     return new StorageId(type, raw);
+  }
+
+  public boolean isUnknown() {
+    return !isKnownType(type);
   }
 
   private StorageId(int type, byte[] raw) {
@@ -48,11 +56,23 @@ public class StorageId {
 
   public static boolean isKnownType(int val) {
     for (ManifestRecord.Identifier.Type type : ManifestRecord.Identifier.Type.values()) {
-      if (type.getNumber() == val) {
+      if (type != ManifestRecord.Identifier.Type.UNRECOGNIZED && type.getNumber() == val) {
         return true;
       }
     }
     return false;
+  }
+
+  public static int largestKnownType() {
+    int max = 0;
+
+    for (ManifestRecord.Identifier.Type type : ManifestRecord.Identifier.Type.values()) {
+      if (type != ManifestRecord.Identifier.Type.UNRECOGNIZED) {
+        max = Math.max(type.getNumber(), max);
+      }
+    }
+
+    return max;
   }
 
   @Override
