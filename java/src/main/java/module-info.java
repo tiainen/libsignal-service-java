@@ -14,6 +14,7 @@ module org.whispersystems.service {
     exports org.signal.storageservice.protos.groups.local;
     exports org.whispersystems.signalservice.internal.configuration;
     exports org.whispersystems.signalservice.internal.push;
+    exports org.whispersystems.signalservice.internal.push.exceptions;
     exports org.whispersystems.signalservice.internal.util;
     exports org.whispersystems.signalservice.internal.util.concurrent;
     exports org.whispersystems.signalservice.internal.webrtc;
