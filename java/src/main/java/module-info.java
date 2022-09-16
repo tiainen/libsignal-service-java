@@ -34,6 +34,7 @@ module org.whispersystems.service {
     exports org.whispersystems.util;
     opens org.whispersystems.signalservice.api.groupsv2 to com.fasterxml.jackson.databind;
     opens org.whispersystems.signalservice.internal.push to com.fasterxml.jackson.databind;
+    opens org.whispersystems.signalservice.api.messages.calls to com.fasterxml.jackson.databind;
     opens org.whispersystems.signalservice.api.profiles to com.fasterxml.jackson.databind;
     opens org.whispersystems.signalservice.api.push to com.fasterxml.jackson.databind;
     opens org.whispersystems.signalservice.api.storage to com.fasterxml.jackson.databind;
