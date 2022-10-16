@@ -33,6 +33,7 @@ public class SignalServiceAttachmentPointer extends SignalServiceAttachment {
   private final Optional<String>                caption;
   private final Optional<String>                blurHash;
   private final long                            uploadTimestamp;
+    private final boolean gif;
 
   public SignalServiceAttachmentPointer(int cdnNumber,
                                         SignalServiceAttachmentRemoteId remoteId,
@@ -46,6 +47,7 @@ public class SignalServiceAttachmentPointer extends SignalServiceAttachment {
                                         Optional<String> fileName,
                                         boolean voiceNote,
                                         boolean borderless,
+                                        boolean gif,
                                         Optional<String> caption,
                                         Optional<String> blurHash,
                                         long uploadTimestamp)
@@ -65,6 +67,7 @@ public class SignalServiceAttachmentPointer extends SignalServiceAttachment {
     this.caption         = caption;
     this.blurHash        = blurHash;
     this.uploadTimestamp = uploadTimestamp;
+    this.gif             = gif;
   }
 
   public int getCdnNumber() {
@@ -111,6 +114,10 @@ public class SignalServiceAttachmentPointer extends SignalServiceAttachment {
 
   public boolean isBorderless() {
     return borderless;
+  }
+
+  public boolean isGif() {
+    return gif;
   }
 
   public int getWidth() {

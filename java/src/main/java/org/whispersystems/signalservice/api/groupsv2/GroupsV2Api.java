@@ -95,35 +95,25 @@ public final class GroupsV2Api {
                            .decryptGroup(group);
   }
 
-  public List<DecryptedGroupHistoryEntry> getGroupHistory(GroupSecretParams groupSecretParams,
-                                                          int fromRevision,
-                                                          GroupsV2AuthorizationString authorization)
+
+  public GroupHistoryPage getGroupHistoryPage(GroupSecretParams groupSecretParams,
+                                              int fromRevision,
+                                              GroupsV2AuthorizationString authorization,
+                                              boolean includeFirstState)
       throws IOException, InvalidGroupStateException, VerificationFailedException
   {
-    List<GroupChanges.GroupChangeState> changesList = new LinkedList<>();
-    PushServiceSocket.GroupHistory      group;
+    PushServiceSocket.GroupHistory     group           = socket.getGroupsV2GroupHistory(fromRevision, authorization, GroupsV2Operations.HIGHEST_KNOWN_EPOCH, includeFirstState);
+    List<DecryptedGroupHistoryEntry>   result          = new ArrayList<>(group.getGroupChanges().getGroupChangesList().size());
+    GroupsV2Operations.GroupOperations groupOperations = groupsOperations.forGroup(groupSecretParams);
 
-    do {
-      group = socket.getGroupsV2GroupHistory(fromRevision, authorization);
-
-      changesList.addAll(group.getGroupChanges().getGroupChangesList());
-
-      if (group.hasMore()) {
-        fromRevision = group.getNextPageStartGroupRevision();
-      }
-    } while (group.hasMore());
-
-    ArrayList<DecryptedGroupHistoryEntry> result          = new ArrayList<>(changesList.size());
-    GroupsV2Operations.GroupOperations    groupOperations = groupsOperations.forGroup(groupSecretParams);
-
-    for (GroupChanges.GroupChangeState change : changesList) {
-      Optional<DecryptedGroup>       decryptedGroup  = change.hasGroupState () ? Optional.of(groupOperations.decryptGroup(change.getGroupState())) : Optional.empty();
-      Optional<DecryptedGroupChange> decryptedChange = change.hasGroupChange() ? groupOperations.decryptChange(change.getGroupChange(), false)     : Optional.empty();
+    for (GroupChanges.GroupChangeState change : group.getGroupChanges().getGroupChangesList()) {
+      Optional<DecryptedGroup>       decryptedGroup  = change.hasGroupState() ? Optional.of(groupOperations.decryptGroup(change.getGroupState())) : Optional.empty();
+      Optional<DecryptedGroupChange> decryptedChange = change.hasGroupChange() ? groupOperations.decryptChange(change.getGroupChange(), false) : Optional.empty();
 
       result.add(new DecryptedGroupHistoryEntry(decryptedGroup, decryptedChange));
     }
 
-    return result;
+    return new GroupHistoryPage(result, GroupHistoryPage.PagingData.fromGroup(group));
   }
 
   public DecryptedGroupJoinInfo getGroupJoinInfo(GroupSecretParams groupSecretParams,

@@ -92,6 +92,9 @@ import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import org.whispersystems.signalservice.api.push.ACI;
+import org.whispersystems.signalservice.api.push.PNI;
+import org.whispersystems.signalservice.api.push.ServiceIdType;
 
 import static org.whispersystems.signalservice.internal.push.ProvisioningProtos.ProvisionMessage;
 import static org.whispersystems.signalservice.internal.push.ProvisioningProtos.ProvisioningVersion;
@@ -115,17 +118,19 @@ public class SignalServiceAccountManager {
    * Construct a SignalServiceAccountManager.
    *
    * @param configuration The URL for the Signal Service.
-   * @param uuid The Signal Service UUID.
+   * @param aci The Signal Service ACI.
+   * @param pni The Signal Service PNI.
    * @param e164 The Signal Service phone number.
    * @param password A Signal Service password.
    * @param signalAgent A string which identifies the client software.
    */
   public SignalServiceAccountManager(SignalServiceConfiguration configuration,
-                                     UUID uuid, String e164, String password,
-                                     String signalAgent, boolean automaticNetworkRetry)
+                                     ACI aci, PNI pni, String e164, int deviceId, String password,
+                                     String signalAgent, boolean automaticNetworkRetry,
+                                     int maxGroupSize)
   {
     this(configuration,
-         new StaticCredentialsProvider(uuid, e164, password),
+         new StaticCredentialsProvider(aci, pni, e164, deviceId, password),
          signalAgent,
          new GroupsV2Operations(ClientZkOperations.create(configuration)),
          automaticNetworkRetry);
@@ -160,10 +165,6 @@ public class SignalServiceAccountManager {
    */
   public void removeRegistrationLockV1() throws IOException {
     this.pushServiceSocket.removeRegistrationLockV1();
-  }
-
-  public UUID getOwnUuid() throws IOException {
-    return this.pushServiceSocket.getOwnUuid();
   }
 
   public KeyBackupService getKeyBackupService(KeyStore iasKeyStore,
@@ -248,7 +249,8 @@ public class SignalServiceAccountManager {
                                                      String pin, String registrationLock,
                                                      byte[] unidentifiedAccessKey, boolean unrestrictedUnidentifiedAccess,
                                                      AccountAttributes.Capabilities capabilities,
-                                                     boolean discoverableByPhoneNumber)
+                                                     boolean discoverableByPhoneNumber,
+                                                     int pniRegistrationId)
       throws IOException
   {
     return this.pushServiceSocket.verifyAccountCode(verificationCode, signalingKey,
@@ -258,7 +260,8 @@ public class SignalServiceAccountManager {
                                                     unidentifiedAccessKey,
                                                     unrestrictedUnidentifiedAccess,
                                                     capabilities,
-                                                    discoverableByPhoneNumber);
+                                                    discoverableByPhoneNumber,
+                                                    pniRegistrationId);
   }
 
   /**
@@ -278,14 +281,17 @@ public class SignalServiceAccountManager {
                                    String pin, String registrationLock,
                                    byte[] unidentifiedAccessKey, boolean unrestrictedUnidentifiedAccess,
                                    AccountAttributes.Capabilities capabilities,
-                                   boolean discoverableByPhoneNumber)
+                                   boolean discoverableByPhoneNumber,byte[] encryptedDeviceName,
+                                   int pniRegistrationId )
       throws IOException
   {
     this.pushServiceSocket.setAccountAttributes(signalingKey, signalProtocolRegistrationId, fetchesMessages,
                                                 pin, registrationLock,
                                                 unidentifiedAccessKey, unrestrictedUnidentifiedAccess,
                                                 capabilities,
-                                                discoverableByPhoneNumber);
+                                                discoverableByPhoneNumber, 
+                                                encryptedDeviceName,
+                                                pniRegistrationId);
   }
 
 
@@ -299,18 +305,18 @@ public class SignalServiceAccountManager {
    *
    * @throws IOException
    */
-  public void setPreKeys(IdentityKey identityKey, SignedPreKeyRecord signedPreKey, List<PreKeyRecord> oneTimePreKeys)
+  public void setPreKeys(ServiceIdType serviceIdType, IdentityKey identityKey, SignedPreKeyRecord signedPreKey, List<PreKeyRecord> oneTimePreKeys)
       throws IOException
   {
-    this.pushServiceSocket.registerPreKeys(identityKey, signedPreKey, oneTimePreKeys);
+    this.pushServiceSocket.registerPreKeys(serviceIdType, identityKey, signedPreKey, oneTimePreKeys);
   }
 
   /**
    * @return The server's count of currently available (eg. unused) prekeys for this user.
    * @throws IOException
    */
-  public int getPreKeysCount() throws IOException {
-    return this.pushServiceSocket.getAvailablePreKeys();
+  public int getPreKeysCount(ServiceIdType serviceIdType) throws IOException {
+    return this.pushServiceSocket.getAvailablePreKeys(serviceIdType);
   }
 
   /**
@@ -319,55 +325,55 @@ public class SignalServiceAccountManager {
    * @param signedPreKey The client's new signed prekey.
    * @throws IOException
    */
-  public void setSignedPreKey(SignedPreKeyRecord signedPreKey) throws IOException {
-    this.pushServiceSocket.setCurrentSignedPreKey(signedPreKey);
+  public void setSignedPreKey(ServiceIdType serviceIdType, SignedPreKeyRecord signedPreKey) throws IOException {
+    this.pushServiceSocket.setCurrentSignedPreKey(serviceIdType, signedPreKey);
   }
 
   /**
    * @return The server's view of the client's current signed prekey.
    * @throws IOException
    */
-  public SignedPreKeyEntity getSignedPreKey() throws IOException {
-    return this.pushServiceSocket.getCurrentSignedPreKey();
+  public SignedPreKeyEntity getSignedPreKey(ServiceIdType serviceIdType) throws IOException {
+    return this.pushServiceSocket.getCurrentSignedPreKey(serviceIdType);
   }
 
-  /**
-   * Checks whether a contact is currently registered with the server.
-   *
-   * @param e164number The contact to check.
-   * @return An optional ContactTokenDetails, present if registered, absent if not.
-   * @throws IOException
-   */
-  public Optional<ContactTokenDetails> getContact(String e164number) throws IOException {
-    String              contactToken        = createDirectoryServerToken(e164number, true);
-    ContactTokenDetails contactTokenDetails = this.pushServiceSocket.getContactTokenDetails(contactToken);
-
-    if (contactTokenDetails != null) {
-      contactTokenDetails.setNumber(e164number);
-    }
-
-    return Optional.ofNullable(contactTokenDetails);
-  }
-
-  /**
-   * Checks which contacts in a set are registered with the server.
-   *
-   * @param e164numbers The contacts to check.
-   * @return A list of ContactTokenDetails for the registered users.
-   * @throws IOException
-   */
-  public List<ContactTokenDetails> getContacts(Set<String> e164numbers)
-      throws IOException
-  {
-    Map<String, String>       contactTokensMap = createDirectoryServerTokenMap(e164numbers);
-    List<ContactTokenDetails> activeTokens     = this.pushServiceSocket.retrieveDirectory(contactTokensMap.keySet());
-
-    for (ContactTokenDetails activeToken : activeTokens) {
-      activeToken.setNumber(contactTokensMap.get(activeToken.getToken()));
-    }
-
-    return activeTokens;
-  }
+//  /**
+//   * Checks whether a contact is currently registered with the server.
+//   *
+//   * @param e164number The contact to check.
+//   * @return An optional ContactTokenDetails, present if registered, absent if not.
+//   * @throws IOException
+//   */
+//  public Optional<ContactTokenDetails> getContact(String e164number) throws IOException {
+//    String              contactToken        = createDirectoryServerToken(e164number, true);
+//    ContactTokenDetails contactTokenDetails = this.pushServiceSocket.getContactTokenDetails(contactToken);
+//
+//    if (contactTokenDetails != null) {
+//      contactTokenDetails.setNumber(e164number);
+//    }
+//
+//    return Optional.ofNullable(contactTokenDetails);
+//  }
+//
+//  /**
+//   * Checks which contacts in a set are registered with the server.
+//   *
+//   * @param e164numbers The contacts to check.
+//   * @return A list of ContactTokenDetails for the registered users.
+//   * @throws IOException
+//   */
+//  public List<ContactTokenDetails> getContacts(Set<String> e164numbers)
+//      throws IOException
+//  {
+//    Map<String, String>       contactTokensMap = createDirectoryServerTokenMap(e164numbers);
+//    List<ContactTokenDetails> activeTokens     = this.pushServiceSocket.retrieveDirectory(contactTokensMap.keySet());
+//
+//    for (ContactTokenDetails activeToken : activeTokens) {
+//      activeToken.setNumber(contactTokensMap.get(activeToken.getToken()));
+//    }
+//
+//    return activeTokens;
+//  }
 
   public Map<String, UUID> getRegisteredUsers(KeyStore iasKeyStore, Set<String> e164numbers, String mrenclave)
       throws IOException, Quote.InvalidQuoteFormatException, UnauthenticatedQuoteException, SignatureException, UnauthenticatedResponseException, InvalidKeyException
@@ -584,42 +590,42 @@ public class SignalServiceAccountManager {
     return this.pushServiceSocket.getNewDeviceVerificationCode();
   }
 
-  public void addDevice(String deviceIdentifier,
-                        ECPublicKey deviceKey,
-                        IdentityKeyPair identityKeyPair,
-                        Optional<byte[]> profileKey,
-                        String code)
-      throws InvalidKeyException, IOException
-  {
-    ProvisioningCipher       cipher  = new ProvisioningCipher(deviceKey);
-    ProvisionMessage.Builder message = ProvisionMessage.newBuilder()
-                                                       .setIdentityKeyPublic(ByteString.copyFrom(identityKeyPair.getPublicKey().serialize()))
-                                                       .setIdentityKeyPrivate(ByteString.copyFrom(identityKeyPair.getPrivateKey().serialize()))
-                                                       .setProvisioningCode(code)
-                                                       .setProvisioningVersion(ProvisioningVersion.CURRENT_VALUE);
-
-    String e164 = credentials.getE164();
-    UUID   uuid = credentials.getUuid();
-
-    if (e164 != null) {
-      message.setNumber(e164);
-    } else {
-      throw new AssertionError("Missing phone number!");
-    }
-
-    if (uuid != null) {
-      message.setUuid(uuid.toString());
-    } else {
-      Log.w(TAG, "[addDevice] Missing UUID.");
-    }
-
-    if (profileKey.isPresent()) {
-      message.setProfileKey(ByteString.copyFrom(profileKey.get()));
-    }
-
-    byte[] ciphertext = cipher.encrypt(message.build());
-    this.pushServiceSocket.sendProvisioningMessage(deviceIdentifier, ciphertext);
-  }
+//  public void addDevice(String deviceIdentifier,
+//                        ECPublicKey deviceKey,
+//                        IdentityKeyPair identityKeyPair,
+//                        Optional<byte[]> profileKey,
+//                        String code)
+//      throws InvalidKeyException, IOException
+//  {
+//    ProvisioningCipher       cipher  = new ProvisioningCipher(deviceKey);
+//    ProvisionMessage.Builder message = ProvisionMessage.newBuilder()
+//                                                       .setIdentityKeyPublic(ByteString.copyFrom(identityKeyPair.getPublicKey().serialize()))
+//                                                       .setIdentityKeyPrivate(ByteString.copyFrom(identityKeyPair.getPrivateKey().serialize()))
+//                                                       .setProvisioningCode(code)
+//                                                       .setProvisioningVersion(ProvisioningVersion.CURRENT_VALUE);
+//
+//    String e164 = credentials.getE164();
+//    ACI    aci  = credentials.getAci();
+//    PNI    pni  = credentials.getPni();
+//
+//    if (e164 != null) {
+//      message.setNumber(e164);
+//    } else {
+//      throw new AssertionError("Missing phone number!");
+//    }
+//    if (uuid != null) {
+//      message.setUuid(uuid.toString());
+//    } else {
+//      Log.w(TAG, "[addDevice] Missing UUID.");
+//    }
+//
+//    if (profileKey.isPresent()) {
+//      message.setProfileKey(ByteString.copyFrom(profileKey.get()));
+//    }
+//
+//    byte[] ciphertext = cipher.encrypt(message.build());
+//    this.pushServiceSocket.sendProvisioningMessage(deviceIdentifier, ciphertext);
+//  }
 
   public List<DeviceInfo> getDevices() throws IOException {
     return this.pushServiceSocket.getDevices();
@@ -636,36 +642,36 @@ public class SignalServiceAccountManager {
   public void checkNetworkConnection() throws IOException {
     this.pushServiceSocket.pingStorageService();
   }
-
-  /**
-   * @return The avatar URL path, if one was written.
-   */
-  public Optional<String> setVersionedProfile(UUID uuid, ProfileKey profileKey, String name, String about, String aboutEmoji, StreamDetails avatar)
-      throws IOException
-  {
-    if (name == null) name = "";
-
-    byte[]            ciphertextName    = new ProfileCipher(profileKey).encryptName(name.getBytes(StandardCharsets.UTF_8), ProfileCipher.getTargetNameLength(name));
-    byte[]            ciphertextAbout   = new ProfileCipher(profileKey).encryptName(about.getBytes(StandardCharsets.UTF_8), ProfileCipher.getTargetAboutLength(about));
-    byte[]            ciphertextEmoji   = new ProfileCipher(profileKey).encryptName(aboutEmoji.getBytes(StandardCharsets.UTF_8), ProfileCipher.EMOJI_PADDED_LENGTH);
-    boolean           hasAvatar         = avatar != null;
-    ProfileAvatarData profileAvatarData = null;
-
-    if (hasAvatar) {
-      profileAvatarData = new ProfileAvatarData(avatar.getStream(),
-                                                ProfileCipherOutputStream.getCiphertextLength(avatar.getLength()),
-                                                avatar.getContentType(),
-                                                new ProfileCipherOutputStreamFactory(profileKey));
-    }
-
-    return this.pushServiceSocket.writeProfile(new SignalServiceProfileWrite(profileKey.getProfileKeyVersion(uuid).serialize(),
-                                                                             ciphertextName,
-                                                                             ciphertextAbout,
-                                                                             ciphertextEmoji,
-                                                                             hasAvatar,
-                                                                             profileKey.getCommitment(uuid).serialize()),
-                                                                             profileAvatarData);
-  }
+//
+//  /**
+//   * @return The avatar URL path, if one was written.
+//   */
+//  public Optional<String> setVersionedProfile(ACI aci, ProfileKey profileKey, String name, String about, String aboutEmoji, StreamDetails avatar)
+//      throws IOException
+//  {
+//    if (name == null) name = "";
+//
+//    byte[]            ciphertextName    = new ProfileCipher(profileKey).encryptName(name.getBytes(StandardCharsets.UTF_8), ProfileCipher.getTargetNameLength(name));
+//    byte[]            ciphertextAbout   = new ProfileCipher(profileKey).encryptName(about.getBytes(StandardCharsets.UTF_8), ProfileCipher.getTargetAboutLength(about));
+//    byte[]            ciphertextEmoji   = new ProfileCipher(profileKey).encryptName(aboutEmoji.getBytes(StandardCharsets.UTF_8), ProfileCipher.EMOJI_PADDED_LENGTH);
+//    boolean           hasAvatar         = avatar != null;
+//    ProfileAvatarData profileAvatarData = null;
+//
+//    if (hasAvatar) {
+//      profileAvatarData = new ProfileAvatarData(avatar.getStream(),
+//                                                ProfileCipherOutputStream.getCiphertextLength(avatar.getLength()),
+//                                                avatar.getContentType(),
+//                                                new ProfileCipherOutputStreamFactory(profileKey));
+//    }
+//
+//    return this.pushServiceSocket.writeProfile(new SignalServiceProfileWrite(profileKey.getProfileKeyVersion(aci.uuid())).serialize(),
+//                                                                             ciphertextName,
+//                                                                             ciphertextAbout,
+//                                                                             ciphertextEmoji,
+//                                                                             hasAvatar,
+//                                                                             profileKey.getCommitment(uuid).serialize()),
+//                                                                             profileAvatarData);
+//  }
 
   public Optional<ProfileKeyCredential> resolveProfileKeyCredential(UUID uuid, ProfileKey profileKey)
       throws NonSuccessfulResponseCodeException, PushNetworkException
@@ -686,8 +692,8 @@ public class SignalServiceAccountManager {
     }
   }
 
-  public void setUsername(String username) throws IOException {
-    this.pushServiceSocket.setUsername(username);
+  public void setUsername(String nickname, String username) throws IOException {
+    this.pushServiceSocket.setUsername(nickname, username);
   }
 
   public void deleteUsername() throws IOException {

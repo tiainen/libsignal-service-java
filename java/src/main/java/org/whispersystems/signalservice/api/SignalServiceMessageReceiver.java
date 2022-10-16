@@ -44,9 +44,11 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.function.Consumer;
+import org.whispersystems.signalservice.api.push.ServiceId;
 
 /**
  * The primary interface for receiving Signal Service messages.
@@ -64,27 +66,27 @@ public class SignalServiceMessageReceiver {
   private final SleepTimer                 sleepTimer;
   private final ClientZkProfileOperations  clientZkProfileOperations;
 
-  /**
-   * Construct a SignalServiceMessageReceiver.
-   *
-   * @param urls The URL of the Signal Service.
-   * @param uuid The Signal Service UUID.
-   * @param e164 The Signal Service phone number.
-   * @param password The Signal Service user password.
-   * @param signalingKey The 52 byte signaling key assigned to this user at registration.
-   */
-  public SignalServiceMessageReceiver(SignalServiceConfiguration urls,
-                                      UUID uuid,
-                                      String e164,
-                                      String password,
-                                      String signalAgent,
-                                      ConnectivityListener listener,
-                                      SleepTimer timer,
-                                      ClientZkProfileOperations clientZkProfileOperations,
-                                      boolean automaticNetworkRetry)
-  {
-    this(urls, new StaticCredentialsProvider(uuid, e164, password), signalAgent, listener, timer, clientZkProfileOperations, automaticNetworkRetry);
-  }
+//  /**
+//   * Construct a SignalServiceMessageReceiver.
+//   *
+//   * @param urls The URL of the Signal Service.
+//   * @param uuid The Signal Service UUID.
+//   * @param e164 The Signal Service phone number.
+//   * @param password The Signal Service user password.
+//   * @param signalingKey The 52 byte signaling key assigned to this user at registration.
+//   */
+//  public SignalServiceMessageReceiver(SignalServiceConfiguration urls,
+//                                      UUID uuid,
+//                                      String e164,
+//                                      String password,
+//                                      String signalAgent,
+//                                      ConnectivityListener listener,
+//                                      SleepTimer timer,
+//                                      ClientZkProfileOperations clientZkProfileOperations,
+//                                      boolean automaticNetworkRetry)
+//  {
+//    this(urls, new StaticCredentialsProvider(uuid, e164, password), signalAgent, listener, timer, clientZkProfileOperations, automaticNetworkRetry);
+//  }
 
   /**
    * Construct a SignalServiceMessageReceiver.
@@ -128,33 +130,28 @@ public class SignalServiceMessageReceiver {
   public ListenableFuture<ProfileAndCredential> retrieveProfile(SignalServiceAddress address,
                                                                  Optional<ProfileKey> profileKey,
                                                                  Optional<UnidentifiedAccess> unidentifiedAccess,
-                                                                 SignalServiceProfile.RequestType requestType)
+                                                                 SignalServiceProfile.RequestType requestType,
+                                                                 Locale locale)
   {
-    Optional<UUID> uuid = address.getUuid();
+   ServiceId serviceId = address.getServiceId();
 
-    if (uuid.isPresent() && profileKey.isPresent()) {
+    if (profileKey.isPresent()) {
       if (requestType == SignalServiceProfile.RequestType.PROFILE_AND_CREDENTIAL) {
-        return socket.retrieveVersionedProfileAndCredential(uuid.get(), profileKey.get(), unidentifiedAccess);
+        return socket.retrieveVersionedProfileAndCredential(serviceId.uuid(), profileKey.get(), unidentifiedAccess, locale);
       } else {
-        return FutureTransformers.map(socket.retrieveVersionedProfile(uuid.get(), profileKey.get(), unidentifiedAccess), profile -> {
+        return FutureTransformers.map(socket.retrieveVersionedProfile(serviceId.uuid(), profileKey.get(), unidentifiedAccess, locale), profile -> {
           return new ProfileAndCredential(profile,
                                           SignalServiceProfile.RequestType.PROFILE,
                                           Optional.empty());
         });
       }
     } else {
-      return FutureTransformers.map(socket.retrieveProfile(address, unidentifiedAccess), profile -> {
+      return FutureTransformers.map(socket.retrieveProfile(address, unidentifiedAccess, Locale.getDefault()), profile -> {
         return new ProfileAndCredential(profile,
                                         SignalServiceProfile.RequestType.PROFILE,
                                         Optional.empty());
       });
     }
-  }
-
-  public SignalServiceProfile retrieveProfileByUsername(String username, Optional<UnidentifiedAccess> unidentifiedAccess)
-      throws IOException
-  {
-    return socket.retrieveProfileByUsername(username, unidentifiedAccess);
   }
 
   public InputStream retrieveProfileAvatar(String path, File destination, ProfileKey profileKey, long maxSizeBytes)
@@ -266,44 +263,48 @@ public class SignalServiceMessageReceiver {
     return new SignalServiceMessagePipe(webSocket, Optional.of(credentialsProvider), clientZkProfileOperations);
   }
 
-  public List<SignalServiceEnvelope> retrieveMessages() throws IOException {
-    return retrieveMessages(new NullMessageReceivedCallback());
+  public List<SignalServiceEnvelope> retrieveMessages(boolean allowStories) throws IOException {
+    return retrieveMessages(new NullMessageReceivedCallback(), allowStories);
   }
 
-  public List<SignalServiceEnvelope> retrieveMessages(MessageReceivedCallback callback)
+  public List<SignalServiceEnvelope> retrieveMessages(MessageReceivedCallback callback, boolean allowStories)
       throws IOException
   {
     List<SignalServiceEnvelope> results       = new LinkedList<>();
-    SignalServiceMessagesResult messageResult = socket.getMessages();
+    SignalServiceMessagesResult messageResult = socket.getMessages(allowStories);
 
     for (SignalServiceEnvelopeEntity entity : messageResult.getEnvelopes()) {
       SignalServiceEnvelope envelope;
 
       if (entity.hasSource() && entity.getSourceDevice() > 0) {
-        SignalServiceAddress address = new SignalServiceAddress(UuidUtil.parseOrNull(entity.getSourceUuid()), entity.getSourceE164());
+        SignalServiceAddress address = new SignalServiceAddress(ServiceId.parseOrThrow(entity.getSourceUuid()), entity.getSourceE164());
         envelope = new SignalServiceEnvelope(entity.getType(),
                                              Optional.of(address),
                                              entity.getSourceDevice(),
                                              entity.getTimestamp(),
-                                             entity.getMessage(),
                                              entity.getContent(),
                                              entity.getServerTimestamp(),
                                              messageResult.getServerDeliveredTimestamp(),
-                                             entity.getServerUuid());
+                                             entity.getServerUuid(),
+                                             entity.getDestinationUuid(),
+                                             entity.isUrgent(),
+                                             entity.isStory());
       } else {
         envelope = new SignalServiceEnvelope(entity.getType(),
                                              entity.getTimestamp(),
-                                             entity.getMessage(),
                                              entity.getContent(),
                                              entity.getServerTimestamp(),
                                              messageResult.getServerDeliveredTimestamp(),
-                                             entity.getServerUuid());
+                                             entity.getServerUuid(),
+                                             entity.getDestinationUuid(),
+                                             entity.isUrgent(),
+                                             entity.isStory());
       }
 
       callback.onMessage(envelope);
       results.add(envelope);
 
-      if (envelope.hasUuid()) socket.acknowledgeMessage(envelope.getUuid());
+      if (envelope.hasServerGuid()) socket.acknowledgeMessage(envelope.getServerGuid());
       else                    socket.acknowledgeMessage(entity.getSourceE164(), entity.getTimestamp());
     }
 

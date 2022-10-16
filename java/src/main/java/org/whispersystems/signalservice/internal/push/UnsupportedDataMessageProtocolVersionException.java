@@ -1,8 +1,7 @@
 package org.whispersystems.signalservice.internal.push;
 
-import org.whispersystems.signalservice.api.messages.SignalServiceGroupContext;
-
 import java.util.Optional;
+import org.whispersystems.signalservice.api.messages.SignalServiceGroupV2;
 /**
  * Exception that indicates that the data message has a higher required protocol version than the
  * current client is capable of interpreting.
@@ -14,7 +13,7 @@ public final class UnsupportedDataMessageProtocolVersionException extends Unsupp
                                                           int requiredVersion,
                                                           String sender,
                                                           int senderDevice,
-                                                          Optional<SignalServiceGroupContext> group) {
+                                                          Optional<SignalServiceGroupV2> group) {
         super("Required version: " + requiredVersion + ", Our version: " + currentVersion, sender, senderDevice, group);
         this.requiredVersion = requiredVersion;
     }

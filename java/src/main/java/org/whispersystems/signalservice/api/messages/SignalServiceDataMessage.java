@@ -16,6 +16,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.signal.zkgroup.groups.GroupSecretParams;
+import org.signal.zkgroup.receipts.ReceiptCredentialPresentation;
+import org.whispersystems.signalservice.api.push.ServiceId;
+import org.whispersystems.signalservice.internal.push.SignalServiceProtos;
 
 /**
  * Represents a decrypted Signal Service data message.
@@ -25,7 +28,7 @@ public class SignalServiceDataMessage {
   private final long                                    timestamp;
   private final Optional<List<SignalServiceAttachment>> attachments;
   private final Optional<String>                        body;
-  private final Optional<SignalServiceGroupContext>     group;
+  private final Optional<SignalServiceGroupV2>          group;
   private final Optional<byte[]>                        profileKey;
   private final boolean                                 endSession;
   private final boolean                                 expirationUpdate;
@@ -33,7 +36,7 @@ public class SignalServiceDataMessage {
   private final boolean                                 profileKeyUpdate;
   private final Optional<Quote>                         quote;
   private final Optional<List<SharedContact>>           contacts;
-  private final Optional<List<Preview>>                 previews;
+  private final Optional<List<SignalServicePreview>>    previews;
   private final Optional<List<Mention>>                 mentions;
   private final Optional<Sticker>                       sticker;
   private final boolean                                 viewOnce;
@@ -52,21 +55,18 @@ public class SignalServiceDataMessage {
    * @param endSession Flag indicating whether this message should close a session.
    * @param expiresInSeconds Number of seconds in which the message should disappear after being seen.
    */
-  SignalServiceDataMessage(long timestamp,
-                           SignalServiceGroup group, SignalServiceGroupV2 groupV2,
+  SignalServiceDataMessage(long timestamp,SignalServiceGroupV2 groupV2,
                            List<SignalServiceAttachment> attachments,
                            String body, boolean endSession, int expiresInSeconds,
                            boolean expirationUpdate, byte[] profileKey, boolean profileKeyUpdate,
-                           Quote quote, List<SharedContact> sharedContacts, List<Preview> previews,
+                           Quote quote, List<SharedContact> sharedContacts, List<SignalServicePreview> previews,
                            List<Mention> mentions, Sticker sticker, boolean viewOnce, Reaction reaction, RemoteDelete remoteDelete,
-                           GroupCallUpdate groupCallUpdate)
+                           GroupCallUpdate groupCallUpdate,
+                           Payment payment,
+                           StoryContext storyContext,
+                           GiftBadge giftBadge)
   {
-    try {
-      this.group = SignalServiceGroupContext.createOptional(group, groupV2);
-    } catch (InvalidMessageException e) {
-      throw new AssertionError(e);
-    }
-
+    this.group = Optional.ofNullable(groupV2);
     this.timestamp        = timestamp;
     this.body             = OptionalUtil.absentIfEmpty(body);
     this.endSession       = endSession;
@@ -134,7 +134,7 @@ public class SignalServiceDataMessage {
   /**
    * @return The message group context (if any).
    */
-  public Optional<SignalServiceGroupContext> getGroupContext() {
+  public Optional<SignalServiceGroupV2> getGroupContext() {
     return group;
   }
 
@@ -150,20 +150,14 @@ public class SignalServiceDataMessage {
     return profileKeyUpdate;
   }
 
-  public boolean isGroupV1Update() {
-    return group.isPresent() &&
-           group.get().getGroupV1().isPresent() &&
-           group.get().getGroupV1().get().getType() != SignalServiceGroup.Type.DELIVER;
-  }
 
   public boolean isGroupV2Message() {
-    return group.isPresent() &&
-           group.get().getGroupV2().isPresent();
+    return group.isPresent();
   }
 
   public boolean isGroupV2Update() {
     return isGroupV2Message() &&
-           group.get().getGroupV2().get().hasSignedGroupChange() &&
+           group.get().hasSignedGroupChange() &&
            !hasRenderableContent();
   }
 
@@ -200,7 +194,7 @@ public class SignalServiceDataMessage {
     return contacts;
   }
 
-  public Optional<List<Preview>> getPreviews() {
+  public Optional<List<SignalServicePreview>> getPreviews() {
     return previews;
   }
 
@@ -231,8 +225,8 @@ public class SignalServiceDataMessage {
   public Optional<byte[]> getGroupId() {
     byte[] groupId = null;
 
-    if (getGroupContext().isPresent() && getGroupContext().get().getGroupV2().isPresent()) {
-      SignalServiceGroupV2 gv2 = getGroupContext().get().getGroupV2().get();
+    if (getGroupContext().isPresent() && getGroupContext().isPresent()) {
+      SignalServiceGroupV2 gv2 = getGroupContext().get();
       groupId = GroupSecretParams.deriveFromMasterKey(gv2.getMasterKey())
                                  .getPublicParams()
                                  .getGroupIdentifier()
@@ -245,7 +239,7 @@ public class SignalServiceDataMessage {
 
     private List<SignalServiceAttachment> attachments    = new LinkedList<>();
     private List<SharedContact>           sharedContacts = new LinkedList<>();
-    private List<Preview>                 previews       = new LinkedList<>();
+    private List<SignalServicePreview>    previews       = new LinkedList<>();
     private List<Mention>                 mentions       = new LinkedList<>();
 
     private long                 timestamp;
@@ -263,6 +257,9 @@ public class SignalServiceDataMessage {
     private Reaction             reaction;
     private RemoteDelete         remoteDelete;
     private GroupCallUpdate      groupCallUpdate;
+        private StoryContext storyContext;
+        private GiftBadge giftBadge;
+        private Payment payment;
 
     private Builder() {}
 
@@ -350,7 +347,7 @@ public class SignalServiceDataMessage {
       return this;
     }
 
-    public Builder withPreviews(List<Preview> previews) {
+    public Builder withPreviews(List<SignalServicePreview> previews) {
       this.previews.addAll(previews);
       return this;
     }
@@ -385,36 +382,54 @@ public class SignalServiceDataMessage {
       return this;
     }
 
+    public Builder withPayment(Payment payment) {
+      this.payment = payment;
+      return this;
+    }
+
+    public Builder withStoryContext(StoryContext storyContext) {
+      this.storyContext = storyContext;
+      return this;
+    }
+
+    public Builder withGiftBadge(GiftBadge giftBadge) {
+      this.giftBadge = giftBadge;
+      return this;
+    }
+
     public SignalServiceDataMessage build() {
       if (timestamp == 0) timestamp = System.currentTimeMillis();
-      return new SignalServiceDataMessage(timestamp, group, groupV2, attachments, body, endSession,
+      return new SignalServiceDataMessage(timestamp, groupV2, attachments, body, endSession,
                                           expiresInSeconds, expirationUpdate, profileKey,
                                           profileKeyUpdate, quote, sharedContacts, previews,
                                           mentions, sticker, viewOnce, reaction, remoteDelete,
-                                          groupCallUpdate);
+                                          groupCallUpdate, payment, storyContext, giftBadge);
     }
   }
 
   public static class Quote {
     private final long                   id;
-    private final SignalServiceAddress   author;
+    private final ServiceId              author;
     private final String                 text;
     private final List<QuotedAttachment> attachments;
     private final List<Mention>          mentions;
+    private final Type                   type;
 
-    public Quote(long id, SignalServiceAddress author, String text, List<QuotedAttachment> attachments, List<Mention> mentions) {
+    public Quote(long id, ServiceId author, String text, List<QuotedAttachment> attachments,
+            List<Mention> mentions, Type type) {
       this.id          = id;
       this.author      = author;
       this.text        = text;
       this.attachments = attachments;
       this.mentions    = mentions;
+      this.type        = type;
     }
 
     public long getId() {
       return id;
     }
 
-    public SignalServiceAddress getAuthor() {
+    public ServiceId getAuthor() {
       return author;
     }
 
@@ -429,7 +444,35 @@ public class SignalServiceDataMessage {
     public List<Mention> getMentions() {
       return mentions;
     }
+  public Type getType() {
+      return type;
+    }
 
+    public enum Type {
+      NORMAL(SignalServiceProtos.DataMessage.Quote.Type.NORMAL),
+      GIFT_BADGE(SignalServiceProtos.DataMessage.Quote.Type.GIFT_BADGE);
+
+      private final SignalServiceProtos.DataMessage.Quote.Type protoType;
+
+      Type(SignalServiceProtos.DataMessage.Quote.Type protoType) {
+        this.protoType = protoType;
+      }
+
+      public SignalServiceProtos.DataMessage.Quote.Type getProtoType() {
+        return protoType;
+      }
+
+      public static Type fromProto(SignalServiceProtos.DataMessage.Quote.Type protoType) {
+        for (final Type value : values()) {
+          if (value.protoType == protoType) {
+            return value;
+          }
+        }
+
+        return NORMAL;
+      }
+    }
+    
     public static class QuotedAttachment {
       private final String                  contentType;
       private final String                  fileName;
@@ -530,10 +573,10 @@ public class SignalServiceDataMessage {
   public static class Reaction {
     private final String               emoji;
     private final boolean              remove;
-    private final SignalServiceAddress targetAuthor;
+    private final ServiceId targetAuthor;
     private final long                 targetSentTimestamp;
 
-    public Reaction(String emoji, boolean remove, SignalServiceAddress targetAuthor, long targetSentTimestamp) {
+    public Reaction(String emoji, boolean remove, ServiceId targetAuthor, long targetSentTimestamp) {
       this.emoji               = emoji;
       this.remove              = remove;
       this.targetAuthor        = targetAuthor;
@@ -548,7 +591,7 @@ public class SignalServiceDataMessage {
       return remove;
     }
 
-    public SignalServiceAddress getTargetAuthor() {
+    public ServiceId getTargetAuthor() {
       return targetAuthor;
     }
 
@@ -570,18 +613,18 @@ public class SignalServiceDataMessage {
   }
 
   public static class Mention {
-    private final UUID uuid;
+    private final ServiceId serviceId;
     private final int  start;
     private final int  length;
 
-    public Mention(UUID uuid, int start, int length) {
-      this.uuid   = uuid;
+    public Mention(ServiceId serviceId, int start, int length) {
+      this.serviceId   = serviceId;
       this.start  = start;
       this.length = length;
     }
 
-    public UUID getUuid() {
-      return uuid;
+    public ServiceId getServiceId() {
+      return serviceId;
     }
 
     public int getStart() {
@@ -604,4 +647,66 @@ public class SignalServiceDataMessage {
       return eraId;
     }
   }
+  
+    public static class PaymentNotification {
+
+    private final byte[] receipt;
+    private final String note;
+
+    public PaymentNotification(byte[] receipt, String note) {
+      this.receipt = receipt;
+      this.note    = note;
+    }
+
+    public byte[] getReceipt() {
+      return receipt;
+    }
+
+    public String getNote() {
+      return note;
+    }
+  }
+
+  public static class Payment {
+    private final Optional<PaymentNotification> paymentNotification;
+
+    public Payment(PaymentNotification paymentNotification) {
+      this.paymentNotification = Optional.of(paymentNotification);
+    }
+
+    public Optional<PaymentNotification> getPaymentNotification() {
+      return paymentNotification;
+    }
+  }
+
+  public static class StoryContext {
+    private final ServiceId authorServiceId;
+    private final long      sentTimestamp;
+
+    public StoryContext(ServiceId authorServiceId, long sentTimestamp) {
+      this.authorServiceId = authorServiceId;
+      this.sentTimestamp   = sentTimestamp;
+    }
+
+    public ServiceId getAuthorServiceId() {
+      return authorServiceId;
+    }
+
+    public long getSentTimestamp() {
+      return sentTimestamp;
+    }
+  }
+
+  public static class GiftBadge {
+    private final ReceiptCredentialPresentation receiptCredentialPresentation;
+
+    public GiftBadge(ReceiptCredentialPresentation receiptCredentialPresentation) {
+      this.receiptCredentialPresentation = receiptCredentialPresentation;
+    }
+
+    public ReceiptCredentialPresentation getReceiptCredentialPresentation() {
+      return receiptCredentialPresentation;
+    }
+  }
+
 }

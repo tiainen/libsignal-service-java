@@ -30,7 +30,7 @@
         <dependency>
           <groupId>org.signal</groupId>
           <artifactId>signal-metadata-java</artifactId>
-          <version>0.1.2-gluon-13</version>
+          <version>0.1.2-gluon-15-SNAPSHOT</version>
         </dependency>
         <dependency>
           <groupId>org.signal</groupId>
