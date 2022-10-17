@@ -51,5 +51,10 @@ public class StaticCredentialsProvider implements CredentialsProvider {
   public String getPassword() {
     return password;
   }
+  
+   @Override
+    public String getDeviceUuid() {
+        return this.aci.uuid().toString() + (this.deviceId > 1 ? "." + this.deviceId : "");
+    }
 
 }

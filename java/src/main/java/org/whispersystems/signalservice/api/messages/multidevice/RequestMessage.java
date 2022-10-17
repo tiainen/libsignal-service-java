@@ -16,6 +16,10 @@ public class RequestMessage {
     this.request = request;
   }
 
+  public Request getRequest() {
+    return request;
+  }
+
   public boolean isContactsRequest() {
     return request.getType() == Request.Type.CONTACTS;
   }
@@ -36,6 +40,14 @@ public class RequestMessage {
     return request.getType() == Request.Type.KEYS;
   }
   
+  public boolean isPniIdentityRequest() {
+    return request.getType() == Request.Type.PNI_IDENTITY;
+  }
+
+  public boolean isUrgent() {
+    return isContactsRequest() || isKeysRequest() || isPniIdentityRequest();
+  }
+
   public Request.Type getType() {
       return request.getType();
   }

@@ -15,4 +15,7 @@ public interface CredentialsProvider {
   String getE164();
   int getDeviceId();
   String getPassword();
+  
+  String getDeviceUuid();
+
 }

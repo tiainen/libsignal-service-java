@@ -46,10 +46,10 @@ public final class GroupsV2Api {
   /**
    * Provides 7 days of credentials, which you should cache.
    */
-  public HashMap<Integer, AuthCredentialResponse> getCredentials(int today)
+  public HashMap<Integer, AuthCredentialResponse> getCredentials(long today)
       throws IOException
   {
-    return parseCredentialResponse(socket.retrieveGroupsV2Credentials(today));
+    return parseCredentialResponse(socket.retrieveGroupsV2Credentials((int)today));
   }
 
   /**

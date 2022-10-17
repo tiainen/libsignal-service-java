@@ -234,8 +234,10 @@ public class PushServiceSocket {
 
     private static final String STICKER_MANIFEST_PATH = "stickers/%s/manifest.proto";
     private static final String STICKER_PATH = "stickers/%s/full/%d";
+  
+    private static final String NEW_GROUPSV2_CREDENTIAL = "/v1/certificate/auth/group?redemptionStartSeconds=%d&redemptionEndSeconds=%d";
 
-    private static final String GROUPSV2_CREDENTIAL = "/v1/certificate/auth/group?redemptionStartSeconds=%d&redemptionEndSeconds=%d";
+    private static final String GROUPSV2_CREDENTIAL = "/v1/certificate/group/%d/%d";
     private static final String GROUPSV2_GROUP = "/v1/groups/";
     private static final String GROUPSV2_GROUP_PASSWORD = "/v1/groups/?inviteLinkPassword=%s";
     private static final String GROUPSV2_GROUP_CHANGES = "/v1/groups/logs/%s?maxSupportedChangeEpoch=%d&includeFirstState=%s&includeLastState=false";
@@ -1642,7 +1644,7 @@ public class PushServiceSocket {
         return makeServiceRequest(urlFragment, method, jsonBody, NO_HEADERS, NO_HANDLER, Optional.empty());
     }
 
-    private String makeServiceRequest(String urlFragment, String method, String jsonBody, Map<String, String> headers)
+    public String makeServiceRequest(String urlFragment, String method, String jsonBody, Map<String, String> headers)
             throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException {
         return makeServiceRequest(urlFragment, method, jsonBody, headers, NO_HANDLER, Optional.empty());
     }
@@ -2392,15 +2394,18 @@ public class PushServiceSocket {
         ContactDiscovery, KeyBackup
     }
 
-    public CredentialResponse retrieveGroupsV2Credentials(long todaySeconds)
+   //  public CredentialResponse retrieveGroupsV2Credentials(long todaySeconds)
+    public CredentialResponse retrieveGroupsV2Credentials(int today)
             throws IOException {
-        long todayPlus7 = todaySeconds + TimeUnit.DAYS.toSeconds(7);
-        String response = makeServiceRequest(String.format(Locale.US, GROUPSV2_CREDENTIAL, todaySeconds, todayPlus7),
+    //    long todayPlus7 = todaySeconds + TimeUnit.DAYS.toSeconds(7);
+         int todayPlus7 = today + 7;
+//              String response = makeServiceRequest(String.format(Locale.US, GROUPSV2_CREDENTIAL, todaySeconds, todayPlus7),
+
+         String response = makeServiceRequest(String.format(Locale.US, GROUPSV2_CREDENTIAL, today, todayPlus7),
                 "GET",
                 null,
                 NO_HEADERS,
                 Optional.empty());
-
         return JsonUtil.fromJson(response, CredentialResponse.class);
     }
     private static final ResponseCodeHandler GROUPS_V2_PUT_RESPONSE_HANDLER = (responseCode, body) -> {

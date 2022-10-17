@@ -132,7 +132,7 @@ public class WebSocketConnection extends WebSocketListener {
             String filledUri;
 
             if (credentialsProvider.isPresent()) {
-                String identifier = credentialsProvider.get().getAci() != null ? credentialsProvider.get().getAci().toString() : credentialsProvider.get().getE164();
+                String identifier = credentialsProvider.get().getAci() != null ? credentialsProvider.get().getDeviceUuid() : credentialsProvider.get().getE164();
                 filledUri = String.format(wsUri, identifier, credentialsProvider.get().getPassword());
             } else {
                 filledUri = wsUri;

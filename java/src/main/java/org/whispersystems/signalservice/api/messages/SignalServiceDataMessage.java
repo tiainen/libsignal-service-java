@@ -414,6 +414,16 @@ public class SignalServiceDataMessage {
     private final List<QuotedAttachment> attachments;
     private final List<Mention>          mentions;
     private final Type                   type;
+    
+    @Deprecated
+    public Quote(long id, SignalServiceAddress ssa, String text, List<QuotedAttachment> attachments, List<Mention> mentions) {
+      this.id          = id; 
+      this.author      = ServiceId.parseOrNull(ssa.getIdentifier());
+      this.text        = text;
+      this.attachments = attachments;
+      this.mentions    = mentions;
+      this.type = Type.NORMAL;
+    }   
 
     public Quote(long id, ServiceId author, String text, List<QuotedAttachment> attachments,
             List<Mention> mentions, Type type) {

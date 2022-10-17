@@ -141,6 +141,11 @@
             <id>gluon-nexus</id>
             <url>https://nexus.gluonhq.com/nexus/content/repositories/releases</url>
     </repository>
+    <snapshotRepository>
+        <id>gluon-nexus</id>
+        <url>https://nexus.gluonhq.com/nexus/content/repositories/public-snapshots</url>
+    </snapshotRepository>
+
   </distributionManagement>
 
 

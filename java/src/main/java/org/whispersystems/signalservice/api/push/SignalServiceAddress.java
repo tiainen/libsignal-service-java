@@ -94,4 +94,8 @@ public class SignalServiceAddress {
     return Objects.hash(serviceId, e164);
   }
 
+  @Deprecated
+  public Optional<UUID> getUuid() {
+      return Optional.of(serviceId.uuid());
+  }
 }
