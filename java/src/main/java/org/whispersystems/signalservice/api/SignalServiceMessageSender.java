@@ -2315,9 +2315,11 @@ public class SignalServiceMessageSender {
         List<Integer> subDevices = aciStore.getSubDeviceSessions(recipient.getIdentifier());
 
         List<Integer> deviceIds = new ArrayList<>(subDevices.size() + 1);
-        deviceIds.add(SignalServiceAddress.DEFAULT_DEVICE_ID);
-        deviceIds.addAll(subDevices);
 
+        deviceIds.addAll(subDevices);
+        if (!deviceIds.contains(SignalServiceAddress.DEFAULT_DEVICE_ID)) {
+            deviceIds.add(SignalServiceAddress.DEFAULT_DEVICE_ID);
+        }
         if (recipient.matches(localAddress)) {
             deviceIds.remove(Integer.valueOf(localDeviceId));
         }
