@@ -21,6 +21,7 @@ import org.whispersystems.signalservice.internal.util.Util;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Optional;
+import org.whispersystems.signalservice.api.push.ServiceId;
 
 public class DeviceContactsInputStream extends ChunkedInputStream {
 
@@ -42,7 +43,7 @@ public class DeviceContactsInputStream extends ChunkedInputStream {
       throw new IOException("Missing contact address!");
     }
 
-    SignalServiceAddress                    address       = new SignalServiceAddress(UuidUtil.parseOrNull(details.getUuid()), details.getNumber());
+    SignalServiceAddress                    address       = new SignalServiceAddress(ServiceId.parseOrThrow(details.getUuid()), details.getNumber());
     Optional<String>                        name          = Optional.ofNullable(details.getName());
     Optional<SignalServiceAttachmentStream> avatar        = Optional.empty();
     Optional<String>                        color         = details.hasColor() ? Optional.of(details.getColor()) : Optional.<String>empty();
@@ -59,17 +60,16 @@ public class DeviceContactsInputStream extends ChunkedInputStream {
       InputStream avatarStream      = new LimitedInputStream(in, avatarLength);
       String      avatarContentType = details.getAvatar().getContentType();
       Log.d(TAG, "retrieve avatar, lenght = "+avatarLength+ ", contenttype = "+ avatarContentType);
-      avatar = Optional.of(new SignalServiceAttachmentStream(avatarStream, avatarContentType, avatarLength, Optional.<String>empty(), false, false, null, null));
+      avatar = Optional.of(new SignalServiceAttachmentStream(avatarStream, avatarContentType, avatarLength, Optional.<String>empty(), false, false, false, null, null));
     }
 
     if (details.hasVerified()) {
       try {
-        if (!SignalServiceAddress.isValidAddress(details.getVerified().getDestinationUuid(), details.getVerified().getDestinationE164())) {
+        if (!SignalServiceAddress.isValidAddress(details.getVerified().getDestinationUuid(), null)) {
           throw new InvalidMessageException("Missing Verified address!");
         }
         IdentityKey          identityKey = new IdentityKey(details.getVerified().getIdentityKey().toByteArray(), 0);
-        SignalServiceAddress destination = new SignalServiceAddress(UuidUtil.parseOrNull(details.getVerified().getDestinationUuid()),
-                                                                    details.getVerified().getDestinationE164());
+        SignalServiceAddress destination = new SignalServiceAddress(ServiceId.parseOrThrow(details.getVerified().getDestinationUuid()));
 
         VerifiedMessage.VerifiedState state;
 

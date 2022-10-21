@@ -54,6 +54,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.logging.Logger;
+import org.whispersystems.signalservice.api.push.ServiceId;
 import org.whispersystems.signalservice.api.push.exceptions.MalformedResponseException;
 import org.whispersystems.signalservice.api.push.exceptions.PushNetworkException;
 import org.whispersystems.signalservice.internal.push.GroupMismatchedDevices;
@@ -201,7 +202,7 @@ public class SignalServiceMessagePipe {
   }
   
   private Future<SendMessageResponse> send(OutgoingPushMessageList list, List<String> headers, Optional<UnidentifiedAccess> unidentifiedAccess) throws IOException {
-      
+      boolean unidentified = unidentifiedAccess.isPresent();
     WebSocketRequestMessage requestMessage = WebSocketRequestMessage.newBuilder()
                                                                     .setId(new SecureRandom().nextLong())
                                                                     .setVerb("PUT")
@@ -231,7 +232,7 @@ public class SignalServiceMessagePipe {
       }
       if (Util.isEmpty(value.getBody())) {
         LOG.fine("EMPTY response!");
-        return new SendMessageResponse(false);
+        return new SendMessageResponse(false, unidentified);
       } else {
         LOG.fine("VALID response = "+value.getBody());
         return JsonUtil.fromJson(value.getBody(), SendMessageResponse.class);
@@ -296,7 +297,7 @@ public class SignalServiceMessagePipe {
       headers.add("Unidentified-Access-Key:" + Base64.encodeBytes(unidentifiedAccess.get().getUnidentifiedAccessKey()));
     }
 
-    Optional<UUID>                     uuid           = address.getUuid();
+    ServiceId serviceId           = address.getServiceId();
     SecureRandom                       random         = new SecureRandom();
     ProfileKeyCredentialRequestContext requestContext = null;
 
@@ -305,20 +306,19 @@ public class SignalServiceMessagePipe {
                                                                      .setVerb("GET")
                                                                      .addAllHeaders(headers);
 
-    if (uuid.isPresent() && profileKey.isPresent()) {
-      UUID              target               = uuid.get();
-      ProfileKeyVersion profileKeyIdentifier = profileKey.get().getProfileKeyVersion(target);
+    if (profileKey.isPresent()) {
+      ProfileKeyVersion profileKeyIdentifier = profileKey.get().getProfileKeyVersion(serviceId.uuid());
       String            version              = profileKeyIdentifier.serialize();
 
       if (requestType == SignalServiceProfile.RequestType.PROFILE_AND_CREDENTIAL) {
-        requestContext = clientZkProfile.createProfileKeyCredentialRequestContext(random, target, profileKey.get());
+        requestContext = clientZkProfile.createProfileKeyCredentialRequestContext(random, serviceId.uuid(), profileKey.get());
 
         ProfileKeyCredentialRequest request           = requestContext.getRequest();
         String                      credentialRequest = Hex.toStringCondensed(request.serialize());
 
-        builder.setPath(String.format("/v1/profile/%s/%s/%s", target, version, credentialRequest));
+        builder.setPath(String.format("/v1/profile/%s/%s/%s", serviceId, version, credentialRequest));
       } else {
-        builder.setPath(String.format("/v1/profile/%s/%s", target, version));
+        builder.setPath(String.format("/v1/profile/%s/%s", serviceId, version));
       }
     } else {
       builder.setPath(String.format("/v1/profile/%s", address.getIdentifier()));

@@ -5,6 +5,7 @@ import org.whispersystems.libsignal.InvalidMessageException;
 import org.whispersystems.signalservice.internal.push.SignalServiceProtos.AttachmentPointer;
 
 import java.util.Optional;
+import org.whispersystems.signalservice.api.InvalidMessageStructureException;
 
 /**
  * Represents a signal service attachment identifier. This can be either a CDN key or a long, but
@@ -44,14 +45,14 @@ public final class SignalServiceAttachmentRemoteId {
         }
     }
 
-    public static SignalServiceAttachmentRemoteId from(AttachmentPointer attachmentPointer) throws ProtocolInvalidMessageException {
+    public static SignalServiceAttachmentRemoteId from(AttachmentPointer attachmentPointer) throws InvalidMessageStructureException {
         switch (attachmentPointer.getAttachmentIdentifierCase()) {
             case CDNID:
                 return new SignalServiceAttachmentRemoteId(attachmentPointer.getCdnId());
             case CDNKEY:
                 return new SignalServiceAttachmentRemoteId(attachmentPointer.getCdnKey());
             case ATTACHMENTIDENTIFIER_NOT_SET:
-                throw new ProtocolInvalidMessageException(new InvalidMessageException("AttachmentPointer CDN location not set"), null, 0);
+                throw new InvalidMessageStructureException(new InvalidMessageException("AttachmentPointer CDN location not set"), null, 0);
         }
         return null;
     }

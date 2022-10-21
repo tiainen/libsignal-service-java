@@ -6,31 +6,35 @@
 
 package org.whispersystems.signalservice.api.messages;
 
+
 import org.whispersystems.signalservice.internal.push.http.CancelationSignal;
 import org.whispersystems.signalservice.internal.push.http.ResumableUploadSpec;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.Optional;
 
 /**
  * Represents a local SignalServiceAttachment to be sent.
  */
-public class SignalServiceAttachmentStream extends SignalServiceAttachment {
+public class SignalServiceAttachmentStream extends SignalServiceAttachment implements Closeable {
 
-  private final InputStream                       inputStream;
-  private final long                              length;
-  private final Optional<String>                  fileName;
-  private final ProgressListener                  listener;
-  private final CancelationSignal                 cancelationSignal;
-  private final Optional<byte[]>                  preview;
-  private final boolean                           voiceNote;
-  private final boolean                           borderless;
-  private final int                               width;
-  private final int                               height;
-  private final long                              uploadTimestamp;
-  private final Optional<String>                  caption;
-  private final Optional<String>                  blurHash;
-  private final Optional<ResumableUploadSpec>     resumableUploadSpec;
+  private final InputStream                   inputStream;
+  private final long                          length;
+  private final Optional<String>              fileName;
+  private final ProgressListener              listener;
+  private final CancelationSignal             cancelationSignal;
+  private final Optional<byte[]>              preview;
+  private final boolean                       voiceNote;
+  private final boolean                       borderless;
+  private final boolean                       gif;
+  private final int                           width;
+  private final int                           height;
+  private final long                          uploadTimestamp;
+  private final Optional<String>              caption;
+  private final Optional<String>              blurHash;
+  private final Optional<ResumableUploadSpec> resumableUploadSpec;
 
   public SignalServiceAttachmentStream(InputStream inputStream,
                                        String contentType,
@@ -38,10 +42,11 @@ public class SignalServiceAttachmentStream extends SignalServiceAttachment {
                                        Optional<String> fileName,
                                        boolean voiceNote,
                                        boolean borderless,
+                                       boolean gif,
                                        ProgressListener listener,
                                        CancelationSignal cancelationSignal)
   {
-    this(inputStream, contentType, length, fileName, voiceNote, borderless, Optional.<byte[]>empty(), 0, 0, System.currentTimeMillis(), Optional.<String>empty(), Optional.<String>empty(), listener, cancelationSignal, Optional.empty());
+    this(inputStream, contentType, length, fileName, voiceNote, borderless, gif, Optional.empty(), 0, 0, System.currentTimeMillis(), Optional.empty(), Optional.empty(), listener, cancelationSignal, Optional.empty());
   }
 
   public SignalServiceAttachmentStream(InputStream inputStream,
@@ -50,6 +55,7 @@ public class SignalServiceAttachmentStream extends SignalServiceAttachment {
                                        Optional<String> fileName,
                                        boolean voiceNote,
                                        boolean borderless,
+                                       boolean gif,
                                        Optional<byte[]> preview,
                                        int width,
                                        int height,
@@ -67,6 +73,7 @@ public class SignalServiceAttachmentStream extends SignalServiceAttachment {
     this.listener                = listener;
     this.voiceNote               = voiceNote;
     this.borderless              = borderless;
+    this.gif                     = gif;
     this.preview                 = preview;
     this.width                   = width;
     this.height                  = height;
@@ -119,6 +126,10 @@ public class SignalServiceAttachmentStream extends SignalServiceAttachment {
     return borderless;
   }
 
+  public boolean isGif() {
+    return gif;
+  }
+
   public int getWidth() {
     return width;
   }
@@ -141,5 +152,10 @@ public class SignalServiceAttachmentStream extends SignalServiceAttachment {
 
   public Optional<ResumableUploadSpec> getResumableUploadSpec() {
     return resumableUploadSpec;
+  }
+
+  @Override
+  public void close() throws IOException {
+    inputStream.close();
   }
 }

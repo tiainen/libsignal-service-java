@@ -3,80 +3,103 @@ package org.whispersystems.signalservice.internal.push;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class SignalServiceEnvelopeEntity {
-  
-  @JsonProperty
-  private int type;
 
-  @JsonProperty
-  private String relay;
+    @JsonProperty
+    private int type;
 
-  @JsonProperty
-  private long timestamp;
+    @JsonProperty
+    private String relay;
 
-  @JsonProperty
-  private String source;
+    @JsonProperty
+    private long timestamp;
 
-  @JsonProperty
-  private String sourceUuid;
+    @JsonProperty
+    private String source;
 
-  @JsonProperty
-  private int sourceDevice;
+    @JsonProperty
+    private String sourceUuid;
 
-  @JsonProperty
-  private byte[] message;
+    @JsonProperty
+    private int sourceDevice;
 
-  @JsonProperty
-  private byte[] content;
+    @JsonProperty
+    private String destinationUuid;
 
-  @JsonProperty
-  private long serverTimestamp;
+    @JsonProperty
+    private byte[] message;
 
-  @JsonProperty
-  private String guid;
+    @JsonProperty
+    private byte[] content;
 
-  public SignalServiceEnvelopeEntity() {}
+    @JsonProperty
+    private long serverTimestamp;
 
-  public int getType() {
-    return type;
-  }
+    @JsonProperty
+    private String guid;
 
-  public String getRelay() {
-    return relay;
-  }
+    @JsonProperty
+    private Boolean urgent;
 
-  public long getTimestamp() {
-    return timestamp;
-  }
+    @JsonProperty
+    private Boolean story;
 
-  public String getSourceE164() {
-    return source;
-  }
+    public SignalServiceEnvelopeEntity() {
+    }
 
-  public String getSourceUuid() {
-    return sourceUuid;
-  }
+    public int getType() {
+        return type;
+    }
 
-  public boolean hasSource() {
-    return source != null || sourceUuid != null;
-  }
+    public String getRelay() {
+        return relay;
+    }
 
-  public int getSourceDevice() {
-    return sourceDevice;
-  }
+    public long getTimestamp() {
+        return timestamp;
+    }
 
-  public byte[] getMessage() {
-    return message;
-  }
+    public String getSourceE164() {
+        return source;
+    }
 
-  public byte[] getContent() {
-    return content;
-  }
+    public String getSourceUuid() {
+        return sourceUuid;
+    }
 
-  public long getServerTimestamp() {
-    return serverTimestamp;
-  }
+    public boolean hasSource() {
+        return sourceUuid != null;
+    }
 
-  public String getServerUuid() {
-    return guid;
-  }
+    public int getSourceDevice() {
+        return sourceDevice;
+    }
+
+    public byte[] getMessage() {
+        return message;
+    }
+
+    public byte[] getContent() {
+        return content;
+    }
+
+    public long getServerTimestamp() {
+        return serverTimestamp;
+    }
+
+    public String getServerUuid() {
+        return guid;
+    }
+
+    public String getDestinationUuid() {
+        return destinationUuid;
+    }
+
+    public boolean isUrgent() {
+        return urgent == null || urgent;
+    }
+
+    public boolean isStory() {
+        return story != null && story;
+    }
+
 }

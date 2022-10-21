@@ -37,10 +37,6 @@ public class DeviceContactsOutputStream extends ChunkedOutputStream {
   private void writeContactDetails(DeviceContact contact) throws IOException {
     SignalServiceProtos.ContactDetails.Builder contactDetails = SignalServiceProtos.ContactDetails.newBuilder();
 
-    if (contact.getAddress().getUuid().isPresent()) {
-      contactDetails.setUuid(contact.getAddress().getUuid().get().toString());
-    }
-
     if (contact.getAddress().getNumber().isPresent()) {
       contactDetails.setNumber(contact.getAddress().getNumber().get());
     }
@@ -72,14 +68,6 @@ public class DeviceContactsOutputStream extends ChunkedOutputStream {
       SignalServiceProtos.Verified.Builder verifiedBuilder = SignalServiceProtos.Verified.newBuilder()
                                                                                          .setIdentityKey(ByteString.copyFrom(contact.getVerified().get().getIdentityKey().serialize()))
                                                                                          .setState(state);
-
-      if (contact.getVerified().get().getDestination().getUuid().isPresent()) {
-        verifiedBuilder.setDestinationUuid(contact.getVerified().get().getDestination().getUuid().get().toString());
-      }
-
-      if (contact.getVerified().get().getDestination().getNumber().isPresent()) {
-        verifiedBuilder.setDestinationE164(contact.getVerified().get().getDestination().getNumber().get());
-      }
 
       contactDetails.setVerified(verifiedBuilder.build());
     }

@@ -26,15 +26,20 @@ public class OutgoingPushMessageList {
   @JsonProperty
   private boolean online;
 
+  @JsonProperty
+  private boolean urgent;
+
   public OutgoingPushMessageList(String destination,
                                  long timestamp,
                                  List<OutgoingPushMessage> messages,
-                                 boolean online)
+                                 boolean online,
+                                 boolean urgent)
   {
     this.timestamp   = timestamp;
     this.destination = destination;
     this.messages    = messages;
     this.online      = online;
+    this.urgent      = urgent;
   }
 
   public String getDestination() {
@@ -53,9 +58,12 @@ public class OutgoingPushMessageList {
     return online;
   }
 
+  public boolean isUrgent() {
+    return urgent;
+  }
+
   @JsonIgnore
   public List<Integer> getDevices() {
     return messages.stream().map(OutgoingPushMessage::getDestinationDeviceId).collect(Collectors.toList());
   }
-
 }
