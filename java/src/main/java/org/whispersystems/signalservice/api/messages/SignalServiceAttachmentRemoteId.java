@@ -1,10 +1,9 @@
 package org.whispersystems.signalservice.api.messages;
 
-import org.signal.libsignal.metadata.ProtocolInvalidMessageException;
-import org.whispersystems.libsignal.InvalidMessageException;
 import org.whispersystems.signalservice.internal.push.SignalServiceProtos.AttachmentPointer;
 
 import java.util.Optional;
+import org.signal.libsignal.protocol.InvalidMessageException;
 import org.whispersystems.signalservice.api.InvalidMessageStructureException;
 
 /**

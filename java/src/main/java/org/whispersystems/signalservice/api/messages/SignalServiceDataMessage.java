@@ -6,17 +6,15 @@
 
 package org.whispersystems.signalservice.api.messages;
 
-import org.whispersystems.libsignal.InvalidMessageException;
 import org.whispersystems.signalservice.api.messages.shared.SharedContact;
 import org.whispersystems.signalservice.api.push.SignalServiceAddress;
 import org.whispersystems.signalservice.api.util.OptionalUtil;
-
+import org.signal.libsignal.zkgroup.receipts.ReceiptCredentialPresentation;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
-import org.signal.zkgroup.groups.GroupSecretParams;
-import org.signal.zkgroup.receipts.ReceiptCredentialPresentation;
+import org.signal.libsignal.zkgroup.groups.GroupSecretParams;
+
 import org.whispersystems.signalservice.api.push.ServiceId;
 import org.whispersystems.signalservice.internal.push.SignalServiceProtos;
 

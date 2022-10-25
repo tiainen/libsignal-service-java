@@ -18,8 +18,8 @@ import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializerProvider;
 
-import org.whispersystems.libsignal.IdentityKey;
-import org.whispersystems.libsignal.InvalidKeyException;
+import org.signal.libsignal.protocol.IdentityKey;
+import org.signal.libsignal.protocol.InvalidKeyException;
 import org.whispersystems.signalservice.api.util.UuidUtil;
 import org.whispersystems.util.Base64;
 

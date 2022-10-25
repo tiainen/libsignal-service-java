@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import org.whispersystems.libsignal.SignalProtocolAddress;
+import org.signal.libsignal.protocol.SignalProtocolAddress;
 
 /**
  * A wrapper around a UUID that represents an identifier for an account. Today, that is either an {@link ACI} or a {@link PNI}.

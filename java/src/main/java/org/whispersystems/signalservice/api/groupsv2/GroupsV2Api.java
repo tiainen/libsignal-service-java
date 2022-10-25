@@ -2,6 +2,16 @@ package org.whispersystems.signalservice.api.groupsv2;
 
 import com.google.protobuf.ByteString;
 
+import org.signal.libsignal.zkgroup.InvalidInputException;
+import org.signal.libsignal.zkgroup.VerificationFailedException;
+import org.signal.libsignal.zkgroup.auth.AuthCredential;
+import org.signal.libsignal.zkgroup.auth.AuthCredentialPresentation;
+import org.signal.libsignal.zkgroup.auth.AuthCredentialResponse;
+import org.signal.libsignal.zkgroup.auth.AuthCredentialWithPni;
+import org.signal.libsignal.zkgroup.auth.AuthCredentialWithPniResponse;
+import org.signal.libsignal.zkgroup.auth.ClientZkAuthOperations;
+import org.signal.libsignal.zkgroup.groups.ClientZkGroupCipher;
+import org.signal.libsignal.zkgroup.groups.GroupSecretParams;
 import org.signal.storageservice.protos.groups.AvatarUploadAttributes;
 import org.signal.storageservice.protos.groups.Group;
 import org.signal.storageservice.protos.groups.GroupAttributeBlob;
@@ -12,15 +22,7 @@ import org.signal.storageservice.protos.groups.GroupJoinInfo;
 import org.signal.storageservice.protos.groups.local.DecryptedGroup;
 import org.signal.storageservice.protos.groups.local.DecryptedGroupChange;
 import org.signal.storageservice.protos.groups.local.DecryptedGroupJoinInfo;
-import org.signal.zkgroup.InvalidInputException;
-import org.signal.zkgroup.VerificationFailedException;
-import org.signal.zkgroup.auth.AuthCredential;
-import org.signal.zkgroup.auth.AuthCredentialPresentation;
-import org.signal.zkgroup.auth.AuthCredentialResponse;
-import org.signal.zkgroup.auth.ClientZkAuthOperations;
-import org.signal.zkgroup.groups.ClientZkGroupCipher;
-import org.signal.zkgroup.groups.GroupSecretParams;
-
+import org.whispersystems.signalservice.api.push.ServiceId;
 import org.whispersystems.signalservice.internal.push.PushServiceSocket;
 import org.whispersystems.signalservice.internal.push.exceptions.ForbiddenException;
 
@@ -28,10 +30,8 @@ import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 public final class GroupsV2Api {
 
@@ -46,24 +46,25 @@ public final class GroupsV2Api {
   /**
    * Provides 7 days of credentials, which you should cache.
    */
-  public HashMap<Integer, AuthCredentialResponse> getCredentials(long today)
+  public HashMap<Long, AuthCredentialWithPniResponse> getCredentials(long todaySeconds)
       throws IOException
   {
-    return parseCredentialResponse(socket.retrieveGroupsV2Credentials((int)today));
+    return parseCredentialResponse(socket.retrieveGroupsV2Credentials(todaySeconds));
   }
 
   /**
    * Create an auth token from a credential response.
    */
-  public GroupsV2AuthorizationString getGroupsV2AuthorizationString(UUID self,
-                                                                    int today,
+  public GroupsV2AuthorizationString getGroupsV2AuthorizationString(ServiceId aci,
+                                                                    ServiceId pni,
+                                                                    long redemptionTimeSeconds,
                                                                     GroupSecretParams groupSecretParams,
-                                                                    AuthCredentialResponse authCredentialResponse)
+                                                                    AuthCredentialWithPniResponse authCredentialWithPniResponse)
       throws VerificationFailedException
   {
     ClientZkAuthOperations     authOperations             = groupsOperations.getAuthOperations();
-    AuthCredential             authCredential             = authOperations.receiveAuthCredential(self, today, authCredentialResponse);
-    AuthCredentialPresentation authCredentialPresentation = authOperations.createAuthCredentialPresentation(new SecureRandom(), groupSecretParams, authCredential);
+    AuthCredentialWithPni      authCredentialWithPni      = authOperations.receiveAuthCredentialWithPni(aci.uuid(), pni.uuid(), redemptionTimeSeconds, authCredentialWithPniResponse);
+    AuthCredentialPresentation authCredentialPresentation = authOperations.createAuthCredentialPresentation(new SecureRandom(), groupSecretParams, authCredentialWithPni);
 
     return new GroupsV2AuthorizationString(groupSecretParams, authCredentialPresentation);
   }
@@ -85,6 +86,16 @@ public final class GroupsV2Api {
     socket.putNewGroupsV2Group(group, authorization);
   }
 
+  public PartialDecryptedGroup getPartialDecryptedGroup(GroupSecretParams groupSecretParams,
+                                                        GroupsV2AuthorizationString authorization)
+      throws IOException, InvalidGroupStateException, VerificationFailedException
+  {
+    Group group = socket.getGroupsV2Group(authorization);
+
+    return groupsOperations.forGroup(groupSecretParams)
+                           .partialDecryptGroup(group);
+  }
+
   public DecryptedGroup getGroup(GroupSecretParams groupSecretParams,
                                  GroupsV2AuthorizationString authorization)
       throws IOException, InvalidGroupStateException, VerificationFailedException
@@ -94,7 +105,6 @@ public final class GroupsV2Api {
     return groupsOperations.forGroup(groupSecretParams)
                            .decryptGroup(group);
   }
-
 
   public GroupHistoryPage getGroupHistoryPage(GroupSecretParams groupSecretParams,
                                               int fromRevision,
@@ -127,7 +137,7 @@ public final class GroupsV2Api {
 
       return groupOperations.decryptGroupJoinInfo(joinInfo);
     } catch (ForbiddenException e) {
-      throw new GroupLinkNotActiveException();
+      throw new GroupLinkNotActiveException(null, e.getReason());
     }
   }
 
@@ -164,20 +174,20 @@ public final class GroupsV2Api {
     return socket.getGroupExternalCredential(authorization);
   }
 
-  private static HashMap<Integer, AuthCredentialResponse> parseCredentialResponse(CredentialResponse credentialResponse)
+  private static HashMap<Long, AuthCredentialWithPniResponse> parseCredentialResponse(CredentialResponse credentialResponse)
       throws IOException
   {
-    HashMap<Integer, AuthCredentialResponse> credentials = new HashMap<>();
+    HashMap<Long, AuthCredentialWithPniResponse> credentials = new HashMap<>();
 
     for (TemporalCredential credential : credentialResponse.getCredentials()) {
-      AuthCredentialResponse authCredentialResponse;
+      AuthCredentialWithPniResponse authCredentialWithPniResponse;
       try {
-        authCredentialResponse = new AuthCredentialResponse(credential.getCredential());
+        authCredentialWithPniResponse = new AuthCredentialWithPniResponse(credential.getCredential());
       } catch (InvalidInputException e) {
         throw new IOException(e);
       }
 
-      credentials.put(credential.getRedemptionTime(), authCredentialResponse);
+      credentials.put(credential.getRedemptionTime(), authCredentialWithPniResponse);
     }
 
     return credentials;

@@ -16,21 +16,21 @@ import org.signal.storageservice.protos.groups.GroupChange;
 import org.signal.storageservice.protos.groups.GroupChanges;
 import org.signal.storageservice.protos.groups.GroupExternalCredential;
 import org.signal.storageservice.protos.groups.GroupJoinInfo;
-import org.signal.zkgroup.VerificationFailedException;
-import org.signal.zkgroup.profiles.ClientZkProfileOperations;
-import org.signal.zkgroup.profiles.ProfileKey;
-import org.signal.zkgroup.profiles.ProfileKeyCredential;
-import org.signal.zkgroup.profiles.ProfileKeyCredentialRequest;
-import org.signal.zkgroup.profiles.ProfileKeyCredentialRequestContext;
-import org.signal.zkgroup.profiles.ProfileKeyCredentialResponse;
-import org.signal.zkgroup.profiles.ProfileKeyVersion;
-import org.whispersystems.libsignal.IdentityKey;
-import org.whispersystems.libsignal.ecc.ECPublicKey;
-import org.whispersystems.libsignal.logging.Log;
-import org.whispersystems.libsignal.state.PreKeyBundle;
-import org.whispersystems.libsignal.state.PreKeyRecord;
-import org.whispersystems.libsignal.state.SignedPreKeyRecord;
-import org.whispersystems.libsignal.util.Pair;
+import org.signal.libsignal.zkgroup.VerificationFailedException;
+import org.signal.libsignal.zkgroup.profiles.ClientZkProfileOperations;
+import org.signal.libsignal.zkgroup.profiles.ProfileKey;
+import org.signal.libsignal.zkgroup.profiles.ProfileKeyCredential;
+import org.signal.libsignal.zkgroup.profiles.ProfileKeyCredentialRequest;
+import org.signal.libsignal.zkgroup.profiles.ProfileKeyCredentialRequestContext;
+import org.signal.libsignal.zkgroup.profiles.ProfileKeyCredentialResponse;
+import org.signal.libsignal.zkgroup.profiles.ProfileKeyVersion;
+import org.signal.libsignal.protocol.IdentityKey;
+import org.signal.libsignal.protocol.ecc.ECPublicKey;
+import org.signal.libsignal.protocol.logging.Log;
+import org.signal.libsignal.protocol.state.PreKeyBundle;
+import org.signal.libsignal.protocol.state.PreKeyRecord;
+import org.signal.libsignal.protocol.state.SignedPreKeyRecord;
+import org.signal.libsignal.protocol.util.Pair;
 import org.whispersystems.signalservice.api.account.AccountAttributes;
 import org.whispersystems.signalservice.api.crypto.UnidentifiedAccess;
 import org.whispersystems.signalservice.api.groupsv2.CredentialResponse;
@@ -156,8 +156,8 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
-import org.signal.zkgroup.receipts.ReceiptCredentialPresentation;
-import org.whispersystems.libsignal.InvalidKeyException;
+import org.signal.libsignal.zkgroup.receipts.ReceiptCredentialPresentation;
+import org.signal.libsignal.protocol.InvalidKeyException;
 import org.whispersystems.signalservice.api.account.ChangePhoneNumberRequest;
 import org.whispersystems.signalservice.api.messages.multidevice.VerifyDeviceResponse;
 import org.whispersystems.signalservice.api.push.ACI;
@@ -235,9 +235,9 @@ public class PushServiceSocket {
     private static final String STICKER_MANIFEST_PATH = "stickers/%s/manifest.proto";
     private static final String STICKER_PATH = "stickers/%s/full/%d";
   
-    private static final String NEW_GROUPSV2_CREDENTIAL = "/v1/certificate/auth/group?redemptionStartSeconds=%d&redemptionEndSeconds=%d";
+    private static final String GROUPSV2_CREDENTIAL = "/v1/certificate/auth/group?redemptionStartSeconds=%d&redemptionEndSeconds=%d";
 
-    private static final String GROUPSV2_CREDENTIAL = "/v1/certificate/group/%d/%d";
+  //  private static final String GROUPSV2_CREDENTIAL = "/v1/certificate/group/%d/%d";
     private static final String GROUPSV2_GROUP = "/v1/groups/";
     private static final String GROUPSV2_GROUP_PASSWORD = "/v1/groups/?inviteLinkPassword=%s";
     private static final String GROUPSV2_GROUP_CHANGES = "/v1/groups/logs/%s?maxSupportedChangeEpoch=%d&includeFirstState=%s&includeLastState=false";
@@ -2012,7 +2012,7 @@ public class PushServiceSocket {
                 .build();
 
         Log.d(TAG, "Opening URL: " + connectionHolder.getUrl());
-
+LOG.info("GET StorageRequest with url = "+connectionHolder.getUrl()+" and path = "+path);
         Request.Builder request = new Request.Builder().url(connectionHolder.getUrl() + path);
         request.method(method, body);
 
@@ -2394,20 +2394,29 @@ public class PushServiceSocket {
         ContactDiscovery, KeyBackup
     }
 
-   //  public CredentialResponse retrieveGroupsV2Credentials(long todaySeconds)
-    public CredentialResponse retrieveGroupsV2Credentials(int today)
+     public CredentialResponse retrieveGroupsV2Credentials(long todaySeconds)
             throws IOException {
-    //    long todayPlus7 = todaySeconds + TimeUnit.DAYS.toSeconds(7);
-         int todayPlus7 = today + 7;
-//              String response = makeServiceRequest(String.format(Locale.US, GROUPSV2_CREDENTIAL, todaySeconds, todayPlus7),
-
-         String response = makeServiceRequest(String.format(Locale.US, GROUPSV2_CREDENTIAL, today, todayPlus7),
+        long todayPlus7 = todaySeconds + TimeUnit.DAYS.toSeconds(7);
+              String response = makeServiceRequest(String.format(Locale.US, GROUPSV2_CREDENTIAL, todaySeconds, todayPlus7),
                 "GET",
                 null,
                 NO_HEADERS,
                 Optional.empty());
         return JsonUtil.fromJson(response, CredentialResponse.class);
     }
+//       public CredentialResponse retrieveGroupsV2Credentials(int today)
+//            throws IOException {
+//    //    long todayPlus7 = todaySeconds + TimeUnit.DAYS.toSeconds(7);
+//         int todayPlus7 = today + 7;
+////              String response = makeServiceRequest(String.format(Locale.US, GROUPSV2_CREDENTIAL, todaySeconds, todayPlus7),
+//
+//         String response = makeServiceRequest(String.format(Locale.US, GROUPSV2_CREDENTIAL, today, todayPlus7),
+//                "GET",
+//                null,
+//                NO_HEADERS,
+//                Optional.empty());
+//        return JsonUtil.fromJson(response, CredentialResponse.class);
+//    }
     private static final ResponseCodeHandler GROUPS_V2_PUT_RESPONSE_HANDLER = (responseCode, body) -> {
         if (responseCode == 409) {
             throw new GroupExistsException();

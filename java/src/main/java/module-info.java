@@ -1,8 +1,7 @@
 module org.whispersystems.service {
     requires java.logging;
-    requires org.whispersystems.metadata;
-    requires org.whispersystems.protocol;
-    requires zkgroup.java;
+    // requires org.whispersystems.metadata;
+    // requires org.whispersystems.protocol;
     requires com.google.protobuf;
     requires libphonenumber;
     requires okhttp3;
@@ -10,6 +9,7 @@ module org.whispersystems.service {
     requires com.fasterxml.jackson.annotation;
     requires com.fasterxml.jackson.core;
     requires com.fasterxml.jackson.databind;
+    requires libsignal.client;
     exports org.signal.storageservice.protos.groups;
     exports org.signal.storageservice.protos.groups.local;
     exports org.whispersystems.signalservice.internal.configuration;

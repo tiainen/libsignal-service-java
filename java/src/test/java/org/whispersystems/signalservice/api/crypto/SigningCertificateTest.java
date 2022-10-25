@@ -6,6 +6,7 @@ import org.whispersystems.signalservice.internal.contacts.crypto.SigningCertific
 import org.whispersystems.util.Base64;
 
 import java.io.IOException;
+import java.net.URLDecoder;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -24,7 +25,7 @@ public class SigningCertificateTest extends TestCase {
     KeyStore keyStore = KeyStore.getInstance("JKS");
     keyStore.load(getClass().getResourceAsStream("/ias.jks"), "whisper".toCharArray());
 
-    SigningCertificate certificate = new SigningCertificate(certificateChain, keyStore);
+    SigningCertificate certificate = new SigningCertificate(URLDecoder.decode(certificateChain), keyStore);
 
     certificate.verifySignature(signatureBody, signature);
   }
@@ -37,7 +38,7 @@ public class SigningCertificateTest extends TestCase {
     KeyStore keyStore = KeyStore.getInstance("JKS");
     keyStore.load(getClass().getResourceAsStream("/ias.jks"), "whisper".toCharArray());
 
-    SigningCertificate certificate      = new SigningCertificate(certificateChain, keyStore);
+    SigningCertificate certificate      = new SigningCertificate(URLDecoder.decode(certificateChain), keyStore);
     byte[]             decodedSignature = Base64.decode(signature);
 
     for (int i=0;i<signature.length();i++) {
@@ -66,7 +67,7 @@ public class SigningCertificateTest extends TestCase {
     SigningCertificate certificate = null;
 
     try {
-      certificate = new SigningCertificate(certificateChain, keyStore);
+      certificate = new SigningCertificate(URLDecoder.decode(certificateChain), keyStore);
       throw new AssertionError("Should not be a valid chain");
     } catch (CertPathValidatorException e) {
       // Good

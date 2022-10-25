@@ -9,15 +9,15 @@ package org.whispersystems.signalservice.api;
 
 import com.google.protobuf.ByteString;
 
-import org.signal.zkgroup.profiles.ProfileKey;
-import org.signal.zkgroup.profiles.ProfileKeyCredential;
-import org.whispersystems.libsignal.IdentityKey;
-import org.whispersystems.libsignal.IdentityKeyPair;
-import org.whispersystems.libsignal.InvalidKeyException;
-import org.whispersystems.libsignal.ecc.ECPublicKey;
-import org.whispersystems.libsignal.logging.Log;
-import org.whispersystems.libsignal.state.PreKeyRecord;
-import org.whispersystems.libsignal.state.SignedPreKeyRecord;
+import org.signal.libsignal.zkgroup.profiles.ProfileKey;
+import org.signal.libsignal.zkgroup.profiles.ProfileKeyCredential;
+import org.signal.libsignal.protocol.IdentityKey;
+import org.signal.libsignal.protocol.IdentityKeyPair;
+import org.signal.libsignal.protocol.InvalidKeyException;
+import org.signal.libsignal.protocol.ecc.ECPublicKey;
+import org.signal.libsignal.protocol.logging.Log;
+import org.signal.libsignal.protocol.state.PreKeyRecord;
+import org.signal.libsignal.protocol.state.SignedPreKeyRecord;
 import org.whispersystems.signalservice.api.crypto.InvalidCiphertextException;
 import org.whispersystems.signalservice.api.crypto.ProfileCipher;
 import org.whispersystems.signalservice.api.crypto.ProfileCipherInputStream;
@@ -107,6 +107,8 @@ import static org.whispersystems.signalservice.internal.push.ProvisioningProtos.
  */
 public class SignalServiceAccountManager {
 
+    private static final int GROUP_LIMIT = 1000;
+    
   private static final String TAG = SignalServiceAccountManager.class.getSimpleName();
 
   private final PushServiceSocket   pushServiceSocket;
@@ -132,7 +134,7 @@ public class SignalServiceAccountManager {
     this(configuration,
          new StaticCredentialsProvider(aci, pni, e164, deviceId, password),
          signalAgent,
-         new GroupsV2Operations(ClientZkOperations.create(configuration)),
+         new GroupsV2Operations(ClientZkOperations.create(configuration), GROUP_LIMIT),
          automaticNetworkRetry);
   }
 

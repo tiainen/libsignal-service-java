@@ -29,14 +29,8 @@
         </dependency>
         <dependency>
           <groupId>org.signal</groupId>
-          <artifactId>signal-metadata-java</artifactId>
-          <version>0.1.2-gluon-15</version>
-        </dependency>
-        <dependency>
-          <groupId>org.signal</groupId>
-          <artifactId>zkgroup-java</artifactId>
-          <version>0.8.2-gluon-5</version>
-          <!-- <version>0.8.2-gluon-1</version> -->
+          <artifactId>libsignal-client</artifactId>
+          <version>0.21.1</version>
         </dependency>
         <dependency>
           <groupId>com.squareup.okhttp3</groupId>

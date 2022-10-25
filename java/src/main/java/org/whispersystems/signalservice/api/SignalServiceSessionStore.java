@@ -2,8 +2,8 @@ package org.whispersystems.signalservice.api;
 
 import java.util.List;
 import java.util.Set;
-import org.whispersystems.libsignal.SignalProtocolAddress;
-import org.whispersystems.libsignal.state.SessionStore;
+import org.signal.libsignal.protocol.SignalProtocolAddress;
+import org.signal.libsignal.protocol.state.SessionStore;
 
 /**
  * And extension of the normal protocol session store interface that has additional methods that are

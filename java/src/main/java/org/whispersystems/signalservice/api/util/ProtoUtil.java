@@ -5,9 +5,8 @@ import com.google.protobuf.MessageLite;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.UnknownFieldSetLite;
 
-import org.whispersystems.libsignal.logging.Log;
-import org.whispersystems.libsignal.util.ByteUtil;
-import org.whispersystems.signalservice.api.InvalidMessageStructureException;
+import org.signal.libsignal.protocol.logging.Log;
+import org.signal.libsignal.protocol.util.ByteUtil;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;

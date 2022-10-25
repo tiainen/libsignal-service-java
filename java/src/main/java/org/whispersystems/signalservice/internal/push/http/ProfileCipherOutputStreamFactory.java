@@ -1,12 +1,12 @@
 package org.whispersystems.signalservice.internal.push.http;
 
 
-import org.signal.zkgroup.profiles.ProfileKey;
 import org.whispersystems.signalservice.api.crypto.DigestingOutputStream;
 import org.whispersystems.signalservice.api.crypto.ProfileCipherOutputStream;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import org.signal.libsignal.zkgroup.profiles.ProfileKey;
 
 public class ProfileCipherOutputStreamFactory implements OutputStreamFactory {
 
