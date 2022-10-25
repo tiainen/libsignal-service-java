@@ -12,7 +12,7 @@ import org.signal.storageservice.protos.groups.local.DecryptedModifyMemberRole;
 import org.signal.storageservice.protos.groups.local.DecryptedPendingMember;
 import org.signal.storageservice.protos.groups.local.DecryptedPendingMemberRemoval;
 import org.signal.storageservice.protos.groups.local.DecryptedRequestingMember;
-import org.whispersystems.libsignal.logging.Log;
+import org.signal.libsignal.protocol.logging.Log;
 import org.whispersystems.signalservice.api.util.UuidUtil;
 
 import java.util.ArrayList;

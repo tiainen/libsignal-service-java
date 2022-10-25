@@ -1,27 +1,25 @@
 package org.whispersystems.signalservice.api.crypto;
 
-import java.util.Arrays;
-import java.util.Optional;
-import java.util.logging.Logger;
 import org.signal.libsignal.metadata.certificate.SenderCertificate;
 import org.signal.libsignal.metadata.protocol.UnidentifiedSenderMessageContent;
-import org.whispersystems.libsignal.InvalidKeyException;
-import org.whispersystems.libsignal.SignalProtocolAddress;
-import org.whispersystems.libsignal.UntrustedIdentityException;
-import org.whispersystems.libsignal.protocol.CiphertextMessage;
-import org.whispersystems.libsignal.protocol.PlaintextContent;
-
+import org.signal.libsignal.protocol.InvalidKeyException;
+import org.signal.libsignal.protocol.SignalProtocolAddress;
+import org.signal.libsignal.protocol.UntrustedIdentityException;
+import org.signal.libsignal.protocol.message.CiphertextMessage;
+import org.signal.libsignal.protocol.message.DecryptionErrorMessage;
+import org.signal.libsignal.protocol.message.PlaintextContent;
 import org.whispersystems.signalservice.internal.push.OutgoingPushMessage;
 import org.whispersystems.signalservice.internal.push.PushTransportDetails;
 import org.whispersystems.signalservice.internal.push.SignalServiceProtos.Content;
 import org.whispersystems.signalservice.internal.push.SignalServiceProtos.Envelope.Type;
 import org.whispersystems.util.Base64;
 
+import java.util.Optional;
+
 /**
  * An abstraction over the different types of message contents we can have.
  */
 public interface EnvelopeContent {
-   static final Logger LOG = Logger.getLogger(EnvelopeContent.class.getName());
 
   /**
    * Processes the content using sealed sender.
@@ -81,7 +79,6 @@ public interface EnvelopeContent {
                                                    SenderCertificate senderCertificate)
         throws UntrustedIdentityException, InvalidKeyException
     {
-        LOG.info("destination = "+destination);
       PushTransportDetails             transportDetails = new PushTransportDetails();
       CiphertextMessage                message          = sessionCipher.encrypt(transportDetails.getPaddedMessageBody(content.toByteArray()));
       UnidentifiedSenderMessageContent messageContent   = new UnidentifiedSenderMessageContent(message,
@@ -92,6 +89,7 @@ public interface EnvelopeContent {
       byte[] ciphertext           = sealedSessionCipher.encrypt(destination, messageContent);
       String body                 = Base64.encodeBytes(ciphertext);
       int    remoteRegistrationId = sealedSessionCipher.getRemoteRegistrationId(destination);
+
       return new OutgoingPushMessage(Type.UNIDENTIFIED_SENDER_VALUE, destination.getDeviceId(), remoteRegistrationId, body);
     }
 
@@ -109,7 +107,6 @@ public interface EnvelopeContent {
         case CiphertextMessage.WHISPER_TYPE: type = Type.CIPHERTEXT_VALUE;    break;
         default: throw new AssertionError("Bad type: " + message.getType());
       }
-        LOG.info("destination = "+destination);
 
       return new OutgoingPushMessage(type, destination.getDeviceId(), remoteRegistrationId, body);
     }
@@ -129,7 +126,6 @@ public interface EnvelopeContent {
 
     private final PlaintextContent plaintextContent;
     private final Optional<byte[]> groupId;
-    private static final Logger LOG = Logger.getLogger(Plaintext.class.getName());
 
     public Plaintext(PlaintextContent plaintextContent, Optional<byte[]> groupId) {
       this.plaintextContent = plaintextContent;
@@ -149,10 +145,8 @@ public interface EnvelopeContent {
                                                                                              groupId);
 
       byte[] ciphertext           = sealedSessionCipher.encrypt(destination, messageContent);
-      LOG.info("SealedSender, ciphertextlength = "+ciphertext.length);
       String body                 = Base64.encodeBytes(ciphertext);
       int    remoteRegistrationId = sealedSessionCipher.getRemoteRegistrationId(destination);
-      LOG.finest("[EC] UNSecure, sealed, encryptedsize = "+ciphertext.length+" and enc = "+Arrays.toString(ciphertext));
 
       return new OutgoingPushMessage(Type.UNIDENTIFIED_SENDER_VALUE, destination.getDeviceId(), remoteRegistrationId, body);
     }
@@ -161,7 +155,6 @@ public interface EnvelopeContent {
     public OutgoingPushMessage processUnsealedSender(SignalSessionCipher sessionCipher, SignalProtocolAddress destination) {
       String body                 = Base64.encodeBytes(plaintextContent.serialize());
       int    remoteRegistrationId = sessionCipher.getRemoteRegistrationId();
-      LOG.finest("[EC] UNSecure, unsealed, encryptedsize ");
 
       return new OutgoingPushMessage(Type.PLAINTEXT_CONTENT_VALUE, destination.getDeviceId(), remoteRegistrationId, body);
     }

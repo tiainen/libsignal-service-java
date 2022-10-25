@@ -7,13 +7,13 @@ package org.whispersystems.signalservice.api;
 
 import com.google.protobuf.ByteString;
 
-import org.signal.zkgroup.profiles.ClientZkProfileOperations;
-import org.whispersystems.libsignal.InvalidKeyException;
-import org.whispersystems.libsignal.SessionBuilder;
-import org.whispersystems.libsignal.SignalProtocolAddress;
-import org.whispersystems.libsignal.logging.Log;
-import org.whispersystems.libsignal.state.PreKeyBundle;
-import org.whispersystems.libsignal.util.Pair;
+import org.signal.libsignal.zkgroup.profiles.ClientZkProfileOperations;
+import org.signal.libsignal.protocol.InvalidKeyException;
+import org.signal.libsignal.protocol.SessionBuilder;
+import org.signal.libsignal.protocol.SignalProtocolAddress;
+import org.signal.libsignal.protocol.logging.Log;
+import org.signal.libsignal.protocol.state.PreKeyBundle;
+import org.signal.libsignal.protocol.util.Pair;
 import org.whispersystems.signalservice.api.crypto.AttachmentCipherOutputStream;
 import org.whispersystems.signalservice.api.crypto.SignalServiceCipher;
 import org.whispersystems.signalservice.api.crypto.SignalSessionBuilder;
@@ -27,7 +27,6 @@ import org.whispersystems.signalservice.api.messages.SignalServiceAttachmentRemo
 import org.whispersystems.signalservice.api.messages.SignalServiceAttachmentStream;
 import org.whispersystems.signalservice.api.messages.SignalServiceDataMessage;
 import org.whispersystems.signalservice.api.messages.SignalServiceGroup;
-import org.whispersystems.signalservice.api.messages.SignalServiceGroupContext;
 import org.whispersystems.signalservice.api.messages.SignalServiceGroupV2;
 import org.whispersystems.signalservice.api.messages.SignalServiceReceiptMessage;
 import org.whispersystems.signalservice.api.messages.SignalServiceTypingMessage;
@@ -85,7 +84,6 @@ import org.whispersystems.signalservice.internal.push.http.AttachmentCipherOutpu
 import org.whispersystems.signalservice.internal.push.http.CancelationSignal;
 import org.whispersystems.signalservice.internal.push.http.PartialSendCompleteListener;
 import org.whispersystems.signalservice.internal.push.http.ResumableUploadSpec;
-import org.whispersystems.signalservice.internal.util.StaticCredentialsProvider;
 import org.whispersystems.signalservice.internal.util.Util;
 import org.whispersystems.util.Base64;
 
@@ -99,32 +97,28 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.signal.libsignal.metadata.certificate.SenderCertificate;
-import org.whispersystems.libsignal.IdentityKeyPair;
-import org.whispersystems.libsignal.InvalidRegistrationIdException;
-import org.whispersystems.libsignal.NoSessionException;
-import org.whispersystems.libsignal.groups.GroupSessionBuilder;
-import org.whispersystems.libsignal.groups.SenderKeyName;
-import org.whispersystems.libsignal.protocol.DecryptionErrorMessage;
-import org.whispersystems.libsignal.protocol.PlaintextContent;
-import org.whispersystems.libsignal.protocol.SenderKeyDistributionMessage;
-import org.whispersystems.libsignal.state.SignalProtocolStore;
+import org.signal.libsignal.protocol.IdentityKeyPair;
+import org.signal.libsignal.protocol.InvalidRegistrationIdException;
+import org.signal.libsignal.protocol.NoSessionException;
+import org.signal.libsignal.protocol.groups.GroupSessionBuilder;
+import org.signal.libsignal.protocol.message.DecryptionErrorMessage;
+import org.signal.libsignal.protocol.message.PlaintextContent;
+import org.signal.libsignal.protocol.message.SenderKeyDistributionMessage;
+
 import org.whispersystems.signalservice.api.crypto.ContentHint;
 import org.whispersystems.signalservice.api.crypto.EnvelopeContent;
 import org.whispersystems.signalservice.api.crypto.SignalGroupSessionBuilder;
@@ -134,7 +128,6 @@ import org.whispersystems.signalservice.api.messages.SignalServiceStoryMessageRe
 import org.whispersystems.signalservice.api.messages.SignalServiceTextAttachment;
 import org.whispersystems.signalservice.api.messages.multidevice.RequestMessage;
 import org.whispersystems.signalservice.api.messages.multidevice.ViewedMessage;
-import org.whispersystems.signalservice.api.push.ACI;
 import org.whispersystems.signalservice.api.push.DistributionId;
 import org.whispersystems.signalservice.api.push.PNI;
 import org.whispersystems.signalservice.api.push.ServiceId;
@@ -148,7 +141,6 @@ import org.whispersystems.signalservice.internal.push.SignalServiceProtos.StoryM
 import org.whispersystems.signalservice.internal.push.SignalServiceProtos.TextAttachment;
 import org.whispersystems.signalservice.internal.push.exceptions.GroupMismatchedDevicesException;
 import org.whispersystems.signalservice.internal.push.exceptions.GroupStaleDevicesException;
-import org.whispersystems.signalservice.internal.websocket.WebSocketProtos;
 import org.whispersystems.util.ByteArrayUtil;
 
 /**
@@ -962,7 +954,7 @@ public class SignalServiceMessageSender {
             byte[] ciphertext;
             try {
                 ciphertext = cipher.encryptForGroup(distributionId, targetInfo.destinations, senderCertificate, content.toByteArray(), contentHint, groupId);
-            } catch (org.whispersystems.libsignal.UntrustedIdentityException e) {
+            } catch (org.signal.libsignal.protocol.UntrustedIdentityException e) {
                 throw new UntrustedIdentityException("Untrusted during group encrypt", e.getName(), e.getUntrustedIdentity());
             }
 
@@ -2351,7 +2343,7 @@ public class SignalServiceMessageSender {
                         SignalProtocolAddress preKeyAddress = new SignalProtocolAddress(recipient.getIdentifier(), preKey.getDeviceId());
                         SignalSessionBuilder sessionBuilder = new SignalSessionBuilder(sessionLock, new SessionBuilder(aciStore, preKeyAddress));
                         sessionBuilder.process(preKey);
-                    } catch (org.whispersystems.libsignal.UntrustedIdentityException e) {
+                    } catch (org.signal.libsignal.protocol.UntrustedIdentityException e) {
                         throw new UntrustedIdentityException("Untrusted identity key!", recipient.getIdentifier(), preKey.getIdentityKey());
                     }
                 }
@@ -2366,7 +2358,7 @@ public class SignalServiceMessageSender {
 
         try {
             return cipher.encrypt(signalProtocolAddress, unidentifiedAccess, plaintext);
-        } catch (org.whispersystems.libsignal.UntrustedIdentityException e) {
+        } catch (org.signal.libsignal.protocol.UntrustedIdentityException e) {
             throw new UntrustedIdentityException("Untrusted on send", recipient.getIdentifier(), e.getUntrustedIdentity());
         }
     }
@@ -2396,7 +2388,7 @@ public class SignalServiceMessageSender {
                 try {
                     SignalSessionBuilder sessionBuilder = new SignalSessionBuilder(sessionLock, new SessionBuilder(aciStore, new SignalProtocolAddress(recipient.getIdentifier(), missingDeviceId)));
                     sessionBuilder.process(preKey);
-                } catch (org.whispersystems.libsignal.UntrustedIdentityException e) {
+                } catch (org.signal.libsignal.protocol.UntrustedIdentityException e) {
                     throw new UntrustedIdentityException("Untrusted identity key!", recipient.getIdentifier(), preKey.getIdentityKey());
                 }
             }

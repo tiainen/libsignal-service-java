@@ -1,8 +1,8 @@
 package org.whispersystems.signalservice.api.crypto;
 
 import org.junit.Test;
-import org.whispersystems.libsignal.InvalidMessageException;
-import org.whispersystems.libsignal.kdf.HKDFv3;
+import org.signal.libsignal.protocol.InvalidMessageException;
+import org.signal.libsignal.protocol.kdf.HKDFv3;
 import org.whispersystems.signalservice.internal.util.Util;
 
 import java.io.ByteArrayOutputStream;

@@ -16,11 +16,12 @@ import org.signal.libsignal.metadata.SelfSendException;
 import org.signal.libsignal.metadata.certificate.CertificateValidator;
 import org.signal.libsignal.metadata.certificate.SenderCertificate;
 import org.signal.libsignal.metadata.protocol.UnidentifiedSenderMessageContent;
-import org.whispersystems.libsignal.InvalidKeyException;
-import org.whispersystems.libsignal.InvalidRegistrationIdException;
-import org.whispersystems.libsignal.NoSessionException;
-import org.whispersystems.libsignal.SignalProtocolAddress;
-import org.whispersystems.libsignal.UntrustedIdentityException;
+import org.signal.libsignal.protocol.InvalidKeyException;
+import org.signal.libsignal.protocol.InvalidRegistrationIdException;
+import org.signal.libsignal.protocol.NoSessionException;
+import org.signal.libsignal.protocol.SignalProtocolAddress;
+import org.signal.libsignal.protocol.UntrustedIdentityException;
+
 import org.whispersystems.signalservice.api.SignalSessionLock;
 
 /**
@@ -36,13 +37,13 @@ public class SignalSealedSessionCipher {
     this.cipher = cipher;
   }
 
-  public byte[] encrypt(SignalProtocolAddress destinationAddress, SenderCertificate senderCertificate, byte[] paddedPlaintext) throws InvalidKeyException, org.whispersystems.libsignal.UntrustedIdentityException {
+  public byte[] encrypt(SignalProtocolAddress destinationAddress, SenderCertificate senderCertificate, byte[] paddedPlaintext) throws InvalidKeyException, UntrustedIdentityException {
     try (SignalSessionLock.Lock unused = lock.acquire()) {
       return cipher.encrypt(destinationAddress, senderCertificate, paddedPlaintext);
     }
   }
 
-  public byte[] encrypt(SignalProtocolAddress destinationAddress, UnidentifiedSenderMessageContent content) throws InvalidKeyException, org.whispersystems.libsignal.UntrustedIdentityException {
+  public byte[] encrypt(SignalProtocolAddress destinationAddress, UnidentifiedSenderMessageContent content) throws InvalidKeyException, UntrustedIdentityException {
     try (SignalSessionLock.Lock unused = lock.acquire()) {
       return cipher.encrypt(destinationAddress, content);
     }

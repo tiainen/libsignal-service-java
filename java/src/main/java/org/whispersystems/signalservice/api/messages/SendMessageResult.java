@@ -3,7 +3,7 @@ package org.whispersystems.signalservice.api.messages;
 
 import java.util.List;
 import java.util.Optional;
-import org.whispersystems.libsignal.IdentityKey;
+import org.signal.libsignal.protocol.IdentityKey;
 import org.whispersystems.signalservice.api.push.SignalServiceAddress;
 import org.whispersystems.signalservice.api.push.exceptions.ProofRequiredException;
 import org.whispersystems.signalservice.internal.push.SignalServiceProtos.Content;

@@ -3,8 +3,8 @@ package org.whispersystems.signalservice.api;
 import java.util.Collection;
 import java.util.Set;
 
-import org.whispersystems.libsignal.SignalProtocolAddress;
-import org.whispersystems.libsignal.groups.state.SenderKeyStore;
+import org.signal.libsignal.protocol.SignalProtocolAddress;
+import org.signal.libsignal.protocol.groups.state.SenderKeyStore;
 import org.whispersystems.signalservice.api.push.DistributionId;
 
 /**
