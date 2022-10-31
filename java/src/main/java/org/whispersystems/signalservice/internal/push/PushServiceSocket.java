@@ -133,7 +133,6 @@ import java.util.UUID;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.net.SocketFactory;
@@ -1850,7 +1849,6 @@ public class PushServiceSocket {
     private OkHttpClient buildOkHttpClient(boolean unidentified) {
         ServiceConnectionHolder connectionHolder = (ServiceConnectionHolder) getRandom(serviceClients, random);
         OkHttpClient baseClient = unidentified ? connectionHolder.getUnidentifiedClient() : connectionHolder.getClient();
-        LOG.finest("got baseclient for unidentified? " + unidentified + ": " + baseClient);
         return baseClient.newBuilder()
                 .connectTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
                 .readTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
@@ -2012,7 +2010,6 @@ public class PushServiceSocket {
                 .build();
 
         Log.d(TAG, "Opening URL: " + connectionHolder.getUrl());
-LOG.info("GET StorageRequest with url = "+connectionHolder.getUrl()+" and path = "+path);
         Request.Builder request = new Request.Builder().url(connectionHolder.getUrl() + path);
         request.method(method, body);
 
