@@ -67,6 +67,7 @@ import org.signal.libsignal.protocol.message.SenderKeyDistributionMessage;
 import org.signal.libsignal.zkgroup.InvalidInputException;
 import org.signal.libsignal.zkgroup.groups.GroupMasterKey;
 import org.signal.libsignal.zkgroup.receipts.ReceiptCredentialPresentation;
+import org.whispersystems.signalservice.internal.push.SignalServiceProtos.SyncMessage.PniIdentity;
 
 public final class SignalServiceContent {
 
@@ -788,7 +789,9 @@ public final class SignalServiceContent {
     if (content.hasRequest()) {
       return SignalServiceSyncMessage.forRequest(new RequestMessage(content.getRequest()));
     }
-
+    if (content.hasPniIdentity()) {
+        return SignalServiceSyncMessage.forPniIdentity(content.getPniIdentity());
+    }
     if (content.getReadList().size() > 0) {
       List<ReadMessage> readMessages = new LinkedList<>();
 
