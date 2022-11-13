@@ -157,8 +157,10 @@ import okhttp3.Response;
 import okhttp3.ResponseBody;
 import org.signal.libsignal.zkgroup.receipts.ReceiptCredentialPresentation;
 import org.signal.libsignal.protocol.InvalidKeyException;
+import org.signal.libsignal.zkgroup.profiles.ExpiringProfileKeyCredential;
 import org.whispersystems.signalservice.api.account.ChangePhoneNumberRequest;
 import org.whispersystems.signalservice.api.messages.multidevice.VerifyDeviceResponse;
+import org.whispersystems.signalservice.api.payments.CurrencyConversions;
 import org.whispersystems.signalservice.api.push.ACI;
 import org.whispersystems.signalservice.api.push.ServiceId;
 import org.whispersystems.signalservice.api.push.ServiceIdType;
@@ -174,6 +176,7 @@ import org.whispersystems.signalservice.internal.ServiceResponse;
 import org.whispersystems.signalservice.internal.push.exceptions.GroupMismatchedDevicesException;
 import org.whispersystems.signalservice.internal.push.exceptions.GroupStaleDevicesException;
 import org.whispersystems.signalservice.internal.push.exceptions.InvalidUnidentifiedAccessHeaderException;
+import org.whispersystems.signalservice.internal.push.exceptions.PaymentsRegionException;
 import org.whispersystems.signalservice.internal.push.http.AcceptLanguagesUtil;
 
 /**
@@ -781,25 +784,26 @@ public class PushServiceSocket {
         return FutureTransformers.map(response, body -> formatProfileAndCredentialBody(requestContext, body));
     }
 
-    private ProfileAndCredential formatProfileAndCredentialBody(ProfileKeyCredentialRequestContext requestContext, String body)
-            throws MalformedResponseException {
-        try {
-            SignalServiceProfile signalServiceProfile = JsonUtil.fromJson(body, SignalServiceProfile.class);
+  private ProfileAndCredential formatProfileAndCredentialBody(ProfileKeyCredentialRequestContext requestContext, String body)
+      throws MalformedResponseException
+  {
+    try {
+      SignalServiceProfile signalServiceProfile = JsonUtil.fromJson(body, SignalServiceProfile.class);
 
-            try {
-                ProfileKeyCredential profileKeyCredential = signalServiceProfile.getProfileKeyCredentialResponse() != null
-                        ? clientZkProfileOperations.receiveProfileKeyCredential(requestContext, signalServiceProfile.getProfileKeyCredentialResponse())
-                        : null;
-                return new ProfileAndCredential(signalServiceProfile, SignalServiceProfile.RequestType.PROFILE_AND_CREDENTIAL, Optional.ofNullable(profileKeyCredential));
-            } catch (VerificationFailedException e) {
-                Log.w(TAG, "Failed to verify credential.", e);
-                return new ProfileAndCredential(signalServiceProfile, SignalServiceProfile.RequestType.PROFILE_AND_CREDENTIAL, Optional.empty());
-            }
-        } catch (IOException e) {
-            Log.w(TAG, e);
-            throw new MalformedResponseException("Unable to parse entity", e);
-        }
+      try {
+        ExpiringProfileKeyCredential expiringProfileKeyCredential = signalServiceProfile.getExpiringProfileKeyCredentialResponse() != null 
+                                                                    ? clientZkProfileOperations.receiveExpiringProfileKeyCredential(requestContext, signalServiceProfile.getExpiringProfileKeyCredentialResponse())
+                                                                    : null;
+        return new ProfileAndCredential(signalServiceProfile, SignalServiceProfile.RequestType.PROFILE_AND_CREDENTIAL, Optional.ofNullable(expiringProfileKeyCredential));
+      } catch (VerificationFailedException e) { 
+        Log.w(TAG, "Failed to verify credential.", e);
+        return new ProfileAndCredential(signalServiceProfile, SignalServiceProfile.RequestType.PROFILE_AND_CREDENTIAL, Optional.empty());
+      }    
+    } catch (IOException e) { 
+      Log.w(TAG, e);
+      throw new MalformedResponseException("Unable to parse entity", e);
     }
+  }
 
     public ListenableFuture<SignalServiceProfile> retrieveVersionedProfile(UUID target, ProfileKey profileKey, Optional<UnidentifiedAccess> unidentifiedAccess) {
         return retrieveVersionedProfile(target, profileKey, unidentifiedAccess, Locale.getDefault());
@@ -834,38 +838,38 @@ public class PushServiceSocket {
     /**
      * @return The avatar URL path, if one was written.
      */
-//  public Optional<String> writeProfile(SignalServiceProfileWrite signalServiceProfileWrite, ProfileAvatarData profileAvatar)
-//      throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException
-//  {
-//    String                        requestBody    = JsonUtil.toJson(signalServiceProfileWrite);
-//    ProfileAvatarUploadAttributes formAttributes;
-//
-//    String response = makeServiceRequest(String.format(PROFILE_PATH, ""),
-//                                         "PUT",
-//                                         requestBody,
-//                                         NO_HEADERS,
-//                                         PaymentsRegionException::responseCodeHandler,
-//                                         Optional.empty());
-//    if (signalServiceProfileWrite.hasAvatar() && profileAvatar != null) {
-//      try {
-//        formAttributes = JsonUtil.fromJson(response, ProfileAvatarUploadAttributes.class);
-//      } catch (IOException e) {
-//        Log.w(TAG, e);
-//        throw new MalformedResponseException("Unable to parse entity", e);
-//      }
-//
-//      uploadToCdn0(AVATAR_UPLOAD_PATH, formAttributes.getAcl(), formAttributes.getKey(),
-//                  formAttributes.getPolicy(), formAttributes.getAlgorithm(),
-//                  formAttributes.getCredential(), formAttributes.getDate(),
-//                  formAttributes.getSignature(), profileAvatar.getData(),
-//                  profileAvatar.getContentType(), profileAvatar.getDataLength(),
-//                  profileAvatar.getOutputStreamFactory(), null, null);
-//
-//       return Optional.of(formAttributes.getKey());
-//    }
-//
-//    return Optional.empty();
-//  }
+  public Optional<String> writeProfile(SignalServiceProfileWrite signalServiceProfileWrite, ProfileAvatarData profileAvatar)
+      throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException
+  {
+    String                        requestBody    = JsonUtil.toJson(signalServiceProfileWrite);
+    ProfileAvatarUploadAttributes formAttributes;
+
+    String response = makeServiceRequest(String.format(PROFILE_PATH, ""),
+                                         "PUT",
+                                         requestBody,
+                                         NO_HEADERS,
+                                         PaymentsRegionException::responseCodeHandler,
+                                         Optional.empty());
+    if (signalServiceProfileWrite.hasAvatar() && profileAvatar != null) {
+      try {
+        formAttributes = JsonUtil.fromJson(response, ProfileAvatarUploadAttributes.class);
+      } catch (IOException e) {
+        Log.w(TAG, e);
+        throw new MalformedResponseException("Unable to parse entity", e);
+      }
+
+      uploadToCdn0(AVATAR_UPLOAD_PATH, formAttributes.getAcl(), formAttributes.getKey(),
+                  formAttributes.getPolicy(), formAttributes.getAlgorithm(),
+                  formAttributes.getCredential(), formAttributes.getDate(),
+                  formAttributes.getSignature(), profileAvatar.getData(),
+                  profileAvatar.getContentType(), profileAvatar.getDataLength(),
+                  profileAvatar.getOutputStreamFactory(), null, null);
+
+       return Optional.of(formAttributes.getKey());
+    }
+
+    return Optional.empty();
+  }
     /**
      * Gets the ACI for the given username, if it exists. This is an
      * unauthenticated request.
@@ -2557,18 +2561,18 @@ public class PushServiceSocket {
 
         return GroupExternalCredential.parseFrom(readBodyBytes(response));
     }
-//
-//  public CurrencyConversions getCurrencyConversions()
-//      throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException
-//  {
-//    String response = makeServiceRequest(PAYMENTS_CONVERSIONS, "GET", null);
-//    try {
-//      return JsonUtil.fromJson(response, CurrencyConversions.class);
-//    } catch (IOException e) {
-//      Log.w(TAG, e);
-//      throw new MalformedResponseException("Unable to parse entity", e);
-//    }
-//  }
+
+  public CurrencyConversions getCurrencyConversions()
+      throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException
+  {
+    String response = makeServiceRequest(PAYMENTS_CONVERSIONS, "GET", null);
+    try {
+      return JsonUtil.fromJson(response, CurrencyConversions.class);
+    } catch (IOException e) {
+      Log.w(TAG, e);
+      throw new MalformedResponseException("Unable to parse entity", e);
+    }
+  }
 
     public void reportSpam(ServiceId serviceId, String serverGuid)
             throws NonSuccessfulResponseCodeException, MalformedResponseException, PushNetworkException {

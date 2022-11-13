@@ -284,64 +284,64 @@ public class SignalServiceMessagePipe {
         return answer;
     }
 
-    
-  public ListenableFuture<ProfileAndCredential> getProfile(SignalServiceAddress address,
-                                                           Optional<ProfileKey> profileKey,
-                                                           Optional<UnidentifiedAccess> unidentifiedAccess,
-                                                           SignalServiceProfile.RequestType requestType)
-      throws IOException
-  {
-    List<String> headers = new LinkedList<>();
-
-    if (unidentifiedAccess.isPresent()) {
-      headers.add("Unidentified-Access-Key:" + Base64.encodeBytes(unidentifiedAccess.get().getUnidentifiedAccessKey()));
-    }
-
-    ServiceId serviceId           = address.getServiceId();
-    SecureRandom                       random         = new SecureRandom();
-    ProfileKeyCredentialRequestContext requestContext = null;
-
-    WebSocketRequestMessage.Builder builder = WebSocketRequestMessage.newBuilder()
-                                                                     .setId(random.nextLong())
-                                                                     .setVerb("GET")
-                                                                     .addAllHeaders(headers);
-
-    if (profileKey.isPresent()) {
-      ProfileKeyVersion profileKeyIdentifier = profileKey.get().getProfileKeyVersion(serviceId.uuid());
-      String            version              = profileKeyIdentifier.serialize();
-
-      if (requestType == SignalServiceProfile.RequestType.PROFILE_AND_CREDENTIAL) {
-        requestContext = clientZkProfile.createProfileKeyCredentialRequestContext(random, serviceId.uuid(), profileKey.get());
-
-        ProfileKeyCredentialRequest request           = requestContext.getRequest();
-        String                      credentialRequest = Hex.toStringCondensed(request.serialize());
-
-        builder.setPath(String.format("/v1/profile/%s/%s/%s", serviceId, version, credentialRequest));
-      } else {
-        builder.setPath(String.format("/v1/profile/%s/%s", serviceId, version));
-      }
-    } else {
-      builder.setPath(String.format("/v1/profile/%s", address.getIdentifier()));
-    }
-
-    final ProfileKeyCredentialRequestContext finalRequestContext = requestContext;
-    WebSocketRequestMessage requestMessage = builder.build();
-
-    return FutureTransformers.map(websocket.sendRequest(requestMessage), response -> {
-      if (response.getStatus() == 404) {
-        throw new NotFoundException("Not found");
-      } else if (response.getStatus() < 200 || response.getStatus() >= 300) {
-        throw new NonSuccessfulResponseCodeException(response.getStatus(), "Non-successful response: " + response.getStatus());
-      }
-
-      SignalServiceProfile signalServiceProfile = JsonUtil.fromJson(response.getBody(), SignalServiceProfile.class);
-      ProfileKeyCredential profileKeyCredential = finalRequestContext != null && signalServiceProfile.getProfileKeyCredentialResponse() != null
-                                                    ? clientZkProfile.receiveProfileKeyCredential(finalRequestContext, signalServiceProfile.getProfileKeyCredentialResponse())
-                                                    : null;
-
-      return new ProfileAndCredential(signalServiceProfile, requestType, Optional.ofNullable(profileKeyCredential));
-    });
-  }
+//    
+//  public ListenableFuture<ProfileAndCredential> getProfile(SignalServiceAddress address,
+//                                                           Optional<ProfileKey> profileKey,
+//                                                           Optional<UnidentifiedAccess> unidentifiedAccess,
+//                                                           SignalServiceProfile.RequestType requestType)
+//      throws IOException
+//  {
+//    List<String> headers = new LinkedList<>();
+//
+//    if (unidentifiedAccess.isPresent()) {
+//      headers.add("Unidentified-Access-Key:" + Base64.encodeBytes(unidentifiedAccess.get().getUnidentifiedAccessKey()));
+//    }
+//
+//    ServiceId serviceId           = address.getServiceId();
+//    SecureRandom                       random         = new SecureRandom();
+//    ProfileKeyCredentialRequestContext requestContext = null;
+//
+//    WebSocketRequestMessage.Builder builder = WebSocketRequestMessage.newBuilder()
+//                                                                     .setId(random.nextLong())
+//                                                                     .setVerb("GET")
+//                                                                     .addAllHeaders(headers);
+//
+//    if (profileKey.isPresent()) {
+//      ProfileKeyVersion profileKeyIdentifier = profileKey.get().getProfileKeyVersion(serviceId.uuid());
+//      String            version              = profileKeyIdentifier.serialize();
+//
+//      if (requestType == SignalServiceProfile.RequestType.PROFILE_AND_CREDENTIAL) {
+//        requestContext = clientZkProfile.createProfileKeyCredentialRequestContext(random, serviceId.uuid(), profileKey.get());
+//
+//        ProfileKeyCredentialRequest request           = requestContext.getRequest();
+//        String                      credentialRequest = Hex.toStringCondensed(request.serialize());
+//
+//        builder.setPath(String.format("/v1/profile/%s/%s/%s", serviceId, version, credentialRequest));
+//      } else {
+//        builder.setPath(String.format("/v1/profile/%s/%s", serviceId, version));
+//      }
+//    } else {
+//      builder.setPath(String.format("/v1/profile/%s", address.getIdentifier()));
+//    }
+//
+//    final ProfileKeyCredentialRequestContext finalRequestContext = requestContext;
+//    WebSocketRequestMessage requestMessage = builder.build();
+//
+//    return FutureTransformers.map(websocket.sendRequest(requestMessage), response -> {
+//      if (response.getStatus() == 404) {
+//        throw new NotFoundException("Not found");
+//      } else if (response.getStatus() < 200 || response.getStatus() >= 300) {
+//        throw new NonSuccessfulResponseCodeException(response.getStatus(), "Non-successful response: " + response.getStatus());
+//      }
+//
+//      SignalServiceProfile signalServiceProfile = JsonUtil.fromJson(response.getBody(), SignalServiceProfile.class);
+//      ProfileKeyCredential profileKeyCredential = finalRequestContext != null && signalServiceProfile.getProfileKeyCredentialResponse() != null
+//                                                    ? clientZkProfile.receiveProfileKeyCredential(finalRequestContext, signalServiceProfile.getProfileKeyCredentialResponse())
+//                                                    : null;
+//
+//      return new ProfileAndCredential(signalServiceProfile, requestType, Optional.ofNullable(profileKeyCredential));
+//    });
+//  }
 
   public AttachmentV2UploadAttributes getAttachmentV2UploadAttributes() throws IOException {
     try {

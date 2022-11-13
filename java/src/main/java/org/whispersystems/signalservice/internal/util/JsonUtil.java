@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (C) 2014-2016 Open Whisper Systems
  *
  * Licensed according to the LICENSE file in this repository.
@@ -17,17 +17,24 @@ import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializerProvider;
+import com.google.protobuf.ByteString;
 
 import org.signal.libsignal.protocol.IdentityKey;
 import org.signal.libsignal.protocol.InvalidKeyException;
+import org.signal.libsignal.protocol.logging.Log;
+import org.whispersystems.signalservice.api.push.ACI;
+import org.whispersystems.signalservice.api.push.ServiceId;
+import org.whispersystems.signalservice.api.push.exceptions.MalformedResponseException;
 import org.whispersystems.signalservice.api.util.UuidUtil;
 import org.whispersystems.util.Base64;
 
 import java.io.IOException;
 import java.util.UUID;
-import org.whispersystems.signalservice.api.push.exceptions.MalformedResponseException;
 
+@SuppressWarnings("unused")
 public class JsonUtil {
+
+  private static final String TAG = JsonUtil.class.getSimpleName();
 
   private static final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -37,12 +44,15 @@ public class JsonUtil {
 
   public static String toJson(Object object) {
     try {
-      String answer = objectMapper.writeValueAsString(object);
-      return answer;
+      return objectMapper.writeValueAsString(object);
     } catch (JsonProcessingException e) {
-        e.printStackTrace();
+      Log.w(TAG, e);
       return "";
     }
+  }
+
+  public static ByteString toJsonByteString(Object object) {
+    return ByteString.copyFrom(toJson(object).getBytes());
   }
 
   public static <T> T fromJson(String json, Class<T> clazz)
@@ -50,8 +60,8 @@ public class JsonUtil {
   {
     return objectMapper.readValue(json, clazz);
   }
-  
-    public static <T> T fromJson(String json, TypeReference<T> typeRef)
+
+  public static <T> T fromJson(String json, TypeReference<T> typeRef)
       throws IOException
   {
     return objectMapper.readValue(json, typeRef);
@@ -76,8 +86,8 @@ public class JsonUtil {
       throw new MalformedResponseException("Unable to parse entity", e);
     }
   }
-
-    public static class IdentityKeySerializer extends JsonSerializer<IdentityKey> {
+  
+  public static class IdentityKeySerializer extends JsonSerializer<IdentityKey> {
     @Override
     public void serialize(IdentityKey value, JsonGenerator gen, SerializerProvider serializers)
         throws IOException
@@ -110,6 +120,38 @@ public class JsonUtil {
     @Override
     public UUID deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
       return UuidUtil.parseOrNull(p.getValueAsString());
+    }
+  }
+
+  public static class AciSerializer extends JsonSerializer<ACI> {
+    @Override
+    public void serialize(ACI value, JsonGenerator gen, SerializerProvider serializers)
+        throws IOException
+    {
+      gen.writeString(value.toString());
+    }
+  }
+
+  public static class AciDeserializer extends JsonDeserializer<ACI> {
+    @Override
+    public ACI deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+      return ACI.parseOrNull(p.getValueAsString());
+    }
+  }
+
+  public static class ServiceIdSerializer extends JsonSerializer<ServiceId> {
+    @Override
+    public void serialize(ServiceId value, JsonGenerator gen, SerializerProvider serializers)
+        throws IOException
+    {
+      gen.writeString(value.toString());
+    }
+  }
+
+  public static class ServiceIdDeserializer extends JsonDeserializer<ServiceId> {
+    @Override
+    public ServiceId deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+      return ServiceId.parseOrNull(p.getValueAsString());
     }
   }
 }
