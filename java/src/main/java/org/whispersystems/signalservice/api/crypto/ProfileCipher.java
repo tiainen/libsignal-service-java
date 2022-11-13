@@ -1,8 +1,8 @@
 package org.whispersystems.signalservice.api.crypto;
 
 
-import org.signal.libsignal.zkgroup.profiles.ProfileKey;
 import org.signal.libsignal.protocol.util.ByteUtil;
+import org.signal.libsignal.zkgroup.profiles.ProfileKey;
 import org.whispersystems.signalservice.internal.util.Util;
 
 import java.io.IOException;
@@ -105,27 +105,6 @@ public class ProfileCipher {
    */
   public byte[] encryptString(String input, int paddedLength) {
     return encrypt(input.getBytes(StandardCharsets.UTF_8), paddedLength);
-  }
-
-// legacy
-  public byte[] encryptName(byte[] input, int paddedLength) {
-    return encrypt(input, paddedLength);
-  }
-
-  public byte[] decryptName(byte[] input) throws InvalidCiphertextException {
-    byte[] paddedPlaintext = decrypt(input);
-    int    plaintextLength = 0;
-
-    for (int i = paddedPlaintext.length - 1; i >= 0; i--) {
-      if (paddedPlaintext[i] != (byte) 0x00) {
-        plaintextLength = i + 1;
-        break;
-      }
-    }
-
-    byte[] plaintext = new byte[plaintextLength];
-    System.arraycopy(paddedPlaintext, 0, plaintext, 0, plaintextLength);
-    return plaintext;
   }
 
   /**

@@ -23,6 +23,17 @@
 
     <dependencies>
         <dependency>
+          <groupId>org.bouncycastle</groupId>
+          <artifactId>bcpkix-jdk15on</artifactId>
+          <version>1.70</version>
+        </dependency>
+        <dependency>
+          <groupId>org.bouncycastle</groupId>
+          <artifactId>bcprov-jdk15on</artifactId>
+          <version>1.70</version>
+        </dependency>
+
+        <dependency>
           <groupId>com.googlecode.libphonenumber</groupId>
           <artifactId>libphonenumber</artifactId>
           <version>8.10.7</version>
@@ -51,6 +62,12 @@
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
             <version>3.19.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>5.5.2</version>
+            <scope>test</scope>
         </dependency>
     <dependency>
       <groupId>junit</groupId>
@@ -115,8 +132,8 @@
         <version>0.6.1</version>
         <configuration>
           <javaOptions>lite</javaOptions>
-          <!-- <protocExecutable>protoc</protocExecutable> -->
-          <protocExecutable>/usr/local/bin/protoc</protocExecutable>
+          <protocExecutable>protoc</protocExecutable>
+          <!-- <protocExecutable>/usr/local/bin/protoc</protocExecutable> -->
         </configuration>
         <executions>
           <execution>
