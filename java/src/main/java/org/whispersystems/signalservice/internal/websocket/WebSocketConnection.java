@@ -161,6 +161,7 @@ public class WebSocketConnection extends WebSocketListener {
             if (signalAgent != null) {
                 requestBuilder.addHeader("X-Signal-Agent", signalAgent);
             }
+            requestBuilder.addHeader("X-Signal-Receive-Stories", "true");
 
             if (listener != null) {
                 listener.onConnecting();
