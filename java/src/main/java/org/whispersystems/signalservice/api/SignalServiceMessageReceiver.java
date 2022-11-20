@@ -65,28 +65,18 @@ public class SignalServiceMessageReceiver {
   private final ConnectivityListener       connectivityListener;
   private final SleepTimer                 sleepTimer;
   private final ClientZkProfileOperations  clientZkProfileOperations;
+  private final boolean allowStories;
 
-//  /**
-//   * Construct a SignalServiceMessageReceiver.
-//   *
-//   * @param urls The URL of the Signal Service.
-//   * @param uuid The Signal Service UUID.
-//   * @param e164 The Signal Service phone number.
-//   * @param password The Signal Service user password.
-//   * @param signalingKey The 52 byte signaling key assigned to this user at registration.
-//   */
-//  public SignalServiceMessageReceiver(SignalServiceConfiguration urls,
-//                                      UUID uuid,
-//                                      String e164,
-//                                      String password,
-//                                      String signalAgent,
-//                                      ConnectivityListener listener,
-//                                      SleepTimer timer,
-//                                      ClientZkProfileOperations clientZkProfileOperations,
-//                                      boolean automaticNetworkRetry)
-//  {
-//    this(urls, new StaticCredentialsProvider(uuid, e164, password), signalAgent, listener, timer, clientZkProfileOperations, automaticNetworkRetry);
-//  }
+    @Deprecated // this will always enable stories
+    public SignalServiceMessageReceiver(SignalServiceConfiguration urls,
+            CredentialsProvider credentials,
+            String signalAgent,
+            ConnectivityListener listener,
+            SleepTimer timer,
+            ClientZkProfileOperations clientZkProfileOperations,
+            boolean automaticNetworkRetry) {
+        this(urls, credentials, signalAgent, listener, timer, clientZkProfileOperations, automaticNetworkRetry, true);
+    }
 
   /**
    * Construct a SignalServiceMessageReceiver.
@@ -100,7 +90,7 @@ public class SignalServiceMessageReceiver {
                                       ConnectivityListener listener,
                                       SleepTimer timer,
                                       ClientZkProfileOperations clientZkProfileOperations,
-                                      boolean automaticNetworkRetry)
+                                      boolean automaticNetworkRetry, boolean allowStories)
   {
     this.urls                      = urls;
     this.credentialsProvider       = credentials;
@@ -109,6 +99,7 @@ public class SignalServiceMessageReceiver {
     this.connectivityListener      = listener;
     this.sleepTimer                = timer;
     this.clientZkProfileOperations = clientZkProfileOperations;
+    this.allowStories = allowStories;
   }
 
   /**
@@ -245,7 +236,7 @@ public class SignalServiceMessageReceiver {
                                                             urls.getNetworkInterceptors(),
                                                             urls.getDns(),
                                                             urls.getSignalProxy(),
-                                                            callback);
+                                                            callback, allowStories);
 
     return new SignalServiceMessagePipe(webSocket, Optional.of(credentialsProvider), clientZkProfileOperations);
   }
@@ -258,7 +249,7 @@ public class SignalServiceMessageReceiver {
                                                             urls.getNetworkInterceptors(),
                                                             urls.getDns(),
                                                             urls.getSignalProxy(),
-                                                            callback);
+                                                            callback, allowStories);
 
     return new SignalServiceMessagePipe(webSocket, Optional.of(credentialsProvider), clientZkProfileOperations);
   }

@@ -68,6 +68,7 @@ public class WebSocketConnection extends WebSocketListener {
     private final List<Interceptor> interceptors;
     private final Optional<Dns> dns;
     private final Optional<SignalProxy> signalProxy;
+    private final boolean allowStories;
 
     private WebSocket client;
     private KeepAliveSender keepAliveSender;
@@ -87,8 +88,9 @@ public class WebSocketConnection extends WebSocketListener {
             List<Interceptor> interceptors,
             Optional<Dns> dns,
             Optional<SignalProxy> signalProxy,
-            Consumer callback) {
-        this(httpUri, "", trustStore, credentialsProvider, signalAgent, listener, timer, interceptors, dns, signalProxy, callback);
+            Consumer callback, 
+            boolean allowStories) {
+        this(httpUri, "", trustStore, credentialsProvider, signalAgent, listener, timer, interceptors, dns, signalProxy, callback, allowStories);
 
     }
 
@@ -102,7 +104,8 @@ public class WebSocketConnection extends WebSocketListener {
             List<Interceptor> interceptors,
             Optional<Dns> dns,
             Optional<SignalProxy> signalProxy,
-            Consumer callback) {
+            Consumer callback,
+            boolean allowStories) {
         this.trustStore = trustStore;
         this.credentialsProvider = credentialsProvider;
         this.signalAgent = signalAgent;
@@ -114,6 +117,7 @@ public class WebSocketConnection extends WebSocketListener {
         this.attempts = 0;
         this.connected = false;
         this.callback = callback;
+        this.allowStories = allowStories;
 
         String uri = httpUri.replace("https://", "wss://").replace("http://", "ws://");
         if (credentialsProvider.isPresent()) {
@@ -161,7 +165,7 @@ public class WebSocketConnection extends WebSocketListener {
             if (signalAgent != null) {
                 requestBuilder.addHeader("X-Signal-Agent", signalAgent);
             }
-            requestBuilder.addHeader("X-Signal-Receive-Stories", "true");
+            requestBuilder.addHeader("X-Signal-Receive-Stories", allowStories ? "true" : "false");
 
             if (listener != null) {
                 listener.onConnecting();
