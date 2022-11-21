@@ -173,4 +173,14 @@ public class NowhereBufferedSink implements BufferedSink {
   public boolean isOpen() {
     return false;
   }
+
+    @Override
+    public Buffer getBuffer() {
+        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    }
+
+    @Override
+    public BufferedSink write(ByteString bs, int i, int i1) throws IOException {
+        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    }
 }

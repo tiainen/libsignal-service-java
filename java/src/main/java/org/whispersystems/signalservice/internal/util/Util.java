@@ -16,6 +16,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.logging.Logger;
 
 public class Util {
 
@@ -132,13 +133,15 @@ public class Util {
     }
   }
 
-  public static void wait(Object lock, long millis) {
-    try {
-      lock.wait(millis);
-    } catch (InterruptedException e) {
-      throw new AssertionError(e);
+    public static void wait(Object lock, long millis) {
+        try {
+            synchronized (lock) {
+                lock.wait(millis);
+            }
+        } catch (InterruptedException e) {
+            throw new AssertionError(e);
+        }
     }
-  }
 
   public static int toIntExact(long value) {
     if ((int)value != value) {
@@ -166,5 +169,6 @@ public class Util {
       return defaultValue;
     }
   }
+    private static final Logger LOG = Logger.getLogger(Util.class.getName());
 
 }

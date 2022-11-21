@@ -263,7 +263,6 @@ public class WebSocketConnection extends WebSocketListener {
                             .setVerb("GET")
                             .build()).build()
                     .toByteArray();
-
             if (!client.send(ByteString.of(message))) {
                 throw new IOException("Write failed!");
             }
@@ -344,7 +343,7 @@ public class WebSocketConnection extends WebSocketListener {
             listener.onDisconnected();
         }
 
-        Util.wait(this, Math.min(++attempts * 200, TimeUnit.SECONDS.toMillis(15)));
+        Util.wait(this, Math.min(++attempts * 500, TimeUnit.MINUTES.toMillis(15)));
 
         if (client != null) {
             client.close(1000, "OK");
@@ -358,7 +357,7 @@ public class WebSocketConnection extends WebSocketListener {
 
     @Override
     public synchronized void onFailure(WebSocket webSocket, Throwable t, Response response) {
-        System.err.println("[WSC] onFailure for " + this);
+        LOG.warning("[WSC] onFailure for " + this+" with throwable "+(t == null ? "empty" : t.getMessage()));
 
         Log.w(TAG, "onFailure()", t);
 

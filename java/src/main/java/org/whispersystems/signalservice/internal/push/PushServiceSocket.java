@@ -209,6 +209,8 @@ public class PushServiceSocket {
     private static final String SIGNED_PREKEY_PATH = "/v2/keys/signed?identity=%s";
 
     private static final String PROVISIONING_CODE_PATH = "/v1/devices/provisioning/code";
+    private static final String REGISTER_CAPABILITIES_PATH= "/v1/devices/capabilities/%s";
+
     private static final String PROVISIONING_MESSAGE_PATH = "/v1/provisioning/%s";
     private static final String DEVICE_PATH = "/v1/devices/%s";
 
@@ -475,6 +477,13 @@ public class PushServiceSocket {
     public byte[] getUuidOnlySenderCertificate() throws IOException {
         String responseText = makeServiceRequest(SENDER_CERTIFICATE_NO_E164_PATH, "GET", null);
         return JsonUtil.fromJson(responseText, SenderCertificate.class).getCertificate();
+    }
+
+    public String registerCapabilities(Object capabilities)
+            throws IOException {
+        String payload = JsonUtil.toJson(capabilities);
+        LOG.info("Registering capabilities: "+payload);
+        return makeServiceRequest(String.format(REGISTER_CAPABILITIES_PATH, ""), "PUT", payload);
     }
 
     public SendGroupMessageResponse sendGroupMessage(byte[] body, byte[] joinedUnidentifiedAccess, long timestamp, boolean online, boolean urgent, boolean story)
@@ -1749,7 +1758,6 @@ public class PushServiceSocket {
             boolean doNotAddAuthenticationOrUnidentifiedAccessKey)
             throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException {
         Response response = getServiceConnection(urlFragment, method, body, headers, unidentifiedAccessKey, doNotAddAuthenticationOrUnidentifiedAccessKey);
-
         ResponseBody responseBody = response.body();
         try {
             responseCodeHandler.handle(response.code(), responseBody);
