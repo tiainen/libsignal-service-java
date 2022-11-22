@@ -54,7 +54,6 @@ public class BlacklistingTrustManager implements X509TrustManager {
     try {
       InputStream keyStoreInputStream = trustStore.getKeyStoreInputStream();
       KeyStore    keyStore            = KeyStore.getInstance("BKS");
-
       keyStore.load(keyStoreInputStream, trustStore.getKeyStorePassword().toCharArray());
 
       TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance("X509");

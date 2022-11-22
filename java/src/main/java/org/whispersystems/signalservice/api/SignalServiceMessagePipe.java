@@ -53,6 +53,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.whispersystems.signalservice.api.push.ServiceId;
 import org.whispersystems.signalservice.api.push.exceptions.MalformedResponseException;
@@ -186,7 +187,11 @@ public class SignalServiceMessagePipe {
         }
       } finally {
         LOG.finer("[SSMP] readOrEmpty will send response");
-        websocket.sendResponse(response);
+        try {
+            websocket.sendResponse(response);
+        } catch (IOException ioe) {
+            LOG.log(Level.SEVERE, "IO exception in sending response", ioe);
+        }
         LOG.fine("[SSMP] readOrEmpty did send response");
       }
     }
