@@ -140,21 +140,21 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.ConnectionPool;
-import okhttp3.ConnectionSpec;
-import okhttp3.Credentials;
-import okhttp3.Dns;
-import okhttp3.HttpUrl;
-import okhttp3.Interceptor;
-import okhttp3.MediaType;
-import okhttp3.MultipartBody;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
-import okhttp3.ResponseBody;
+import tokhttp3.MyCall;
+import tokhttp3.Callback;
+import tokhttp3.ConnectionPool;
+import tokhttp3.ConnectionSpec;
+import tokhttp3.Credentials;
+import tokhttp3.Dns;
+import tokhttp3.HttpUrl;
+import tokhttp3.Interceptor;
+import tokhttp3.MediaType;
+import tokhttp3.MultipartBody;
+import tokhttp3.OkHttpClient;
+import tokhttp3.Request;
+import tokhttp3.RequestBody;
+import tokhttp3.Response;
+import tokhttp3.ResponseBody;
 import org.signal.libsignal.zkgroup.receipts.ReceiptCredentialPresentation;
 import org.signal.libsignal.protocol.InvalidKeyException;
 import org.signal.libsignal.zkgroup.profiles.ExpiringProfileKeyCredential;
@@ -178,6 +178,7 @@ import org.whispersystems.signalservice.internal.push.exceptions.GroupStaleDevic
 import org.whispersystems.signalservice.internal.push.exceptions.InvalidUnidentifiedAccessHeaderException;
 import org.whispersystems.signalservice.internal.push.exceptions.PaymentsRegionException;
 import org.whispersystems.signalservice.internal.push.http.AcceptLanguagesUtil;
+import tokhttp3.Call;
 
 /**
  * @author Moxie Marlinspike
@@ -494,7 +495,7 @@ public class PushServiceSocket {
 
         Request.Builder requestBuilder = new Request.Builder();
         requestBuilder.url(String.format("%s%s", connectionHolder.getUrl(), path));
-        requestBuilder.put(RequestBody.create(MediaType.get("application/vnd.signal-messenger.mrm"), body));
+        requestBuilder.put(RequestBody.create(MediaType.parse("application/vnd.signal-messenger.mrm"), body));
         requestBuilder.addHeader("Unidentified-Access-Key", Base64.encodeBytes(joinedUnidentifiedAccess));
 
         if (signalAgent != null) {
@@ -505,7 +506,7 @@ public class PushServiceSocket {
             requestBuilder.addHeader("Host", connectionHolder.getHostHeader().get());
         }
 
-        Call call = connectionHolder.getUnidentifiedClient().newCall(requestBuilder.build());
+        MyCall call = connectionHolder.getUnidentifiedClient().newCall(requestBuilder.build());
 
         synchronized (connections) {
             connections.add(call);
@@ -1267,7 +1268,7 @@ public class PushServiceSocket {
             request.addHeader("Range", "bytes=" + offset + "-");
         }
 
-        Call call = okHttpClient.newCall(request.build());
+        MyCall call = okHttpClient.newCall(request.build());
 
         synchronized (connections) {
             connections.add(call);
@@ -1362,7 +1363,7 @@ public class PushServiceSocket {
             request.addHeader("Host", connectionHolder.getHostHeader().get());
         }
 
-        Call call = okHttpClient.newCall(request.build());
+        MyCall call = okHttpClient.newCall(request.build());
 
         synchronized (connections) {
             connections.add(call);
@@ -1413,7 +1414,7 @@ public class PushServiceSocket {
         request.addHeader("Content-Length", "0");
         request.addHeader("Content-Type", "application/octet-stream");
 
-        Call call = okHttpClient.newCall(request.build());
+        MyCall call = okHttpClient.newCall(request.build());
 
         synchronized (connections) {
             connections.add(call);
@@ -1467,7 +1468,7 @@ public class PushServiceSocket {
             request.header("host", connectionHolder.getHostHeader().get());
         }
 
-        Call call = okHttpClient.newCall(request.build());
+        MyCall call = okHttpClient.newCall(request.build());
 
         synchronized (connections) {
             connections.add(call);
@@ -1513,7 +1514,7 @@ public class PushServiceSocket {
             request.header("host", connectionHolder.getHostHeader().get());
         }
 
-        Call call = okHttpClient.newCall(request.build());
+        MyCall call = okHttpClient.newCall(request.build());
 
         synchronized (connections) {
             connections.add(call);
@@ -1840,13 +1841,14 @@ public class PushServiceSocket {
             throws PushNetworkException {
         try {
             OkHttpClient okHttpClient = buildOkHttpClient(unidentifiedAccess.isPresent());
-            Call call = okHttpClient.newCall(buildServiceRequest(urlFragment, method, body, headers, unidentifiedAccess, doNotAddAuthenticationOrUnidentifiedAccessKey));
-
+            MyCall call = okHttpClient.newCall(buildServiceRequest(urlFragment, method, body, headers, unidentifiedAccess, doNotAddAuthenticationOrUnidentifiedAccessKey));
+            System.err.println("CREATED CALL "+call);
             synchronized (connections) {
                 connections.add(call);
             }
 
             try {
+                System.err.println("EXECUTE CALL");
                 return call.execute();
             } finally {
                 synchronized (connections) {
@@ -1903,7 +1905,9 @@ public class PushServiceSocket {
             request.addHeader("Host", connectionHolder.getHostHeader().get());
         }
 
-        return request.build();
+        Request req = request.build();
+        System.err.println("READY to make request = "+req);
+        return req;
     }
 
     private ConnectionHolder[] clientsFor(ClientSet clientSet) {
@@ -1954,7 +1958,7 @@ public class PushServiceSocket {
             request.addHeader("Cookie", Util.join(cookies, "; "));
         }
 
-        Call call = okHttpClient.newCall(request.build());
+        MyCall call = okHttpClient.newCall(request.build());
 
         synchronized (connections) {
             connections.add(call);
@@ -2033,7 +2037,7 @@ public class PushServiceSocket {
             request.addHeader("Authorization", authorization);
         }
 
-        Call call = okHttpClient.newCall(request.build());
+        MyCall call = okHttpClient.newCall(request.build());
 
         synchronized (connections) {
             connections.add(call);

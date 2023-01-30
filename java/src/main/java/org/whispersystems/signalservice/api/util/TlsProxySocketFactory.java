@@ -19,7 +19,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 
-import okhttp3.Dns;
+import tokhttp3.Dns;
 
 public class TlsProxySocketFactory extends SocketFactory {
 

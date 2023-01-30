@@ -37,14 +37,14 @@ import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
-import okhttp3.ConnectionSpec;
-import okhttp3.Dns;
-import okhttp3.Interceptor;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-import okhttp3.WebSocket;
-import okhttp3.WebSocketListener;
+import tokhttp3.ConnectionSpec;
+import tokhttp3.Dns;
+import tokhttp3.Interceptor;
+import tokhttp3.OkHttpClient;
+import tokhttp3.Request;
+import tokhttp3.Response;
+import tokhttp3.WebSocket;
+import tokhttp3.WebSocketListener;
 import okio.ByteString;
 
 import static org.whispersystems.signalservice.internal.websocket.WebSocketProtos.WebSocketMessage;

@@ -1,10 +1,11 @@
 module org.whispersystems.service {
     requires java.logging;
+    requires java.net.http;
     // requires org.whispersystems.metadata;
     // requires org.whispersystems.protocol;
     requires com.google.protobuf;
     requires libphonenumber;
-    requires okhttp3;
+    // requires okhttp3;
     requires okio;
     requires com.fasterxml.jackson.annotation;
     requires com.fasterxml.jackson.core;
@@ -32,6 +33,7 @@ module org.whispersystems.service {
     exports org.whispersystems.signalservice.api.util;
     exports org.whispersystems.signalservice.api.websocket;
     exports org.whispersystems.util;
+    exports tokhttp3;
     opens org.whispersystems.signalservice.api.groupsv2 to com.fasterxml.jackson.databind;
     opens org.whispersystems.signalservice.internal.push to com.fasterxml.jackson.databind;
     opens org.whispersystems.signalservice.api.messages.calls to com.fasterxml.jackson.databind;
