@@ -17,12 +17,29 @@ public final class MediaType {
   private final String charset;
   
   
+  
     private MediaType(String mediaType, String type, String subtype, String charset) {
     this.mediaType = mediaType;
     this.type = type;
     this.subtype = subtype;
     this.charset = charset;
   }
+
+    public String getMediaType() {
+        return mediaType;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public String getSubtype() {
+        return subtype;
+    }
+
+    public String getCharset() {
+        return charset;
+    }
     
     public static MediaType parse(String string) {
      Matcher typeSubtype = TYPE_SUBTYPE.matcher(string);

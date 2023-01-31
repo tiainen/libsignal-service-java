@@ -2,6 +2,7 @@ package tokhttp3;
 
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -14,6 +15,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.X509TrustManager;
+import okio.ByteString;
 import org.whispersystems.signalservice.api.util.TlsProxySocketFactory;
 
 /**
@@ -60,7 +62,26 @@ public class OkHttpClient {
             }
 
             @Override
+            public void onError(java.net.http.WebSocket webSocket, Throwable error) {
+                LOG.severe("ERROR IN WEBSOCKET!");
+            }
+
+            @Override
+            public CompletionStage<?> onClose(java.net.http.WebSocket webSocket, int statusCode, String reason) {
+                LOG.severe("WEBSOCKET CLOSED with code "+statusCode);
+                return null;
+            }
+
+            @Override
+            public CompletionStage<?> onBinary(java.net.http.WebSocket webSocket, ByteBuffer data, boolean last) {
+                  LOG.info("WEBSOCKET ONBINARY CALLED on "+Thread.currentThread());
+                  listener.onMessage(answer, ByteString.of(data));
+                  return null;
+            }
+
+            @Override
             public CompletionStage<?> onText(java.net.http.WebSocket webSocket, CharSequence data, boolean last) {
+                System.err.println("WEBSOCKET ONTEXT CALLED");
                 listener.onMessage(answer, data.toString());
                 return null;
             }

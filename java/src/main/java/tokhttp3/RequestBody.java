@@ -27,11 +27,13 @@ public abstract class RequestBody {
 
     public static RequestBody create(MediaType contentType, String string) {
         System.err.println("create, obj = "+contentType+", string = "+string);
+        System.err.println("c "+contentType.getCharset()+", mediatype = "+contentType.getMediaType()+", subtype = "+contentType.getSubtype()+", type = " + contentType.getType());
         return new MyRequestBody(contentType, string);
     }
     static class MyRequestBody extends RequestBody {
 
         MyRequestBody(MediaType contentType, byte[] content) {
+            Thread.dumpStack();
             this.contentType = contentType;
             jRequestBody = HttpRequest.BodyPublishers.ofByteArray(content);
         }

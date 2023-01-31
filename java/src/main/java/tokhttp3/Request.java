@@ -81,29 +81,34 @@ public class Request {
         }
 
         public Builder header(String key, String encodeBytes) {
+            System.err.println("HEADER "+key+" with val " + encodeBytes);
             builder.header(key, encodeBytes);
             return this;
         }
 
         public Builder addHeader(String key, String encodeBytes) {
+            System.err.println("ADDHEADER "+key+" with val " + encodeBytes);
             builder.header(key, encodeBytes);
             return this;
         }
 
-        public Builder put(RequestBody body) {
-            throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        public Builder put(RequestBody requestBody) {
+            return method("PUT", requestBody);
         }
 
         public Builder get() {
-            throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+            return method("GET", null);
         }
 
         public Builder post(RequestBody requestBody) {
-            throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+            return method("POST", requestBody);
         }
 
         public Builder method(String method, RequestBody body) {
             builder.method(method, body == null ? noBody() : body.getBodyPublisher());
+            if (body != null) {
+                builder.header("Content-Type", body.contentType.getMediaType());
+            }
             return this;
         }
 

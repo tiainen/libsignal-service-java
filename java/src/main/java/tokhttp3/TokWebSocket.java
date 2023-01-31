@@ -4,6 +4,10 @@
  */
 package tokhttp3;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import okio.ByteString;
 
 /**
@@ -30,7 +34,18 @@ public class TokWebSocket implements WebSocket {
 
     @Override
     public boolean send(ByteString of) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        System.err.println("SENDBINARY text to "+this.jws);
+        CompletableFuture<java.net.http.WebSocket> cf = this.jws.sendBinary(of.asByteBuffer(), false);
+        try {
+            System.err.println("CF created, wait...");
+            java.net.http.WebSocket wwss = cf.get();
+            System.err.println("CF get done, wwss = "+wwss);
+        } catch (InterruptedException ex) {
+            Logger.getLogger(TokWebSocket.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (ExecutionException ex) {
+            Logger.getLogger(TokWebSocket.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return true;
     }
 
     @Override
@@ -41,7 +56,7 @@ public class TokWebSocket implements WebSocket {
 
     @Override
     public long queueSize() {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        return 1;
     }
     
 }
