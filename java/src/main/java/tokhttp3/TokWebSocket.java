@@ -36,7 +36,7 @@ public class TokWebSocket implements WebSocket {
     @Override
     public boolean send(ByteString of) {
         LOG.info("SENDBINARY text to "+this.jws+" and state = "+this.jws.isInputClosed()+", "+this.jws.isOutputClosed());
-        CompletableFuture<java.net.http.WebSocket> cf = this.jws.sendBinary(of.asByteBuffer(), false);
+        CompletableFuture<java.net.http.WebSocket> cf = this.jws.sendBinary(of.asByteBuffer(), true);
         try {
             System.err.println("CF created, wait...");
             java.net.http.WebSocket wwss = cf.get();
