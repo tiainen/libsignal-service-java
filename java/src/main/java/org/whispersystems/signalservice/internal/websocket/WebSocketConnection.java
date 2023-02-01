@@ -267,10 +267,9 @@ System.err.println("WS will send response bytes: "+ java.util.Arrays.toString(me
                             .setVerb("GET")
                             .build()).build()
                     .toByteArray();
-            LOG.info("DONT send keepAlive to "+client);
-//            if (!client.send(ByteString.of(message))) {
-//                throw new IOException("Write failed!");
-//            }
+            if (!client.send(ByteString.of(message))) {
+                throw new IOException("Write failed!");
+            }
         }
     }
 

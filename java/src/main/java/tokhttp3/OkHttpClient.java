@@ -7,11 +7,8 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.X509TrustManager;
@@ -68,7 +65,8 @@ public class OkHttpClient {
 
             @Override
             public CompletionStage<?> onClose(java.net.http.WebSocket webSocket, int statusCode, String reason) {
-                LOG.severe("WEBSOCKET CLOSED with code "+statusCode);
+                LOG.severe("WEBSOCKET CLOSED with code "+statusCode+" and reason "+reason);
+                Thread.dumpStack();
                 return null;
             }
 
