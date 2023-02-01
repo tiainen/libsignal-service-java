@@ -222,6 +222,7 @@ public class WebSocketConnection extends WebSocketListener {
         if (client == null || !connected) {
             throw new IOException("No connection!");
         }
+LOG.info("WEBSOCKET sends");
 
         WebSocketMessage message = WebSocketMessage.newBuilder()
                 .setType(WebSocketMessage.Type.REQUEST)
@@ -242,11 +243,14 @@ public class WebSocketConnection extends WebSocketListener {
         if (client == null) {
             throw new IOException("Connection closed!");
         }
+ LOG.info("WEBSOCKET sends "+response);
+        System.err.println("response msg = "+response.getMessage());
 
         WebSocketMessage message = WebSocketMessage.newBuilder()
                 .setType(WebSocketMessage.Type.RESPONSE)
                 .setResponse(response)
                 .build();
+System.err.println("WS will send bytes: "+ java.util.Arrays.toString(message.toByteArray()));
 
         if (!client.send(ByteString.of(message.toByteArray()))) {
             throw new IOException("Write failed!");
@@ -315,7 +319,8 @@ public class WebSocketConnection extends WebSocketListener {
             }
 
             notifyAll();
-        } catch (InvalidProtocolBufferException e) {
+        } catch (Exception e) {
+            e.printStackTrace();
             Log.w(TAG, e);
         }
         LOG.finer(Thread.currentThread()+" handled onMessage "+mid);

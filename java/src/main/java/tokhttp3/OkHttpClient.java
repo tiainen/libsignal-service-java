@@ -74,43 +74,46 @@ public class OkHttpClient {
 
             @Override
             public CompletionStage<?> onBinary(java.net.http.WebSocket webSocket, ByteBuffer data, boolean last) {
-                  LOG.info("WEBSOCKET ONBINARY CALLED on "+Thread.currentThread());
+                  LOG.info("WEBSOCKET ONBINARY CALLED on "+Thread.currentThread()+", last = "+last);
+               webSocket.request(1);
+                  try {
                   listener.onMessage(answer, ByteString.of(data));
+                  } catch (Throwable t) {
+                      t.printStackTrace();
+                  }
                   return null;
             }
 
             @Override
             public CompletionStage<?> onText(java.net.http.WebSocket webSocket, CharSequence data, boolean last) {
                 System.err.println("WEBSOCKET ONTEXT CALLED");
+                webSocket.request(1);
+
+                try {
                 listener.onMessage(answer, data.toString());
+                 } catch (Throwable t) {
+                      t.printStackTrace();
+                  }
                 return null;
             }
 
         });
         System.err.println("building...");
-        
+      
         Executors.newCachedThreadPool().submit(() -> {
             try {
-            Thread.sleep(500);
-                            System.err.println("try to join...");
+                System.err.println("try to join...");
 
-            java.net.http.WebSocket ws = buildAsync.join();
-                System.err.println("yes, got ws = "+ws);
-            answer.setJavaWebSocket(ws);
+                java.net.http.WebSocket ws = buildAsync.join();
+                LOG.info("yes, got ws = " + ws);
+                answer.setJavaWebSocket(ws);
                 System.err.println("stored ws on answer");
             } catch (Throwable t) {
                 t.printStackTrace();
             }
             return null;
         });
-        
-//        try {
-//            java.net.http.WebSocket ws = buildAsync.join();//.get(5, TimeUnit.SECONDS);
-//            System.err.println("building done...");
-//            answer.setJavaWebSocket(ws);
-//        } catch (Exception ex) {
-//            Logger.getLogger(OkHttpClient.class.getName()).log(Level.SEVERE, null, ex);
-//        } 
+
         return answer;
     }
 
@@ -119,6 +122,8 @@ public class OkHttpClient {
         HttpClient.Builder realBuilder;
 
         public Builder() {
+//            Thread.dumpStack();
+            System.err.println("TAAAAK");
             realBuilder = HttpClient.newBuilder();
         }
 
@@ -139,6 +144,8 @@ public class OkHttpClient {
         }
 
         public OkHttpClient build() {
+            System.err.println("TOOOK");
+//            Thread.dumpStack();
             HttpClient httpClient = realBuilder.build();
             httpClient.connectTimeout().ifPresent(d -> System.err.println("DURRRR "+d.getSeconds()));
             return new OkHttpClient(httpClient);

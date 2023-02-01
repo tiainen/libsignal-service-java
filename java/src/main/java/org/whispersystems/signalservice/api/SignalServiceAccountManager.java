@@ -163,7 +163,9 @@ public class SignalServiceAccountManager {
                                      boolean automaticNetworkRetry)
   {
     this.groupsV2Operations = groupsV2Operations;
+      System.err.println("About to create PSS");
     this.pushServiceSocket  = new PushServiceSocket(configuration, credentialsProvider, signalAgent, groupsV2Operations.getProfileOperations(), automaticNetworkRetry);
+      System.err.println("Did create PSS");
     this.credentials        = credentialsProvider;
     this.userAgent          = signalAgent;
     this.configuration      = configuration;

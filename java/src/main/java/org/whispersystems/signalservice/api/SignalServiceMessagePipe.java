@@ -185,8 +185,12 @@ public class SignalServiceMessagePipe {
         } else if (isSocketEmptyRequest(request)) {
           return Optional.empty();
         }
+        LOG.info("Done with try");
+      } catch (Throwable t) {
+          LOG.info("WOW");
+          t.printStackTrace();
       } finally {
-        LOG.finer("[SSMP] readOrEmpty will send response");
+        LOG.finer("[SSMP] readOrEmpty will now send response");
         try {
             websocket.sendResponse(response);
         } catch (IOException ioe) {
@@ -405,7 +409,8 @@ public class SignalServiceMessagePipe {
 
   private WebSocketResponseMessage createWebSocketResponse(WebSocketRequestMessage request) {
     if (isSignalServiceEnvelope(request)) {
-      return WebSocketResponseMessage.newBuilder()
+               System.err.println("create response with id = "+request.getId());
+      return WebSocketResponseMessage.newBuilder()        
                                      .setId(request.getId())
                                      .setStatus(200)
                                      .setMessage("OK")

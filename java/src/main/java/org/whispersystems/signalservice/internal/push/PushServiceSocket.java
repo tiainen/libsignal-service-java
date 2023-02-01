@@ -2018,6 +2018,7 @@ public class PushServiceSocket {
 
     private Response makeStorageRequestResponse(String authorization, String path, String method, RequestBody body, ResponseCodeHandler responseCodeHandler)
             throws PushNetworkException, NonSuccessfulResponseCodeException {
+        LOG.info("Will make storage request");
         ConnectionHolder connectionHolder = getRandom(storageClients, random);
         OkHttpClient okHttpClient = connectionHolder.getClient()
                 .newBuilder()
@@ -2028,7 +2029,7 @@ public class PushServiceSocket {
         Log.d(TAG, "Opening URL: " + connectionHolder.getUrl());
         Request.Builder request = new Request.Builder().url(connectionHolder.getUrl() + path);
         request.method(method, body);
-
+LOG.info("Will perform request with method "+method);
         if (connectionHolder.getHostHeader().isPresent()) {
             request.addHeader("Host", connectionHolder.getHostHeader().get());
         }
@@ -2036,8 +2037,9 @@ public class PushServiceSocket {
         if (authorization != null) {
             request.addHeader("Authorization", authorization);
         }
-
+LOG.info("initiating call");
         MyCall call = okHttpClient.newCall(request.build());
+LOG.info("initiated call");
 
         synchronized (connections) {
             connections.add(call);
@@ -2047,11 +2049,12 @@ public class PushServiceSocket {
 
         try {
             response = call.execute();
-
+LOG.info("Created response, got code "+response.code());
             if (response.isSuccessful() && response.code() != 204) {
                 return response;
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
+            e.printStackTrace();
             throw new PushNetworkException(e);
         } finally {
             synchronized (connections) {
@@ -2140,11 +2143,18 @@ public class PushServiceSocket {
             Optional<Dns> dns,
             Optional<SignalProxy> proxy) {
         List<ServiceConnectionHolder> serviceConnectionHolders = new LinkedList<>();
-
+        System.err.println("CSCH, urlsize = "+urls.length);
         for (SignalUrl url : urls) {
-            serviceConnectionHolders.add(new ServiceConnectionHolder(createConnectionClient(url, interceptors, dns, proxy),
-                    createConnectionClient(url, interceptors, dns, proxy),
+            System.err.println("url " + url+", Create cok");
+            OkHttpClient cok = createConnectionClient(url, interceptors, dns, proxy);
+            System.err.println("Created cok");
+            OkHttpClient cok2 = createConnectionClient(url, interceptors, dns, proxy);
+            System.err.println("created cok2");
+            serviceConnectionHolders.add(new ServiceConnectionHolder(cok,
+                    cok2,
                     url.getUrl(), url.getHostHeader()));
+            
+            
         }
 
         return serviceConnectionHolders.toArray(new ServiceConnectionHolder[0]);
@@ -2181,6 +2191,7 @@ public class PushServiceSocket {
 
     private static OkHttpClient createConnectionClient(SignalUrl url, List<Interceptor> interceptors, Optional<Dns> dns, Optional<SignalProxy> proxy) {
         try {
+            System.err.println("PSS, CCC");
             TrustManager[] trustManagers = BlacklistingTrustManager.createFor(url.getTrustStore());
 
             SSLContext context = SSLContext.getInstance("TLS");
@@ -2196,15 +2207,15 @@ public class PushServiceSocket {
             }
 
             builder.sslSocketFactory(new Tls12SocketFactory(context.getSocketFactory()), (X509TrustManager) trustManagers[0])
-                    .connectionSpecs(url.getConnectionSpecs().orElse(Util.immutableList(ConnectionSpec.RESTRICTED_TLS)))
-                    .build();
+                    .connectionSpecs(url.getConnectionSpecs().orElse(Util.immutableList(ConnectionSpec.RESTRICTED_TLS)));
+//                    .build();
 
             builder.connectionPool(new ConnectionPool(5, 45, TimeUnit.SECONDS));
 
             for (Interceptor interceptor : interceptors) {
                 builder.addInterceptor(interceptor);
             }
-
+            System.err.println("Build it!");
             return builder.build();
         } catch (NoSuchAlgorithmException | KeyManagementException e) {
             throw new AssertionError(e);

@@ -15,6 +15,7 @@ import okio.ByteString;
  * @author johan
  */
 public class TokWebSocket implements WebSocket {
+    private static final Logger LOG = Logger.getLogger(TokWebSocket.class.getName());
 
     private final WebSocketListener twsl;
     private java.net.http.WebSocket jws;
@@ -34,7 +35,7 @@ public class TokWebSocket implements WebSocket {
 
     @Override
     public boolean send(ByteString of) {
-        System.err.println("SENDBINARY text to "+this.jws);
+        LOG.info("SENDBINARY text to "+this.jws+" and state = "+this.jws.isInputClosed()+", "+this.jws.isOutputClosed());
         CompletableFuture<java.net.http.WebSocket> cf = this.jws.sendBinary(of.asByteBuffer(), false);
         try {
             System.err.println("CF created, wait...");
@@ -50,6 +51,7 @@ public class TokWebSocket implements WebSocket {
 
     @Override
     public boolean send(String text) {
+        LOG.info("SENTEXT text to "+this.jws+" and state = "+this.jws.isInputClosed()+", "+this.jws.isOutputClosed());
         this.jws.sendText(text, false);
         return true;
     }
