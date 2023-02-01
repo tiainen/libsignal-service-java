@@ -250,7 +250,7 @@ LOG.info("WEBSOCKET sends");
                 .setType(WebSocketMessage.Type.RESPONSE)
                 .setResponse(response)
                 .build();
-System.err.println("WS will send bytes: "+ java.util.Arrays.toString(message.toByteArray()));
+System.err.println("WS will send response bytes: "+ java.util.Arrays.toString(message.toByteArray()));
 
         if (!client.send(ByteString.of(message.toByteArray()))) {
             throw new IOException("Write failed!");
@@ -267,6 +267,7 @@ System.err.println("WS will send bytes: "+ java.util.Arrays.toString(message.toB
                             .setVerb("GET")
                             .build()).build()
                     .toByteArray();
+            LOG.info("send keepAlive to "+client);
             if (!client.send(ByteString.of(message))) {
                 throw new IOException("Write failed!");
             }

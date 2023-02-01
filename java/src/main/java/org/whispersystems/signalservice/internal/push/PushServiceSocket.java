@@ -2029,6 +2029,7 @@ public class PushServiceSocket {
                 .build();
 
         Log.d(TAG, "Opening URL: " + connectionHolder.getUrl());
+        LOG.info("will use body = "+body);
         Request.Builder request = new Request.Builder().url(connectionHolder.getUrl() + path);
         request.method(method, body);
 LOG.info("Will perform request with method "+method);

@@ -20,6 +20,8 @@ public class Request {
     private HttpRequest httpRequest;
     private final boolean ws;
     private URI origUri;
+    
+    private static final Logger LOG = Logger.getLogger(Request.class.getName());
 
     Request(HttpRequest httpRequest, boolean ws, URI origUri) {
         this.httpRequest = httpRequest;
@@ -107,6 +109,7 @@ public class Request {
         public Builder method(String method, RequestBody body) {
             builder.method(method, body == null ? noBody() : body.getBodyPublisher());
             if (body != null) {
+                LOG.info("add content type to "+body.contentType.getMediaType());
                 builder.header("Content-Type", body.contentType.getMediaType());
             }
             return this;

@@ -5,6 +5,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.net.http.HttpResponse.BodyHandlers;
+import java.net.http.HttpResponse.BodySubscribers;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -21,7 +23,8 @@ public class MyCall implements Call {
     private HttpClient httpClient;
     private Request request;
     static final ExecutorService executor = Executors.newFixedThreadPool(1); // avoid race issues for now
-    
+    private static final Logger LOG = Logger.getLogger(MyCall.class.getName());
+
     public MyCall(HttpClient client, Request request) {
         this.httpClient = client;
         this.request = request;
@@ -35,10 +38,25 @@ public class MyCall implements Call {
           //  if (request.getHttpRequest().headers().firstValue("Content-Type").isPresent()) {
                 responseBodyHandler = BodyHandlers.ofString();
            // }
+           HttpResponse.BodyHandler mbh = new HttpResponse.BodyHandler() {
+                @Override
+                public HttpResponse.BodySubscriber apply(HttpResponse.ResponseInfo responseInfo) {
+                    String ct = responseInfo.headers().firstValue("content-type").orElse("");
+                    LOG.info("response content-type = "+ct);
+                    if (ct.isBlank()) return BodySubscribers.discarding();
+                    if (ct.equals("application/json")) {
+                        return  BodySubscribers.ofString(StandardCharsets.UTF_8);
+                    } else {
+                       return BodySubscribers.ofByteArray(); 
+                    }
+                };
+               
+           };
+            LOG.info("MBH = "+mbh);
             System.err.println("SENDREQUEST "+request.getHttpRequest());
             HttpRequest httpRequest = request.getHttpRequest();
             System.err.println("HEADERS = " + httpRequest.headers());
-            HttpResponse httpResponse = this.httpClient.send(request.getHttpRequest(), BodyHandlers.ofString());
+            HttpResponse httpResponse = this.httpClient.send(request.getHttpRequest(), mbh);
             System.err.println("RESPONSEHEADERS = " + httpResponse.headers().map());
             Response answer = new Response(httpResponse);
             

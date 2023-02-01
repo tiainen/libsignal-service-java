@@ -409,13 +409,14 @@ public class SignalServiceMessagePipe {
 
   private WebSocketResponseMessage createWebSocketResponse(WebSocketRequestMessage request) {
     if (isSignalServiceEnvelope(request)) {
-               System.err.println("create response with id = "+request.getId());
+               System.err.println("create response for request with id = "+request.getId());
       return WebSocketResponseMessage.newBuilder()        
                                      .setId(request.getId())
                                      .setStatus(200)
                                      .setMessage("OK")
                                      .build();
     } else {
+        LOG.info("we need to create a response but have no envelope");
       return WebSocketResponseMessage.newBuilder()
                                      .setId(request.getId())
                                      .setStatus(400)

@@ -5,6 +5,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.http.HttpResponse;
+import java.util.logging.Logger;
 
 /**
  *
@@ -15,7 +16,8 @@ public final class ResponseBody<T> implements Closeable {
 
     private final HttpResponse<T> httpResponse;
     long contentLength = -1;
-    
+        private static final Logger LOG = Logger.getLogger(ResponseBody.class.getName());
+
     public ResponseBody(HttpResponse<T> httpResponse) {
         this.httpResponse = httpResponse;
         httpResponse.headers().firstValue("content-length")
@@ -25,10 +27,14 @@ public final class ResponseBody<T> implements Closeable {
     
     public String string() throws IOException {
         T body = httpResponse.body();
+        if (body == null) {
+            LOG.info("null body, return empty string as response");
+            return "";
+        }
         if (body instanceof String) {
             return (String)body;
         }
-        throw new IOException("Not supported yet."); 
+        throw new IOException("Not supported yet: "+body.getClass()); 
     }
     
     public byte[] bytes() throws IOException {
