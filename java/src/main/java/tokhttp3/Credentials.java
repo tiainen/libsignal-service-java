@@ -12,7 +12,8 @@ public class Credentials {
     
     public static String basic(String username, String password) {
         String uap = username+":"+password;
-        return Base64.getEncoder().encodeToString(uap.getBytes());
+        String enc = Base64.getEncoder().encodeToString(uap.getBytes());
+        return "Basic "+enc;
     }
     
 }

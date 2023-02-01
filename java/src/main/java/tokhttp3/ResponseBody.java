@@ -33,6 +33,8 @@ public final class ResponseBody<T> implements Closeable {
     
     public byte[] bytes() throws IOException {
         T body = httpResponse.body();
+        System.err.println("need to get bytes for class " + body.getClass());
+        System.err.println("and body = "+body);
         if (body instanceof MyBodyHandler) {
             MyBodyHandler mbh = (MyBodyHandler)body;
             if (mbh.binary) {
@@ -40,6 +42,9 @@ public final class ResponseBody<T> implements Closeable {
         }
         if (body instanceof byte[]) {
             return (byte[])body;
+        }
+        if (body instanceof String) {
+            return ((String) body).getBytes();
         }
         throw new IOException("Not supported yet.");
     }

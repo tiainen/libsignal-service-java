@@ -1097,7 +1097,9 @@ public class PushServiceSocket {
         LOG.info("Response from getStorageAuth = " + response);
         StorageAuthResponse authResponse = JsonUtil.fromJson(response, StorageAuthResponse.class);
 
-        return Credentials.basic(authResponse.getUsername(), authResponse.getPassword());
+        String answer = Credentials.basic(authResponse.getUsername(), authResponse.getPassword());
+        LOG.info("answer from storageauth = "+ answer);
+        return answer;
     }
 
     public StorageManifest getStorageManifest(String authToken) throws IOException {
