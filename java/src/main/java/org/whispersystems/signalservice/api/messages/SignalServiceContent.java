@@ -1147,7 +1147,7 @@ public final class SignalServiceContent {
                                     Optional.ofNullable(attachment));
   }
 
-  private static List<SignalServiceDataMessage.Mention> createMentions(List<SignalServiceProtos.DataMessage.BodyRange> bodyRanges, String body, boolean isGroupV2)
+  private static List<SignalServiceDataMessage.Mention> createMentions(List<SignalServiceProtos.BodyRange> bodyRanges, String body, boolean isGroupV2)
       throws InvalidMessageStructureException
   {
     if (bodyRanges == null || bodyRanges.isEmpty() || body == null) {
@@ -1156,7 +1156,7 @@ public final class SignalServiceContent {
 
     List<SignalServiceDataMessage.Mention> mentions = new LinkedList<>();
 
-    for (SignalServiceProtos.DataMessage.BodyRange bodyRange : bodyRanges) {
+    for (SignalServiceProtos.BodyRange bodyRange : bodyRanges) {
       if (bodyRange.hasMentionUuid()) {
         try {
           mentions.add(new SignalServiceDataMessage.Mention(ServiceId.parseOrThrow(bodyRange.getMentionUuid()), bodyRange.getStart(), bodyRange.getLength()));

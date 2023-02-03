@@ -136,6 +136,7 @@ import org.whispersystems.signalservice.internal.push.GroupMismatchedDevices;
 import org.whispersystems.signalservice.internal.push.GroupStaleDevices;
 import org.whispersystems.signalservice.internal.push.SendGroupMessageResponse;
 import org.whispersystems.signalservice.internal.push.SignalServiceProtos;
+import org.whispersystems.signalservice.internal.push.SignalServiceProtos.BodyRange;
 import org.whispersystems.signalservice.internal.push.SignalServiceProtos.Preview;
 import org.whispersystems.signalservice.internal.push.SignalServiceProtos.StoryMessage;
 import org.whispersystems.signalservice.internal.push.SignalServiceProtos.TextAttachment;
@@ -1174,7 +1175,7 @@ public class SignalServiceMessageSender {
 
             if (!message.getQuote().get().getMentions().isEmpty()) {
                 for (SignalServiceDataMessage.Mention mention : message.getQuote().get().getMentions()) {
-                    quoteBuilder.addBodyRanges(DataMessage.BodyRange.newBuilder()
+                    quoteBuilder.addBodyRanges(BodyRange.newBuilder()
                             .setStart(mention.getStart())
                             .setLength(mention.getLength())
                             .setMentionUuid(mention.getServiceId().toString()));
@@ -1212,7 +1213,7 @@ public class SignalServiceMessageSender {
 
         if (message.getMentions().isPresent()) {
             for (SignalServiceDataMessage.Mention mention : message.getMentions().get()) {
-                builder.addBodyRanges(DataMessage.BodyRange.newBuilder()
+                builder.addBodyRanges(BodyRange.newBuilder()
                         .setStart(mention.getStart())
                         .setLength(mention.getLength())
                         .setMentionUuid(mention.getServiceId().toString()));
