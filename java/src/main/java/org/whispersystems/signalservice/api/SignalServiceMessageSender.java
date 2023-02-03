@@ -1220,15 +1220,6 @@ public class SignalServiceMessageSender {
             builder.setRequiredProtocolVersion(Math.max(DataMessage.ProtocolVersion.MENTIONS_VALUE, builder.getRequiredProtocolVersion()));
         }
 
-        if (message.getMentions().isPresent()) {
-            for (SignalServiceDataMessage.Mention mention : message.getMentions().get()) {
-                builder.addBodyRanges(DataMessage.BodyRange.newBuilder()
-                        .setStart(mention.getStart())
-                        .setLength(mention.getLength())
-                        .setMentionUuid(mention.getServiceId().toString()));
-            }
-            builder.setRequiredProtocolVersion(Math.max(DataMessage.ProtocolVersion.MENTIONS_VALUE, builder.getRequiredProtocolVersion()));
-        }
         if (message.getSticker().isPresent()) {
             DataMessage.Sticker.Builder stickerBuilder = DataMessage.Sticker.newBuilder();
 
