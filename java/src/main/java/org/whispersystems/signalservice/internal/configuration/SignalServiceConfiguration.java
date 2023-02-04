@@ -4,8 +4,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import okhttp3.Dns;
-import okhttp3.Interceptor;
+import tokhttp3.Dns;
+import tokhttp3.Interceptor;
 
 public final class SignalServiceConfiguration {
 

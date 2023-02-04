@@ -4,7 +4,7 @@ import org.signal.libsignal.zkgroup.auth.AuthCredentialPresentation;
 import org.signal.libsignal.zkgroup.groups.GroupSecretParams;
 import org.whispersystems.signalservice.internal.util.Hex;
 
-import okhttp3.Credentials;
+import tokhttp3.Credentials;
 
 public final class GroupsV2AuthorizationString {
 

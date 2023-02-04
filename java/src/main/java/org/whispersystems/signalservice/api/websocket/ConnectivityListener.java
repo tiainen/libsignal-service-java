@@ -1,7 +1,7 @@
 package org.whispersystems.signalservice.api.websocket;
 
 
-import okhttp3.Response;
+import tokhttp3.Response;
 
 public interface ConnectivityListener {
   void onConnected();

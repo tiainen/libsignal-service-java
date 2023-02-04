@@ -7,9 +7,10 @@ import org.whispersystems.signalservice.api.messages.SignalServiceAttachment.Pro
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.http.HttpRequest;
 
-import okhttp3.MediaType;
-import okhttp3.RequestBody;
+import tokhttp3.MediaType;
+import tokhttp3.RequestBody;
 import okio.BufferedSink;
 
 public class DigestingRequestBody extends RequestBody {
@@ -82,4 +83,10 @@ public class DigestingRequestBody extends RequestBody {
   public byte[] getTransmittedDigest() {
     return digest;
   }
+
+    @Override
+    public HttpRequest.BodyPublisher getBodyPublisher() {
+        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    }
+
 }

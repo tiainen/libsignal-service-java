@@ -2,7 +2,7 @@ package org.whispersystems.signalservice.internal.push.exceptions;
 
 import org.whispersystems.signalservice.api.push.exceptions.NonSuccessfulResponseCodeException;
 
-import okhttp3.ResponseBody;
+import tokhttp3.ResponseBody;
 
 public final class PaymentsRegionException extends NonSuccessfulResponseCodeException {
   public PaymentsRegionException(int code) {
