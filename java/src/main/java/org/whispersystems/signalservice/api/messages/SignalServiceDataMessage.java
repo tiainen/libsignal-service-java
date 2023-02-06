@@ -17,6 +17,7 @@ import org.signal.libsignal.zkgroup.groups.GroupSecretParams;
 
 import org.whispersystems.signalservice.api.push.ServiceId;
 import org.whispersystems.signalservice.internal.push.SignalServiceProtos;
+import org.whispersystems.signalservice.internal.push.SignalServiceProtos.BodyRange;
 
 /**
  * Represents a decrypted Signal Service data message.
@@ -41,6 +42,7 @@ public class SignalServiceDataMessage {
   private final Optional<Reaction>                      reaction;
   private final Optional<RemoteDelete>                  remoteDelete;
   private final Optional<GroupCallUpdate>               groupCallUpdate;
+  private final Optional<List<BodyRange>>               bodyRanges;
 
   /**
    * Construct a SignalServiceDataMessage.
@@ -62,7 +64,8 @@ public class SignalServiceDataMessage {
                            GroupCallUpdate groupCallUpdate,
                            Payment payment,
                            StoryContext storyContext,
-                           GiftBadge giftBadge)
+                           GiftBadge giftBadge,
+                           List<BodyRange> bodyRanges)
   {
     this.group = Optional.ofNullable(groupV2);
     this.timestamp        = timestamp;
@@ -101,6 +104,12 @@ public class SignalServiceDataMessage {
       this.mentions = Optional.of(mentions);
     } else {
       this.mentions = Optional.empty();
+    }
+
+    if (bodyRanges != null && !bodyRanges.isEmpty()) {
+        this.bodyRanges = Optional.of(bodyRanges);
+    } else {
+        this.bodyRanges = Optional.empty();
     }
   }
 
@@ -220,6 +229,10 @@ public class SignalServiceDataMessage {
     return groupCallUpdate;
   }
 
+  public Optional<List<BodyRange>> getBodyRanges() {
+    return this.bodyRanges;
+  }
+
   public Optional<byte[]> getGroupId() {
     byte[] groupId = null;
 
@@ -255,9 +268,10 @@ public class SignalServiceDataMessage {
     private Reaction             reaction;
     private RemoteDelete         remoteDelete;
     private GroupCallUpdate      groupCallUpdate;
-        private StoryContext storyContext;
-        private GiftBadge giftBadge;
-        private Payment payment;
+    private StoryContext storyContext;
+    private GiftBadge giftBadge;
+    private Payment payment;
+    private List<BodyRange> bodyRanges = new LinkedList<>();
 
     private Builder() {}
 
@@ -395,13 +409,18 @@ public class SignalServiceDataMessage {
       return this;
     }
 
+    public Builder withBodyRanges(List<BodyRange> bodyRanges) {
+      this.bodyRanges.addAll(bodyRanges);
+      return this;
+    }
+
     public SignalServiceDataMessage build() {
       if (timestamp == 0) timestamp = System.currentTimeMillis();
       return new SignalServiceDataMessage(timestamp, groupV2, attachments, body, endSession,
                                           expiresInSeconds, expirationUpdate, profileKey,
                                           profileKeyUpdate, quote, sharedContacts, previews,
                                           mentions, sticker, viewOnce, reaction, remoteDelete,
-                                          groupCallUpdate, payment, storyContext, giftBadge);
+                                          groupCallUpdate, payment, storyContext, giftBadge, bodyRanges);
     }
   }
 
@@ -633,6 +652,30 @@ public class SignalServiceDataMessage {
 
     public ServiceId getServiceId() {
       return serviceId;
+    }
+
+    public int getStart() {
+      return start;
+    }
+
+    public int getLength() {
+      return length;
+    }
+  }
+
+  public static class BodyRange {
+    private final int style;
+    private final int  start;
+    private final int  length;
+
+    public BodyRange(int style, int start, int length) {
+      this.style   = style;
+      this.start  = start;
+      this.length = length;
+    }
+
+    public int getStyle() {
+      return style;
     }
 
     public int getStart() {

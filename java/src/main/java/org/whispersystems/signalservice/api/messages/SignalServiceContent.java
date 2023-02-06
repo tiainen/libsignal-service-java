@@ -11,7 +11,15 @@ import com.google.protobuf.InvalidProtocolBufferException;
 
 import org.signal.libsignal.metadata.ProtocolInvalidKeyException;
 import org.signal.libsignal.metadata.ProtocolInvalidMessageException;
-
+import org.signal.libsignal.protocol.IdentityKey;
+import org.signal.libsignal.protocol.InvalidKeyException;
+import org.signal.libsignal.protocol.InvalidMessageException;
+import org.signal.libsignal.protocol.logging.Log;
+import org.signal.libsignal.protocol.message.DecryptionErrorMessage;
+import org.signal.libsignal.protocol.message.SenderKeyDistributionMessage;
+import org.signal.libsignal.zkgroup.InvalidInputException;
+import org.signal.libsignal.zkgroup.groups.GroupMasterKey;
+import org.signal.libsignal.zkgroup.receipts.ReceiptCredentialPresentation;
 import org.whispersystems.signalservice.api.InvalidMessageStructureException;
 import org.whispersystems.signalservice.api.messages.calls.AnswerMessage;
 import org.whispersystems.signalservice.api.messages.calls.BusyMessage;
@@ -58,16 +66,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
-import org.signal.libsignal.protocol.IdentityKey;
-import org.signal.libsignal.protocol.InvalidKeyException;
-import org.signal.libsignal.protocol.InvalidMessageException;
-import org.signal.libsignal.protocol.logging.Log;
-import org.signal.libsignal.protocol.message.DecryptionErrorMessage;
-import org.signal.libsignal.protocol.message.SenderKeyDistributionMessage;
-import org.signal.libsignal.zkgroup.InvalidInputException;
-import org.signal.libsignal.zkgroup.groups.GroupMasterKey;
-import org.signal.libsignal.zkgroup.receipts.ReceiptCredentialPresentation;
-import org.whispersystems.signalservice.internal.push.SignalServiceProtos.SyncMessage.PniIdentity;
 
 public final class SignalServiceContent {
 
@@ -679,9 +677,9 @@ public final class SignalServiceContent {
     Optional<SignalServiceGroupV2> groupContext = Optional.ofNullable(groupInfoV2);
 
     List<SignalServiceAttachment>            attachments      = new LinkedList<>();
-    boolean                                  endSession       = ((content.getFlags() & SignalServiceProtos.DataMessage.Flags.END_SESSION_VALUE            ) != 0);
+    boolean                                  endSession       = ((content.getFlags() & SignalServiceProtos.DataMessage.Flags.END_SESSION_VALUE) != 0);
     boolean                                  expirationUpdate = ((content.getFlags() & SignalServiceProtos.DataMessage.Flags.EXPIRATION_TIMER_UPDATE_VALUE) != 0);
-    boolean                                  profileKeyUpdate = ((content.getFlags() & SignalServiceProtos.DataMessage.Flags.PROFILE_KEY_UPDATE_VALUE     ) != 0);
+    boolean                                  profileKeyUpdate = ((content.getFlags() & SignalServiceProtos.DataMessage.Flags.PROFILE_KEY_UPDATE_VALUE) != 0);
     boolean                                  isGroupV2        = groupInfoV2 != null;
     SignalServiceDataMessage.Quote           quote            = createQuote(content, isGroupV2);
     List<SharedContact>                      sharedContacts   = createSharedContacts(content);
@@ -693,6 +691,7 @@ public final class SignalServiceContent {
     SignalServiceDataMessage.GroupCallUpdate groupCallUpdate  = createGroupCallUpdate(content);
     SignalServiceDataMessage.StoryContext    storyContext     = createStoryContext(content);
     SignalServiceDataMessage.GiftBadge       giftBadge        = createGiftBadge(content);
+    List<SignalServiceDataMessage.BodyRange>      bodyRanges       = createBodyRanges(content.getBodyRangesList(), content.getBody());
 
     if (content.getRequiredProtocolVersion() > SignalServiceProtos.DataMessage.ProtocolVersion.CURRENT_VALUE) {
       throw new UnsupportedDataMessageProtocolVersionException(SignalServiceProtos.DataMessage.ProtocolVersion.CURRENT_VALUE,
@@ -722,27 +721,31 @@ public final class SignalServiceContent {
                                                  metadata.getSenderDevice());
     }
 
-    return new SignalServiceDataMessage(metadata.getTimestamp(),
-                                        groupInfoV2,
-                                        attachments,
-                                        content.hasBody() ? content.getBody() : null,
-                                        endSession,
-                                        content.getExpireTimer(),
-                                        expirationUpdate,
-                                        content.hasProfileKey() ? content.getProfileKey().toByteArray() : null,
-                                        profileKeyUpdate,
-                                        quote,
-                                        sharedContacts,
-                                        previews,
-                                        mentions,
-                                        sticker,
-                                        content.getIsViewOnce(),
-                                        reaction,
-                                        remoteDelete,
-                                        groupCallUpdate,
-                                        payment,
-                                        storyContext,
-                                        giftBadge);
+    return SignalServiceDataMessage.newBuilder()
+                                   .withTimestamp(metadata.getTimestamp())
+                                   .asGroupMessage(groupInfoV2)
+                                   .withAttachments(attachments)
+                                   .withBody(content.hasBody() ? content.getBody() : null)
+                                   .asEndSessionMessage(endSession)
+                                   .withExpiration(content.getExpireTimer())
+                                   .asExpirationUpdate(expirationUpdate)
+                                   .withProfileKey(content.hasProfileKey() ? content.getProfileKey().toByteArray() : null)
+                                   .asProfileKeyUpdate(profileKeyUpdate)
+                                   .withQuote(quote)
+                                   .withSharedContacts(sharedContacts)
+                                   .withPreviews(previews)
+                                   .withMentions(mentions)
+                                   .withSticker(sticker)
+                                   .withViewOnce(content.getIsViewOnce())
+                                   .withReaction(reaction)
+                                   .withRemoteDelete(remoteDelete)
+                                   .withGroupCallUpdate(groupCallUpdate)
+                                   .withPayment(payment)
+                                   .withStoryContext(storyContext)
+                                   .withGiftBadge(giftBadge)
+                                   .withBodyRanges(bodyRanges)
+                                   .build();
+
   }
 
   private static SignalServiceSyncMessage createSynchronizeMessage(SignalServiceMetadata metadata,
@@ -1171,6 +1174,22 @@ public final class SignalServiceContent {
     }
 
     return mentions;
+  }
+
+  private static List<SignalServiceDataMessage.BodyRange> createBodyRanges(List<SignalServiceProtos.BodyRange> bodyRanges, String body) {
+    if (bodyRanges == null || bodyRanges.isEmpty() || body == null) {
+      return null;
+    }
+
+    List<SignalServiceDataMessage.BodyRange> ranges = new LinkedList<>();
+
+    for (SignalServiceProtos.BodyRange bodyRange : bodyRanges) {
+      if (bodyRange.hasStyle()) {
+        ranges.add(new SignalServiceDataMessage.BodyRange(bodyRange.getStyle().getNumber(), bodyRange.getStart(), bodyRange.getLength()));
+      }
+    }
+
+    return ranges;
   }
 
   private static SignalServiceDataMessage.Sticker createSticker(SignalServiceProtos.DataMessage content) throws InvalidMessageStructureException {
