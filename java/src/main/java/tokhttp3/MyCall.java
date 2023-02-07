@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.net.http.HttpResponse.BodyHandlers;
 import java.net.http.HttpResponse.BodySubscribers;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
@@ -18,8 +17,8 @@ import java.util.logging.Logger;
  */
 public class MyCall implements Call {
 
-    private HttpClient httpClient;
-    private Request request;
+    private final HttpClient httpClient;
+    private final Request request;
     static final ExecutorService executor = Executors.newFixedThreadPool(1); // avoid race issues for now
     private static final Logger LOG = Logger.getLogger(MyCall.class.getName());
 
