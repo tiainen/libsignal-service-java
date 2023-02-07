@@ -128,7 +128,10 @@ public class Request {
 
     }
     public static String getSvb() throws Exception {
-        String cmd = "dig +unknownformat +short  -t TYPE65 crypto.cloudflare.com";
+        String cmd = "dig +short  -t TYPE65 crypto.cloudflare.com"; // mac
+        if (System.getProperty("os.name").equalsIgnoreCase("linux")) {
+            cmd = "dig +unknownformat +short  -t TYPE65 crypto.cloudflare.com";
+        }
         Process exec = Runtime.getRuntime().exec(cmd);
         BufferedReader br = new BufferedReader(new InputStreamReader(
                 exec.getInputStream()));
