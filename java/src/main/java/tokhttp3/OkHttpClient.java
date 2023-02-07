@@ -1,5 +1,6 @@
 package tokhttp3;
 
+import java.io.ByteArrayOutputStream;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.nio.ByteBuffer;
@@ -76,14 +77,15 @@ public class OkHttpClient {
 
             @Override
             public CompletionStage<?> onBinary(java.net.http.WebSocket webSocket, ByteBuffer data, boolean last) {
-                LOG.info("Websocket receives binary data on " + Thread.currentThread() + ", last = " + last);
+                LOG.info("Websocket receives binary data on " + Thread.currentThread() + ", last = " + last + ", limit = " + data.limit() + ", remaining = " + data.remaining() + ", cap = " + data.capacity());
                 webSocket.request(1);
-                try {
-                    listener.onMessage(answer, ByteString.of(data));
-                } catch (Throwable t) {
-                    t.printStackTrace();
-                    LOG.log(Level.SEVERE, "error in receiving ws data", t);
-
+                if (last) {
+                    try {
+                        listener.onMessage(answer, ByteString.of(data));
+                    } catch (Throwable t) {
+                        t.printStackTrace();
+                        LOG.log(Level.SEVERE, "error in receiving ws data", t);
+                    }
                 }
                 return null;
             }
