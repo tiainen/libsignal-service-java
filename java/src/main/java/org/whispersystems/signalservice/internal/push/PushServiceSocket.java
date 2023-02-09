@@ -140,21 +140,21 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
-import okhttp3.Call;
-import okhttp3.Callback;
-import okhttp3.ConnectionPool;
-import okhttp3.ConnectionSpec;
-import okhttp3.Credentials;
-import okhttp3.Dns;
-import okhttp3.HttpUrl;
-import okhttp3.Interceptor;
-import okhttp3.MediaType;
-import okhttp3.MultipartBody;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
-import okhttp3.ResponseBody;
+import tokhttp3.Call;
+import tokhttp3.Callback;
+import tokhttp3.ConnectionPool;
+import tokhttp3.ConnectionSpec;
+import tokhttp3.Credentials;
+import tokhttp3.Dns;
+import tokhttp3.HttpUrl;
+import tokhttp3.Interceptor;
+import tokhttp3.MediaType;
+import tokhttp3.MultipartBody;
+import tokhttp3.OkHttpClient;
+import tokhttp3.Request;
+import tokhttp3.RequestBody;
+import tokhttp3.Response;
+import tokhttp3.ResponseBody;
 import org.signal.libsignal.zkgroup.receipts.ReceiptCredentialPresentation;
 import org.signal.libsignal.protocol.InvalidKeyException;
 import org.signal.libsignal.zkgroup.profiles.ExpiringProfileKeyCredential;
@@ -1093,7 +1093,7 @@ public class PushServiceSocket {
 
     public String getStorageAuth() throws IOException {
         String response = makeServiceRequest("/v1/storage/auth", "GET", null);
-        LOG.info("Response from getStorageAuth = " + response);
+        LOG.info("Response from getStorageAuth ? " + (response == null ? "NULL" :  "non-null"));
         StorageAuthResponse authResponse = JsonUtil.fromJson(response, StorageAuthResponse.class);
 
         return Credentials.basic(authResponse.getUsername(), authResponse.getPassword());

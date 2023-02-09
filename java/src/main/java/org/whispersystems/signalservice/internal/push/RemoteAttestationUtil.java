@@ -25,8 +25,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import okhttp3.Response;
-import okhttp3.ResponseBody;
+import tokhttp3.Response;
+import tokhttp3.ResponseBody;
 
 public final class RemoteAttestationUtil {
 

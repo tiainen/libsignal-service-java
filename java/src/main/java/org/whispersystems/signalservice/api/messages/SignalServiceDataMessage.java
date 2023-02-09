@@ -355,17 +355,23 @@ public class SignalServiceDataMessage {
     }
 
     public Builder withSharedContacts(List<SharedContact> contacts) {
-      this.sharedContacts.addAll(contacts);
+        if (contacts != null) {
+            this.sharedContacts.addAll(contacts);
+        }
       return this;
     }
 
     public Builder withPreviews(List<SignalServicePreview> previews) {
+        if (previews != null) {
       this.previews.addAll(previews);
+        }
       return this;
     }
 
     public Builder withMentions(List<Mention> mentions) {
+        if (mentions != null) {
       this.mentions.addAll(mentions);
+        }
       return this;
     }
 
@@ -410,7 +416,9 @@ public class SignalServiceDataMessage {
     }
 
     public Builder withBodyRanges(List<BodyRange> bodyRanges) {
+        if (bodyRanges != null) {
       this.bodyRanges.addAll(bodyRanges);
+        }
       return this;
     }
 

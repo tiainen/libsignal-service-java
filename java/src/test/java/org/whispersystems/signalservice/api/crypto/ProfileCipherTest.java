@@ -1,9 +1,7 @@
 package org.whispersystems.signalservice.api.crypto;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 
 import static org.junit.jupiter.api.Assertions.*;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import org.signal.libsignal.zkgroup.InvalidInputException;
@@ -14,12 +12,7 @@ import org.whispersystems.util.Base64;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.security.NoSuchAlgorithmException;
 import java.security.Security;
-import java.util.Arrays;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 public class ProfileCipherTest  {
     
@@ -35,8 +28,8 @@ public class ProfileCipherTest  {
 
     static {
         System.err.println("Adding provider");
-        Security.addProvider(new BouncyCastleProvider());
-         Security.setProperty("crypto.policy", "unlimited");
+     //   Security.addProvider(new BouncyCastleProvider());
+        Security.setProperty("crypto.policy", "unlimited");
     }
 
   public void testEncryptDecrypt() throws InvalidCiphertextException, InvalidInputException {

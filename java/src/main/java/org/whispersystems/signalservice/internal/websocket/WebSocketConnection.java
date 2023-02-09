@@ -19,6 +19,7 @@ import org.whispersystems.signalservice.internal.util.concurrent.SettableFuture;
 import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -37,14 +38,14 @@ import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 
-import okhttp3.ConnectionSpec;
-import okhttp3.Dns;
-import okhttp3.Interceptor;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
-import okhttp3.WebSocket;
-import okhttp3.WebSocketListener;
+import tokhttp3.ConnectionSpec;
+import tokhttp3.Dns;
+import tokhttp3.Interceptor;
+import tokhttp3.OkHttpClient;
+import tokhttp3.Request;
+import tokhttp3.Response;
+import tokhttp3.WebSocket;
+import tokhttp3.WebSocketListener;
 import okio.ByteString;
 
 import static org.whispersystems.signalservice.internal.websocket.WebSocketProtos.WebSocketMessage;
@@ -173,7 +174,7 @@ public class WebSocketConnection extends WebSocketListener {
 
             this.connected = false;
             Request request = requestBuilder.build();
-            Log.d(TAG, "[WSC] now connecting websocket for request " + request);
+            LOG.info("[WSC] now connecting websocket for request " + request+" with headers "+request.getHttpRequest().headers().map());
             this.client = okHttpClient.newWebSocket(request, this);
         }
     }
@@ -317,6 +318,7 @@ public class WebSocketConnection extends WebSocketListener {
             notifyAll();
         } catch (InvalidProtocolBufferException e) {
             Log.w(TAG, e);
+            System.err.println("PAYLOAD: "+Arrays.toString(payload.toByteArray()));
         }
         LOG.finer(Thread.currentThread()+" handled onMessage "+mid);
     }

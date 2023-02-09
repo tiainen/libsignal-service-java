@@ -10,7 +10,7 @@ import java.util.Optional;
         
 import javax.net.ssl.TrustManager;
 
-import okhttp3.ConnectionSpec;
+import tokhttp3.ConnectionSpec;
 
 public class SignalUrl {
 
