@@ -70,7 +70,7 @@ public class Request {
                 }
             }
             HttpRequest httpRequest = builder.build();
-            LOG.info("Final request = " + httpRequest.uri()+", ws = "+ws);
+            LOG.info("Final request = " + httpRequest.hashCode()+", ws = "+ws);
             return new Request(httpRequest, ws, origUri);
         }
 

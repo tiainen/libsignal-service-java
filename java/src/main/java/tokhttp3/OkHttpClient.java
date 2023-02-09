@@ -43,7 +43,7 @@ public class OkHttpClient {
         java.net.http.WebSocket.Builder wsBuilder = jClient.newWebSocketBuilder();
         TokWebSocket answer = new TokWebSocket(listener);
         URI uri = request.getUri();
-        LOG.info("Create websocket to URI = " + uri);
+        LOG.info("Create websocket to URI = " + uri.getHost());
         request.getHttpRequest().headers().map().forEach((String k, List<String> v) -> {
             v.stream().forEach(val -> wsBuilder.header(k, val));
         });
@@ -75,17 +75,25 @@ public class OkHttpClient {
                 return null;
             }
 
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+
             @Override
             public CompletionStage<?> onBinary(java.net.http.WebSocket webSocket, ByteBuffer data, boolean last) {
                 LOG.info("Websocket receives binary data on " + Thread.currentThread() + ", last = " + last + ", limit = " + data.limit() + ", remaining = " + data.remaining() + ", cap = " + data.capacity());
                 webSocket.request(1);
-                if (last) {
-                    try {
-                        listener.onMessage(answer, ByteString.of(data));
-                    } catch (Throwable t) {
-                        t.printStackTrace();
-                        LOG.log(Level.SEVERE, "error in receiving ws data", t);
+                byte[] buff = new byte[data.remaining()];
+                data.get(buff);
+                try {
+                    baos.write(buff);
+                    if (last) {
+                        byte[] completed = baos.toByteArray();
+                        baos = new ByteArrayOutputStream();
+                        System.err.println("total size = " + completed.length);
+                        listener.onMessage(answer, ByteString.of(completed));
                     }
+                } catch (Throwable t) {
+                    t.printStackTrace();
+                    LOG.log(Level.SEVERE, "error in receiving ws data", t);
                 }
                 return null;
             }
@@ -112,7 +120,7 @@ public class OkHttpClient {
             try {
                 LOG.info("try to join...");
                 java.net.http.WebSocket ws = buildAsync.join();
-                LOG.info("yes, got ws = " + ws);
+                LOG.info("yes, got ws = " + ws.hashCode());
                 answer.setJavaWebSocket(ws);
             } catch (Throwable t) {
                 t.printStackTrace();

@@ -1093,7 +1093,7 @@ public class PushServiceSocket {
 
     public String getStorageAuth() throws IOException {
         String response = makeServiceRequest("/v1/storage/auth", "GET", null);
-        LOG.info("Response from getStorageAuth = " + response);
+        LOG.info("Response from getStorageAuth ? " + (response == null ? "NULL" :  "non-null"));
         StorageAuthResponse authResponse = JsonUtil.fromJson(response, StorageAuthResponse.class);
 
         return Credentials.basic(authResponse.getUsername(), authResponse.getPassword());

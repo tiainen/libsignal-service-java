@@ -19,6 +19,7 @@ import org.whispersystems.signalservice.internal.util.concurrent.SettableFuture;
 import java.io.IOException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -317,6 +318,7 @@ public class WebSocketConnection extends WebSocketListener {
             notifyAll();
         } catch (InvalidProtocolBufferException e) {
             Log.w(TAG, e);
+            System.err.println("PAYLOAD: "+Arrays.toString(payload.toByteArray()));
         }
         LOG.finer(Thread.currentThread()+" handled onMessage "+mid);
     }

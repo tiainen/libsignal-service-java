@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package tokhttp3;
 
 import java.util.concurrent.CompletableFuture;
@@ -29,13 +25,14 @@ public class TokWebSocket implements WebSocket {
     }
 
     @Override
-    public boolean close(int i, String ok) {
-        throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+    public boolean close(int code, String reason) {
+        LOG.severe("We are asked to close this websocket, reason = "+reason+" and code = "+code);
+        return true;
     }
 
     @Override
     public boolean send(ByteString of) {
-        LOG.info("SENDBINARY text to "+this.jws+" and state = "+this.jws.isInputClosed()+", "+this.jws.isOutputClosed());
+        LOG.info("Sending data to "+this.jws.hashCode() +" and is,os state = "+this.jws.isInputClosed()+", "+this.jws.isOutputClosed());
         if (this.jws.isOutputClosed()) {
             twsl.onClosed(this, 0, "Output closed without reason");
         }
@@ -45,13 +42,13 @@ public class TokWebSocket implements WebSocket {
         } catch (InterruptedException | ExecutionException ex) {
             Logger.getLogger(TokWebSocket.class.getName()).log(Level.SEVERE, null, ex);
         }
-        LOG.info("Data has been sent to "+this.jws);
+        LOG.info("Data has been sent to "+this.jws.hashCode());
         return true;
     }
 
     @Override
     public boolean send(String text) {
-        LOG.info("SENTEXT text to "+this.jws+" and state = "+this.jws.isInputClosed()+", "+this.jws.isOutputClosed());
+        LOG.info("Sending text to "+this.jws.hashCode() +" and is/os state = "+this.jws.isInputClosed()+", "+this.jws.isOutputClosed());
         this.jws.sendText(text, false);
         return true;
     }
