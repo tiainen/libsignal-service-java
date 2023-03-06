@@ -133,6 +133,7 @@ import java.util.UUID;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import javax.net.SocketFactory;
@@ -1380,7 +1381,12 @@ public class PushServiceSocket {
             if (response.isSuccessful()) {
                 return file.getTransmittedDigest();
             } else {
-                throw new NonSuccessfulResponseCodeException(response.code(), "Response: " + response);
+                try {
+                    System.err.println("PROBLEM! "+response.body().string());
+                } catch (IOException ex) {
+                    Logger.getLogger(PushServiceSocket.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                throw new NonSuccessfulResponseCodeException(response.code(), "Response: " + response+" with message "+response.message()+" and body "+response.body());
             }
         } finally {
             synchronized (connections) {

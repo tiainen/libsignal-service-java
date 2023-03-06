@@ -34,11 +34,11 @@ public class MyCall implements Call {
                 @Override
                 public HttpResponse.BodySubscriber apply(HttpResponse.ResponseInfo responseInfo) {
                     String ct = responseInfo.headers().firstValue("content-type").orElse("");
-                    LOG.info("response content-type = " + ct);
+                    LOG.info("response statuscode = " + responseInfo.statusCode()+", content-type = " + ct);
                     if (ct.isBlank()) {
                         return BodySubscribers.discarding();
                     }
-                    if (ct.equals("application/json")) {
+                    if ((ct.equals("application/json") || (ct.equals("application/xml")))) {
                         return BodySubscribers.ofString(StandardCharsets.UTF_8);
                     } else {
                         return BodySubscribers.ofByteArray();
