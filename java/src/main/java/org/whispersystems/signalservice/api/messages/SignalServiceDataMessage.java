@@ -415,12 +415,12 @@ public class SignalServiceDataMessage {
       return this;
     }
 
-    public Builder withBodyRanges(List<BodyRange> bodyRanges) {
-        if (bodyRanges != null) {
-      this.bodyRanges.addAll(bodyRanges);
-        }
-      return this;
-    }
+      public Builder withBodyRanges(List<BodyRange> bodyRanges) {
+          if (bodyRanges != null) {
+              this.bodyRanges.addAll(bodyRanges);
+          }
+          return this;
+      }
 
     public SignalServiceDataMessage build() {
       if (timestamp == 0) timestamp = System.currentTimeMillis();
@@ -439,6 +439,7 @@ public class SignalServiceDataMessage {
     private final List<QuotedAttachment> attachments;
     private final List<Mention>          mentions;
     private final Type                   type;
+    private final List<BodyRange>        bodyRanges;
     
     @Deprecated
     public Quote(long id, SignalServiceAddress ssa, String text, List<QuotedAttachment> attachments, List<Mention> mentions) {
@@ -448,16 +449,19 @@ public class SignalServiceDataMessage {
       this.attachments = attachments;
       this.mentions    = mentions;
       this.type = Type.NORMAL;
+      this.bodyRanges  = List.of();
+
     }   
 
     public Quote(long id, ServiceId author, String text, List<QuotedAttachment> attachments,
-            List<Mention> mentions, Type type) {
+            List<Mention> mentions, Type type, List<BodyRange> bodyRanges) {
       this.id          = id;
       this.author      = author;
       this.text        = text;
       this.attachments = attachments;
       this.mentions    = mentions;
       this.type        = type;
+      this.bodyRanges  = bodyRanges;
     }
 
     public long getId() {
@@ -479,8 +483,13 @@ public class SignalServiceDataMessage {
     public List<Mention> getMentions() {
       return mentions;
     }
-  public Type getType() {
+
+    public Type getType() {
       return type;
+    }
+
+    public List<BodyRange> getBodyRanges() {
+        return bodyRanges;
     }
 
     public enum Type {
@@ -671,29 +680,8 @@ public class SignalServiceDataMessage {
     }
   }
 
-  public static class BodyRange {
-    private final int style;
-    private final int  start;
-    private final int  length;
+//  public static class BodyRange is removed as the Protos version is used now.
 
-    public BodyRange(int style, int start, int length) {
-      this.style   = style;
-      this.start  = start;
-      this.length = length;
-    }
-
-    public int getStyle() {
-      return style;
-    }
-
-    public int getStart() {
-      return start;
-    }
-
-    public int getLength() {
-      return length;
-    }
-  }
 
   public static class GroupCallUpdate {
     private final String eraId;
