@@ -1087,7 +1087,9 @@ public class SignalServiceMessageSender {
         if (message.getTextAttachment().isPresent()) {
             builder.setTextAttachment(createTextAttachment(message.getTextAttachment().get()));
         }
-
+        if (message.getBodyRanges().isPresent()) {
+            builder.addAllBodyRanges(message.getBodyRanges().get());
+        }
         builder.setAllowsReplies(message.getAllowsReplies().orElse(true));
 
         return container.setStoryMessage(builder).build();
@@ -1172,15 +1174,21 @@ public class SignalServiceMessageSender {
                     .setText(message.getQuote().get().getText())
                     .setAuthorUuid(message.getQuote().get().getAuthor().toString())
                     .setType(message.getQuote().get().getType().getProtoType());
-
-            if (!message.getQuote().get().getMentions().isEmpty()) {
-                for (SignalServiceDataMessage.Mention mention : message.getQuote().get().getMentions()) {
+            List<SignalServiceDataMessage.Mention> mentions = message.getQuote().get().getMentions();
+            if (mentions != null && !mentions.isEmpty()) {
+                for (SignalServiceDataMessage.Mention mention : mentions) {
                     quoteBuilder.addBodyRanges(BodyRange.newBuilder()
                             .setStart(mention.getStart())
                             .setLength(mention.getLength())
                             .setMentionUuid(mention.getServiceId().toString()));
                 }
+
                 builder.setRequiredProtocolVersion(Math.max(DataMessage.ProtocolVersion.MENTIONS_VALUE, builder.getRequiredProtocolVersion()));
+            }
+
+            List<BodyRange> bodyRanges = message.getQuote().get().getBodyRanges();
+            if (bodyRanges != null) {
+                quoteBuilder.addAllBodyRanges(bodyRanges);
             }
 
             for (SignalServiceDataMessage.Quote.QuotedAttachment attachment : message.getQuote().get().getAttachments()) {
@@ -1265,6 +1273,10 @@ public class SignalServiceMessageSender {
 
         if (message.getGroupCallUpdate().isPresent()) {
             builder.setGroupCallUpdate(DataMessage.GroupCallUpdate.newBuilder().setEraId(message.getGroupCallUpdate().get().getEraId()));
+        }
+
+        if (message.getBodyRanges().isPresent()) {
+            builder.addAllBodyRanges(message.getBodyRanges().get());
         }
 
         builder.setTimestamp(message.getTimestamp());
@@ -2014,7 +2026,6 @@ public class SignalServiceMessageSender {
             boolean urgent, boolean story)
             throws UntrustedIdentityException, IOException {
         enforceMaxContentSize(content);
-
         long startTime = System.currentTimeMillis();
 
         for (int i = 0; i < RETRY_COUNT; i++) {

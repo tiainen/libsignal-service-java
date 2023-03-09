@@ -691,7 +691,7 @@ public final class SignalServiceContent {
     SignalServiceDataMessage.GroupCallUpdate groupCallUpdate  = createGroupCallUpdate(content);
     SignalServiceDataMessage.StoryContext    storyContext     = createStoryContext(content);
     SignalServiceDataMessage.GiftBadge       giftBadge        = createGiftBadge(content);
-    List<SignalServiceDataMessage.BodyRange>      bodyRanges       = createBodyRanges(content.getBodyRangesList(), content.getBody());
+    List<SignalServiceProtos.BodyRange>      bodyRanges       = createBodyRanges(content.getBodyRangesList(), content.getBody());
 
     if (content.getRequiredProtocolVersion() > SignalServiceProtos.DataMessage.ProtocolVersion.CURRENT_VALUE) {
       throw new UnsupportedDataMessageProtocolVersionException(SignalServiceProtos.DataMessage.ProtocolVersion.CURRENT_VALUE,
@@ -1088,12 +1088,14 @@ public final class SignalServiceContent {
       return SignalServiceStoryMessage.forFileAttachment(profileKey,
                                                          createGroupV2Info(content),
                                                          createAttachmentPointer(content.getFileAttachment()),
-                                                         content.getAllowsReplies());
+                                                         content.getAllowsReplies(),
+                                                         content.getBodyRangesList());
     } else {
       return SignalServiceStoryMessage.forTextAttachment(profileKey,
                                                          createGroupV2Info(content),
                                                          createTextAttachment(content.getTextAttachment()),
-                                                         content.getAllowsReplies());
+                                                         content.getAllowsReplies(),
+                                                         content.getBodyRangesList());
     }
   }
 
@@ -1117,7 +1119,8 @@ public final class SignalServiceContent {
                                                 content.getQuote().getText(),
                                                 attachments,
                                                 createMentions(content.getQuote().getBodyRangesList(), content.getQuote().getText(), isGroupV2),
-                                                SignalServiceDataMessage.Quote.Type.fromProto(content.getQuote().getType()));
+                                                SignalServiceDataMessage.Quote.Type.fromProto(content.getQuote().getType()),
+                                                createBodyRanges(content.getQuote().getBodyRangesList(), content.getQuote().getText()));
     } else {
       Log.w(TAG, "Quote was missing an author! Returning null.");
       return null;
@@ -1176,16 +1179,16 @@ public final class SignalServiceContent {
     return mentions;
   }
 
-  private static List<SignalServiceDataMessage.BodyRange> createBodyRanges(List<SignalServiceProtos.BodyRange> bodyRanges, String body) {
+  private static List<SignalServiceProtos.BodyRange> createBodyRanges(List<SignalServiceProtos.BodyRange> bodyRanges, String body) {
     if (bodyRanges == null || bodyRanges.isEmpty() || body == null) {
       return null;
     }
 
-    List<SignalServiceDataMessage.BodyRange> ranges = new LinkedList<>();
+    List<SignalServiceProtos.BodyRange> ranges = new LinkedList<>();
 
     for (SignalServiceProtos.BodyRange bodyRange : bodyRanges) {
       if (bodyRange.hasStyle()) {
-        ranges.add(new SignalServiceDataMessage.BodyRange(bodyRange.getStyle().getNumber(), bodyRange.getStart(), bodyRange.getLength()));
+        ranges.add(bodyRange);
       }
     }
 
