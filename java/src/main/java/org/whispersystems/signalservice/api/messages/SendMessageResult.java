@@ -1,48 +1,47 @@
 package org.whispersystems.signalservice.api.messages;
 
 
-import java.util.List;
-import java.util.Optional;
 import org.signal.libsignal.protocol.IdentityKey;
 import org.whispersystems.signalservice.api.push.SignalServiceAddress;
 import org.whispersystems.signalservice.api.push.exceptions.ProofRequiredException;
+import org.whispersystems.signalservice.api.push.exceptions.RateLimitException;
 import org.whispersystems.signalservice.internal.push.SignalServiceProtos.Content;
+
+import java.util.List;
+import java.util.Optional;
 
 public class SendMessageResult {
 
-  private final SignalServiceAddress address;
-  private final Success              success;
-  private final boolean              networkFailure;
-  private final boolean              unregisteredFailure;
-  private final IdentityFailure      identityFailure;
+  private final SignalServiceAddress   address;
+  private final Success                success;
+  private final boolean                networkFailure;
+  private final boolean                unregisteredFailure;
+  private final IdentityFailure        identityFailure;
   private final ProofRequiredException proofRequiredFailure;
+  private final RateLimitException     rateLimitFailure;
 
   public static SendMessageResult success(SignalServiceAddress address, List<Integer> devices, boolean unidentified, boolean needsSync, long duration, Optional<Content> content) {
-    return new SendMessageResult(address, new Success(unidentified, needsSync, duration, content, devices), false, false, null);
-  }
-  
-  public static SendMessageResult success(SignalServiceAddress address, List<Integer> devices, boolean unidentified, boolean needsSync, long duration, byte[] content) {
-    return new SendMessageResult(address, new Success(unidentified, needsSync, duration, content, devices), false, false, null);
-  }
-
-  public static SendMessageResult success(SignalServiceAddress address, boolean unidentified, boolean needsSync, long duration) {
-    return new SendMessageResult(address, new Success(unidentified, needsSync, duration), false, false, null);
+    return new SendMessageResult(address, new Success(unidentified, needsSync, duration, content, devices), false, false, null, null, null);
   }
 
   public static SendMessageResult networkFailure(SignalServiceAddress address) {
-    return new SendMessageResult(address, null, true, false, null);
+    return new SendMessageResult(address, null, true, false, null, null, null);
   }
 
   public static SendMessageResult unregisteredFailure(SignalServiceAddress address) {
-    return new SendMessageResult(address, null, false, true, null);
+    return new SendMessageResult(address, null, false, true, null, null, null);
   }
 
   public static SendMessageResult identityFailure(SignalServiceAddress address, IdentityKey identityKey) {
-    return new SendMessageResult(address, null, false, false, new IdentityFailure(identityKey));
+    return new SendMessageResult(address, null, false, false, new IdentityFailure(identityKey), null, null);
   }
 
   public static SendMessageResult proofRequiredFailure(SignalServiceAddress address, ProofRequiredException proofRequiredException) {
-    return new SendMessageResult(address, null, false, false, null, proofRequiredException);
+    return new SendMessageResult(address, null, false, false, null, proofRequiredException, null);
+  }
+
+  public static SendMessageResult rateLimitFailure(SignalServiceAddress address, RateLimitException rateLimitException) {
+    return new SendMessageResult(address, null, false, false, null, null, rateLimitException);
   }
 
   public SignalServiceAddress getAddress() {
@@ -52,13 +51,13 @@ public class SendMessageResult {
   public Success getSuccess() {
     return success;
   }
-  
+
   public boolean isSuccess() {
-      return success != null;
+    return success != null;
   }
 
   public boolean isNetworkFailure() {
-    return networkFailure;
+    return networkFailure || proofRequiredFailure != null || rateLimitFailure != null;
   }
 
   public boolean isUnregisteredFailure() {
@@ -68,50 +67,45 @@ public class SendMessageResult {
   public IdentityFailure getIdentityFailure() {
     return identityFailure;
   }
-  private SendMessageResult(SignalServiceAddress address, Success success, 
-          boolean networkFailure, boolean unregisteredFailure, IdentityFailure identityFailure) {
-      this(address, success, networkFailure, unregisteredFailure, identityFailure, null);
+
+  public ProofRequiredException getProofRequiredFailure() {
+    return proofRequiredFailure;
   }
-  private SendMessageResult(SignalServiceAddress address, Success success, 
-          boolean networkFailure, boolean unregisteredFailure, IdentityFailure identityFailure,
-          ProofRequiredException proofRequiredFailure) {
-    this.address             = address;
-    this.success             = success;
-    this.networkFailure      = networkFailure;
-    this.unregisteredFailure = unregisteredFailure;
-    this.identityFailure     = identityFailure;
+
+  public RateLimitException getRateLimitFailure() {
+    return rateLimitFailure;
+  }
+
+  private SendMessageResult(SignalServiceAddress address,
+                            Success success,
+                            boolean networkFailure,
+                            boolean unregisteredFailure,
+                            IdentityFailure identityFailure,
+                            ProofRequiredException proofRequiredFailure,
+                            RateLimitException rateLimitFailure)
+  {
+    this.address              = address;
+    this.success              = success;
+    this.networkFailure       = networkFailure;
+    this.unregisteredFailure  = unregisteredFailure;
+    this.identityFailure      = identityFailure;
     this.proofRequiredFailure = proofRequiredFailure;
+    this.rateLimitFailure     = rateLimitFailure;
   }
 
   public static class Success {
-    private final boolean unidentified;
-    private final boolean needsSync;
-    private final long    duration;
-    private final byte[] content;
+    private final boolean           unidentified;
+    private final boolean           needsSync;
+    private final long              duration;
+    private final Optional<Content> content;
     private final List<Integer>     devices;
 
-    private Success(boolean unidentified, boolean needsSync, long duration) {
-        this(unidentified, needsSync, duration, new byte[0], List.of());
-    }
-
-    private Success(boolean unidentified, boolean needsSync, long duration, Optional<Content>content, List<Integer> devices) {
+    private Success(boolean unidentified, boolean needsSync, long duration, Optional<Content> content, List<Integer> devices) {
       this.unidentified = unidentified;
       this.needsSync    = needsSync;
       this.duration     = duration;
-      if (content.isPresent()) {
-          this.content = content.get().toByteArray();
-      } else {
-          this.content = new byte[0];
-      }
-      this.devices = devices;
-    }
-
-    private Success(boolean unidentified, boolean needsSync, long duration, byte[] content, List<Integer> devices) {
-      this.unidentified = unidentified;
-      this.needsSync    = needsSync;
-      this.duration     = duration;
-      this.content = content;
-      this.devices = devices;
+      this.content      = content;
+      this.devices      = devices;
     }
 
     public boolean isUnidentified() {
@@ -124,6 +118,14 @@ public class SendMessageResult {
 
     public long getDuration() {
       return duration;
+    }
+
+    public Optional<Content> getContent() {
+      return content;
+    }
+
+    public List<Integer> getDevices() {
+      return devices;
     }
   }
 

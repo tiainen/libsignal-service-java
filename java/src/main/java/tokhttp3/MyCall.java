@@ -35,6 +35,9 @@ public class MyCall implements Call {
                 public HttpResponse.BodySubscriber apply(HttpResponse.ResponseInfo responseInfo) {
                     String ct = responseInfo.headers().firstValue("content-type").orElse("");
                     LOG.info("response statuscode = " + responseInfo.statusCode()+", content-type = " + ct);
+                    if (responseInfo.statusCode() == 428) {
+                        LOG.info("all headers = " + responseInfo.headers().map());
+                    }
                     if (ct.isBlank()) {
                         return BodySubscribers.discarding();
                     }

@@ -1820,7 +1820,11 @@ public class PushServiceSocket {
                 ProofRequiredResponse proofRequiredResponse = readResponseJson(response, ProofRequiredResponse.class);
                 String retryAfterRaw = response.header("Retry-After");
                 long retryAfter = Util.parseInt(retryAfterRaw, -1);
-
+                try {
+                    LOG.info("Not good, got a HTTP 428 with content "+response.body().string());
+                } catch (IOException ex) {
+                    Logger.getLogger(PushServiceSocket.class.getName()).log(Level.SEVERE, null, ex);
+                }
                 throw new ProofRequiredException(proofRequiredResponse, retryAfter);
 
             case 499:

@@ -1944,7 +1944,6 @@ public class SignalServiceMessageSender {
         List<Future<SendMessageResult>> futureResults = new LinkedList<>();
         Iterator<SignalServiceAddress> recipientIterator = recipients.iterator();
         Iterator<Optional<UnidentifiedAccess>> unidentifiedAccessIterator = unidentifiedAccess.iterator();
-
         while (recipientIterator.hasNext()) {
             SignalServiceAddress recipient = recipientIterator.next();
             Optional<UnidentifiedAccess> access = unidentifiedAccessIterator.next();
@@ -2003,7 +2002,7 @@ public class SignalServiceMessageSender {
             }
         }
 
-        Log.d(TAG, "[" + timestamp + "] Completed send to " + recipients.size() + " recipients in " + (System.currentTimeMillis() - startTime) + " ms, with an average time of " + Math.round(average) + " ms per send.");
+        LOG.info("[" + timestamp + "] Completed send to " + recipients.size() + " recipients in " + (System.currentTimeMillis() - startTime) + " ms, with an average time of " + Math.round(average) + " ms per send.");
         return results;
     }
 
@@ -2068,7 +2067,7 @@ public class SignalServiceMessageSender {
                 }
 
                 SendMessageResponse response = socket.sendMessage(messages, unidentifiedAccess, story);
-                return SendMessageResult.success(recipient, messages.getDevices(), unidentifiedAccess.isPresent(), response.getNeedsSync() || aciStore.isMultiDevice(), System.currentTimeMillis() - startTime, content.getContent().get().toByteArray());
+                return SendMessageResult.success(recipient, messages.getDevices(), unidentifiedAccess.isPresent(), response.getNeedsSync() || aciStore.isMultiDevice(), System.currentTimeMillis() - startTime, content.getContent());
 
             } catch (InvalidKeyException ike) {
                 Log.w(TAG, ike);
