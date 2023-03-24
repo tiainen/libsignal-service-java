@@ -51,7 +51,7 @@ public class MyCall implements Call {
 
             };
             HttpRequest httpRequest = request.getHttpRequest();
-            HttpResponse httpResponse = this.httpClient.send(request.getHttpRequest(), mbh);
+            HttpResponse httpResponse = this.httpClient.send(httpRequest, mbh);
             Response answer = new Response(httpResponse);
 
             return answer;

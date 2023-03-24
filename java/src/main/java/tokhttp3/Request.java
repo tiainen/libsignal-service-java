@@ -13,9 +13,11 @@ import java.util.HexFormat;
 import java.util.Optional;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import okio.Buffer;
 
 public class Request {
 
+    private byte[] body;
     private HttpRequest httpRequest;
     private final boolean ws;
     private URI origUri;
@@ -43,10 +45,11 @@ public class Request {
         }
     }
 
-    Request(HttpRequest httpRequest, boolean ws, URI origUri) {
+    Request(HttpRequest httpRequest, boolean ws, URI origUri, byte[] body) {
         this.httpRequest = httpRequest;
         this.ws = ws;
         this.origUri = origUri;
+        this.body = body;
     }
 
     public HttpRequest getHttpRequest() {
@@ -61,12 +64,17 @@ public class Request {
         return origUri;
     }
 
+    public byte[] getBody() {
+        return body;
+    }
+
     public Builder newBuilder() {
         return new Request.Builder();
     }
 
     public static class Builder {
 
+        byte[] body;
         HttpRequest.Builder builder;
         boolean ws = false;
         URI origUri;
@@ -88,7 +96,7 @@ public class Request {
             }
             HttpRequest httpRequest = builder.build();
             LOG.info("Final request = " + httpRequest.hashCode()+", ws = "+ws);
-            return new Request(httpRequest, ws, origUri);
+            return new Request(httpRequest, ws, origUri, this.body);
         }
 
         public Builder url(HttpUrl url) {
@@ -137,8 +145,15 @@ public class Request {
         public Builder method(String method, RequestBody body) {
             builder.method(method, body == null ? noBody() : body.getBodyPublisher());
             if (body != null) {
-                LOG.info("add content type to "+body.contentType.getMediaType());
-                builder.header("Content-Type", body.contentType.getMediaType());
+                try {
+                    Buffer buffer = new Buffer();
+                    body.writeTo(buffer);
+                    this.body = buffer.readByteArray();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                LOG.info("add content type to "+body.contentType().getMediaType());
+                builder.header("Content-Type", body.contentType().getMediaType());
             }
             return this;
         }

@@ -133,6 +133,7 @@ public class MultipartBody {
 
         private List<Part> parts;
         String boundary;
+        MediaType contentType;
 
         public MultiPartRequestBody(List<Part> parts, MediaType mediaType, String boundary) {
             this.parts = parts;

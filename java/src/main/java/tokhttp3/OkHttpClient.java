@@ -16,6 +16,7 @@ import javax.net.ssl.SSLSocketFactory;
 import javax.net.ssl.X509TrustManager;
 import okio.ByteString;
 import org.whispersystems.signalservice.api.util.TlsProxySocketFactory;
+import tokhttp3.rust.RustCall;
 
 /**
  *
@@ -31,8 +32,8 @@ public class OkHttpClient {
         this.jClient = jClient;
     }
 
-    public MyCall newCall(Request request) {
-        return new MyCall(jClient, request);
+    public Call newCall(Request request) {
+        return new RustCall(request);
     }
 
     public OkHttpClient.Builder newBuilder() {
@@ -157,8 +158,8 @@ public class OkHttpClient {
         }
 
         public OkHttpClient build() {
-            HttpClient httpClient = realBuilder.build();
-            return new OkHttpClient(httpClient);
+            HttpClient realClient = realBuilder.build();
+            return new OkHttpClient(realClient);
         }
 
         public Builder retryOnConnectionFailure(boolean automaticNetworkRetry) {
@@ -198,5 +199,4 @@ public class OkHttpClient {
             return this;
         }
     }
-
 }

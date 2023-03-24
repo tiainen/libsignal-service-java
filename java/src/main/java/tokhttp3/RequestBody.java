@@ -1,14 +1,12 @@
 package tokhttp3;
 
+import java.nio.charset.StandardCharsets;
 import java.io.IOException;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublisher;
 import okio.BufferedSink;
 
 public abstract class RequestBody {
-
-    HttpRequest.BodyPublisher jRequestBody;
-    MediaType contentType;
 
     public abstract long contentLength();
 
@@ -19,46 +17,41 @@ public abstract class RequestBody {
     public abstract BodyPublisher getBodyPublisher();
 
     public static RequestBody create(MediaType contentType, byte[] content) {
-        RequestBody answer = new MyRequestBody(contentType, content);
-
-        return answer;
+        return new MyRequestBody(contentType, content);
     }
 
     public static RequestBody create(MediaType contentType, String string) {
-        return new MyRequestBody(contentType, string);
+        return new MyRequestBody(contentType, string.getBytes(StandardCharsets.UTF_8));
     }
 
     static class MyRequestBody extends RequestBody {
 
+        MediaType contentType;
+        byte[] content;
+
         MyRequestBody(MediaType contentType, byte[] content) {
             this.contentType = contentType;
-            jRequestBody = HttpRequest.BodyPublishers.ofByteArray(content);
-        }
-
-        MyRequestBody(MediaType contentType, String content) {
-            this.contentType = contentType;
-            jRequestBody = HttpRequest.BodyPublishers.ofString(content);
+            this.content = content;
         }
 
         @Override
         public BodyPublisher getBodyPublisher() {
-            return jRequestBody;
+            return HttpRequest.BodyPublishers.ofByteArray(content);
         }
 
         @Override
         public long contentLength() {
-            throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+            return this.content.length;
         }
 
         @Override
         public MediaType contentType() {
-            throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+            return this.contentType;
         }
 
         @Override
         public void writeTo(BufferedSink sink) throws IOException {
-            throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+            sink.write(this.content);
         }
-
     }
 }

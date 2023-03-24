@@ -5,6 +5,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.logging.Logger;
 
 /**
@@ -32,6 +33,8 @@ public final class ResponseBody<T> implements Closeable {
         }
         if (body instanceof String) {
             return (String) body;
+        } else if (body instanceof byte[]) {
+            return new String((byte[]) body, StandardCharsets.UTF_8);
         }
         throw new IOException("Not supported yet: " + body.getClass());
     }
