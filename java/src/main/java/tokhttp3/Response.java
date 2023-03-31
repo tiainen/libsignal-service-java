@@ -1,7 +1,7 @@
 package tokhttp3;
 
+import io.privacyresearch.worknet.NetResponse;
 import java.io.Closeable;
-import java.net.http.HttpResponse;
 import java.util.List;
 
 /**
@@ -10,40 +10,38 @@ import java.util.List;
  */
 public class Response implements Closeable, AutoCloseable {
 
-    private final HttpResponse httpResponse;
-    
-    public Response (HttpResponse httpResponse) {
-        this.httpResponse = httpResponse;
+    private final NetResponse netResponse;
+
+    public Response(NetResponse netResponse) {
+        this.netResponse = netResponse;
     }
-    
+
     public ResponseBody body() {
-        return new ResponseBody(httpResponse);
+        return new ResponseBody(netResponse);
     }
 
     public int code() {
-        return httpResponse.statusCode();
+        return netResponse.getStatusCode();
     }
 
     @Override
     public void close() {
-        
     }
 
     public String header(String header) {
-       return httpResponse.headers().firstValue(header).orElse(null);
+        return netResponse.getHeaders().get(header);
     }
 
     public boolean isSuccessful() {
-        int sc = httpResponse.statusCode();
-        return ((sc >=200) && (sc < 300)) ;
+        int statusCode = netResponse.getStatusCode();
+        return statusCode >= 200 && statusCode < 300;
     }
 
     public String message() {
-        return "HTTP STATUS CODE = " + httpResponse.statusCode();
+        return "HTTP STATUS CODE = " + netResponse.getStatusCode();
     }
 
     public List<String> headers(String setCookie) {
         throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
     }
-    
 }

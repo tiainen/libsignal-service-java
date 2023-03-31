@@ -1,82 +1,61 @@
 package tokhttp3;
 
+import io.privacyresearch.worknet.NetResponse;
 import java.io.ByteArrayInputStream;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Optional;
 import java.util.logging.Logger;
 
 /**
  *
  * @author johan
- * @param <T>
  */
-public final class ResponseBody<T> implements Closeable {
+public final class ResponseBody implements Closeable {
 
-    private final HttpResponse<T> httpResponse;
-    long contentLength = -1;
     private static final Logger LOG = Logger.getLogger(ResponseBody.class.getName());
 
-    public ResponseBody(HttpResponse<T> httpResponse) {
-        this.httpResponse = httpResponse;
-        httpResponse.headers().firstValue("content-length")
-                .ifPresent(ls -> this.contentLength = Integer.parseInt(ls));
+    private final NetResponse netResponse;
+    private long contentLength = -1;
+
+    public ResponseBody(NetResponse netResponse) {
+        this.netResponse = netResponse;
+        String contentLengthHeader = this.netResponse.getHeaders().get("content-length");
+        if (contentLengthHeader != null) {
+            this.contentLength = Integer.parseInt(contentLengthHeader);
+        }
     }
 
     public String string() throws IOException {
-        T body = httpResponse.body();
+        byte[] body = netResponse.getBody();
         if (body == null) {
             LOG.info("null body, return empty string as response");
             return "";
         }
-        if (body instanceof String) {
-            return (String) body;
-        } else if (body instanceof byte[]) {
-            return new String((byte[]) body, StandardCharsets.UTF_8);
-        }
-        throw new IOException("Not supported yet: " + body.getClass());
+        return new String(body, StandardCharsets.UTF_8);
     }
 
     public byte[] bytes() throws IOException {
-        T body = httpResponse.body();
-        if (body instanceof byte[]) {
-            return (byte[]) body;
-        }
-        if (body instanceof String) {
-            return ((String) body).getBytes();
-        }
-        throw new IOException("Not supported yet.");
+        return netResponse.getBody();
     }
 
     public long contentLength() {
         if (contentLength > -1) {
             return contentLength;
         }
-        T body = httpResponse.body();
-        if (body instanceof byte[]) {
-            return ((byte[]) body).length;
-        } else {
-            if (body instanceof String) {
-                return ((String) body).getBytes().length;
-            }
-        }
-        throw new UnsupportedOperationException("Not supported yet.");
+        byte[] body = netResponse.getBody();
+        return body != null ? body.length : -1;
     }
 
     public InputStream byteStream() {
-        T body = httpResponse.body();
-        if (body instanceof byte[]) {
-            return new ByteArrayInputStream((byte[]) body);
-        } else if (body instanceof String) {
-            return new ByteArrayInputStream(((String) body).getBytes());
-        }
-        throw new UnsupportedOperationException("Not supported yet.");
+        byte[] body = netResponse.getBody();
+        return body != null ? new ByteArrayInputStream(body) : null;
     }
 
     public void close() {
         LOG.info("Closing responseBody for " + this);
     }
-
 }

@@ -1,5 +1,8 @@
 package tokhttp3.rust;
 
+import io.privacyresearch.worknet.Client;
+import io.privacyresearch.worknet.NetRequest;
+import io.privacyresearch.worknet.NetResponse;
 import java.io.IOException;
 import java.net.http.HttpRequest;
 import java.util.List;
@@ -17,10 +20,6 @@ import tokhttp3.Response;
 
 public class RustCall implements Call {
 
-    static {
-        System.loadLibrary("rust_ech_rustls");
-    }
-
     private static final Logger LOG = Logger.getLogger(RustCall.class.getName());
 
     private static final ExecutorService executor = Executors.newFixedThreadPool(1); // avoid race issues for now
@@ -34,14 +33,9 @@ public class RustCall implements Call {
 
     @Override
     public Response execute() throws IOException {
-        HttpRequest httpRequest = request.getHttpRequest();
-        System.out.println("[JSDBG] HTTP Request: Method: " + httpRequest.method());
-        System.out.println("[JSDBG] HTTP Request: URI: " + httpRequest.uri());
-        System.out.println("[JSDBG] HTTP Request: Headers: " + httpRequest.headers().map());
-        RustResponse response = nativeRequest(httpRequest.method(), httpRequest.uri().getHost(),
-            httpRequest.uri().getPort(), httpRequest.uri().getPath(), httpRequest.uri().getQuery(),
-            httpRequest.headers().map(), request.getBody(), request.getBody() != null ? request.getBody().length : 0);
-        return new Response(new RustHttpResponse(httpRequest, response));
+        Client client = new Client();
+        NetResponse response = client.request(request.getNetRequest());
+        return new Response(response);
     }
 
     @Override
@@ -64,6 +58,4 @@ public class RustCall implements Call {
         };
         future = executor.submit(r);
     }
-
-    public native RustResponse nativeRequest(String method, String host, int port, String path, String query, Map<String, List<String>> headers, byte[] body, int bodyLength);
 }

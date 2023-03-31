@@ -17,6 +17,7 @@ import javax.net.ssl.X509TrustManager;
 import okio.ByteString;
 import org.whispersystems.signalservice.api.util.TlsProxySocketFactory;
 import tokhttp3.rust.RustCall;
+import tokhttp3.rust.RustWebSocket;
 
 /**
  *
@@ -32,20 +33,28 @@ public class OkHttpClient {
         this.jClient = jClient;
     }
 
-    public Call newCall(Request request) {
-        return new RustCall(request);
-    }
-
     public OkHttpClient.Builder newBuilder() {
         return new Builder();
     }
 
+    public Call newCall(Request request) {
+        return new RustCall(request);
+    }
+
     public WebSocket newWebSocket(Request request, WebSocketListener listener) {
-        java.net.http.WebSocket.Builder wsBuilder = jClient.newWebSocketBuilder();
+        RustWebSocket webSocket = new RustWebSocket(listener);
+
+        webSocket.connect(request.getNetRequest());
+
+        return webSocket;
+    }
+/*
+    public WebSocket newWebSocketJDK(Request request, WebSocketListener listener) {
+               java.net.http.WebSocket.Builder wsBuilder = jClient.newWebSocketBuilder();
         TokWebSocket answer = new TokWebSocket(listener);
         URI uri = request.getUri();
         LOG.info("Create websocket to URI = " + uri.getHost());
-        request.getHttpRequest().headers().map().forEach((String k, List<String> v) -> {
+        request.getNetRequest().getHeaders().forEach((String k, List<String> v) -> {
             v.stream().forEach(val -> wsBuilder.header(k, val));
         });
         CompletableFuture<java.net.http.WebSocket> buildAsync = wsBuilder.buildAsync(uri, new java.net.http.WebSocket.Listener() {
@@ -133,6 +142,7 @@ public class OkHttpClient {
 
         return answer;
     }
+*/
 
     public static class Builder {
 

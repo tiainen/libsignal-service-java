@@ -174,7 +174,7 @@ public class WebSocketConnection extends WebSocketListener {
 
             this.connected = false;
             Request request = requestBuilder.build();
-            LOG.info("[WSC] now connecting websocket for request " + request+" with headers "+request.getHttpRequest().headers().map());
+            LOG.info("[WSC] now connecting websocket for request " + request+" with headers "+request.getNetRequest().getHeaders());
             this.client = okHttpClient.newWebSocket(request, this);
         }
     }
