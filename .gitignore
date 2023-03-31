@@ -2,6 +2,7 @@
 .idea
 *.iml
 local.properties
+bin/
 build/
 target/
 gradle.properties
