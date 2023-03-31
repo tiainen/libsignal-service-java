@@ -12,7 +12,7 @@ import tokhttp3.Response;
 import tokhttp3.WebSocket;
 import tokhttp3.WebSocketListener;
 
-public class RustWebSocket implements WebSocket {
+public class RustWebSocket implements NetListener, WebSocket {
 
 	private Client client;
 	private long webSocketPointer;
@@ -30,17 +30,23 @@ public class RustWebSocket implements WebSocket {
 				this.webSocketPointer = webSocketNetResponse.getWebSocketPointer();
 				this.listener.onOpen(this, new Response(webSocketNetResponse));
 
-				client.wsRead(this.webSocketPointer, this::onData, this::onText);
+				client.wsRead(this.webSocketPointer, this);
 			}
 		}, "RustWebSocket-Connect");
 		connectThread.start();
 	}
 
-	private void onData(byte[] data) {
+	@Override
+	public void onBinary(byte[] data) {
 		this.listener.onMessage(this, ByteString.of(data));
 	}
 
-	private void onText(String text) {
+	@Override
+	public void onClose() {
+	}
+
+	@Override
+	public void onText(String text) {
 		this.listener.onMessage(this, text);
 	}
 
