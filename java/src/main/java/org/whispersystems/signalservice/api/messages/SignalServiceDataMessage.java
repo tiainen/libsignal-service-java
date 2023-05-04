@@ -42,6 +42,7 @@ public class SignalServiceDataMessage {
   private final Optional<Reaction>                      reaction;
   private final Optional<RemoteDelete>                  remoteDelete;
   private final Optional<GroupCallUpdate>               groupCallUpdate;
+  private final Optional <StoryContext>                 storyContext;
   private final Optional<List<BodyRange>>               bodyRanges;
 
   /**
@@ -106,6 +107,11 @@ public class SignalServiceDataMessage {
       this.mentions = Optional.empty();
     }
 
+    if (storyContext != null) {
+        this.storyContext = Optional.of(storyContext);
+    } else {
+        this.storyContext = Optional.empty();
+    }
     if (bodyRanges != null && !bodyRanges.isEmpty()) {
         this.bodyRanges = Optional.of(bodyRanges);
     } else {
@@ -143,6 +149,10 @@ public class SignalServiceDataMessage {
    */
   public Optional<SignalServiceGroupV2> getGroupContext() {
     return group;
+  }
+
+  public Optional<StoryContext> getStoryContext() {
+      return this.storyContext;
   }
 
   public boolean isEndSession() {

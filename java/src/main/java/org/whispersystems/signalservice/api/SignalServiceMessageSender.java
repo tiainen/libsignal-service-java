@@ -266,6 +266,53 @@ public class SignalServiceMessageSender {
                 content, ContentHint.IMPLICIT, message.getGroupId(), true, SenderKeyGroupEvents.EMPTY, false, false);
     }
 
+  /**
+   * Only sends sync message for a story. Useful if you're sending to a group with no one else in it -- meaning you don't need to send a story, but you do need
+   * to send it to your linked devices.
+   */
+  public void sendStorySyncMessage(SignalServiceStoryMessage message,
+                                   long timestamp,
+                                   boolean isRecipientUpdate,
+                                   Set<SignalServiceStoryMessageRecipient> manifest)
+      throws IOException, UntrustedIdentityException
+  {
+    Log.d(TAG, "[" + timestamp + "] Sending a story sync message.");
+
+    if (manifest.isEmpty() && !message.getGroupContext().isPresent()) {
+      Log.w(TAG, "Refusing to send sync message for empty manifest in non-group story.");
+      return;
+    }
+
+    SignalServiceSyncMessage syncMessage = createSelfSendSyncMessageForStory(message, timestamp, isRecipientUpdate, manifest);
+    sendSyncMessage(syncMessage, Optional.empty());
+  }
+
+  /**
+   * Send a story using sender key. Note: This is not just for group stories -- it's for any story. Just following the naming convention of making sender key
+   * method named "sendGroup*"
+   */
+  public List<SendMessageResult> sendGroupStory(DistributionId                          distributionId,
+                                                Optional<byte[]>                        groupId,
+                                                List<SignalServiceAddress>              recipients,
+                                                List<UnidentifiedAccess>                unidentifiedAccess,
+                                                boolean                                 isRecipientUpdate,
+                                                SignalServiceStoryMessage               message,
+                                                long                                    timestamp,
+                                                Set<SignalServiceStoryMessageRecipient> manifest)
+      throws IOException, UntrustedIdentityException, InvalidKeyException, NoSessionException, InvalidRegistrationIdException
+  {
+    Log.d(TAG, "[" + timestamp + "] Sending a story.");
+
+    Content                  content            = createStoryContent(message);
+    List<SendMessageResult>  sendMessageResults = sendGroupMessage(distributionId, recipients, unidentifiedAccess, timestamp, content, ContentHint.IMPLICIT, groupId, false, SenderKeyGroupEvents.EMPTY, false, true);
+
+    if (aciStore.isMultiDevice()) {
+      sendStorySyncMessage(message, timestamp, isRecipientUpdate, manifest);
+    }
+
+    return sendMessageResults;
+  }
+
     /**
      * Send a call setup message to a single recipient.
      *
@@ -1274,6 +1321,13 @@ public class SignalServiceMessageSender {
         if (message.getGroupCallUpdate().isPresent()) {
             builder.setGroupCallUpdate(DataMessage.GroupCallUpdate.newBuilder().setEraId(message.getGroupCallUpdate().get().getEraId()));
         }
+        if (message.getStoryContext().isPresent()) {
+            SignalServiceDataMessage.StoryContext storyContext = message.getStoryContext().get();
+
+            builder.setStoryContext(DataMessage.StoryContext.newBuilder()
+                    .setAuthorUuid(storyContext.getAuthorServiceId().toString())
+                    .setSentTimestamp(storyContext.getSentTimestamp()));
+        }
 
         if (message.getBodyRanges().isPresent()) {
             builder.addAllBodyRanges(message.getBodyRanges().get());
@@ -1928,6 +1982,24 @@ public class SignalServiceMessageSender {
 
         return results;
     }
+
+  private SignalServiceSyncMessage createSelfSendSyncMessageForStory(SignalServiceStoryMessage message,
+                                                                     long sentTimestamp,
+                                                                     boolean isRecipientUpdate,
+                                                                     Set<SignalServiceStoryMessageRecipient> manifest)
+  {
+    SentTranscriptMessage transcript = new SentTranscriptMessage(Optional.of(localAddress),
+                                                                 sentTimestamp,
+                                                                 Optional.empty(),
+                                                                 0,
+                                                                 Collections.singletonMap(localAddress.getServiceId(), false),
+                                                                 isRecipientUpdate,
+                                                                 Optional.of(message),
+                                                                 manifest,
+                                                                 Optional.empty());
+
+    return SignalServiceSyncMessage.forSentTranscript(transcript);
+  }
 
     private List<SendMessageResult> sendMessage(List<SignalServiceAddress> recipients,
             List<Optional<UnidentifiedAccess>> unidentifiedAccess,
