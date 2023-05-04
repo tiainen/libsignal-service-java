@@ -539,7 +539,7 @@ public final class SignalServiceContent {
       }
 
       if (message.hasDataMessage()) {
-        return new SignalServiceContent(createSignalServiceMessage(metadata, message.getDataMessage()),
+        return new SignalServiceContent(createSignalServiceDataMessage(metadata, message.getDataMessage()),
                                         senderKeyDistributionMessage,
                                         pniSignatureMessage,
                                         metadata.getSender(),
@@ -669,7 +669,7 @@ public final class SignalServiceContent {
     return null;
   }
 
-  private static SignalServiceDataMessage createSignalServiceMessage(SignalServiceMetadata metadata,
+  private static SignalServiceDataMessage createSignalServiceDataMessage(SignalServiceMetadata metadata,
                                                                      SignalServiceProtos.DataMessage content)
       throws UnsupportedDataMessageException, InvalidMessageStructureException
   {
@@ -755,8 +755,9 @@ public final class SignalServiceContent {
     if (content.hasSent()) {
       Map<ServiceId, Boolean>                 unidentifiedStatuses = new HashMap<>();
       SignalServiceProtos.SyncMessage.Sent    sentContent          = content.getSent();
-      Optional<SignalServiceDataMessage>      dataMessage          = sentContent.hasMessage() ? Optional.of(createSignalServiceMessage(metadata, sentContent.getMessage())) : Optional.empty();
+      Optional<SignalServiceDataMessage>      dataMessage          = sentContent.hasMessage() ? Optional.of(createSignalServiceDataMessage(metadata, sentContent.getMessage())) : Optional.empty();
       Optional<SignalServiceStoryMessage>     storyMessage         = sentContent.hasStoryMessage() ? Optional.of(createStoryMessage(sentContent.getStoryMessage())) : Optional.empty();
+      Optional<SignalServiceEditMessage>      editMessage          = sentContent.hasEditMessage() ? Optional.of(createEditMessage(metadata, sentContent.getEditMessage())) : Optional.empty();
       Optional<SignalServiceAddress>          address              = SignalServiceAddress.isValidAddress(sentContent.getDestinationUuid())
                                                                      ? Optional.of(new SignalServiceAddress(ServiceId.parseOrThrow(sentContent.getDestinationUuid()), sentContent.getDestinationE164()))
                                                                      : Optional.empty();
@@ -786,7 +787,8 @@ public final class SignalServiceContent {
                                                                                   unidentifiedStatuses,
                                                                                   sentContent.getIsRecipientUpdate(),
                                                                                   storyMessage,
-                                                                                  recipientManifest));
+                                                                                  recipientManifest,
+                                                                                  editMessage));
     }
 
     if (content.hasRequest()) {
@@ -1096,6 +1098,14 @@ public final class SignalServiceContent {
                                                          createTextAttachment(content.getTextAttachment()),
                                                          content.getAllowsReplies(),
                                                          content.getBodyRangesList());
+    }
+  }
+
+  private static SignalServiceEditMessage createEditMessage(SignalServiceMetadata metadata, SignalServiceProtos.EditMessage content) throws InvalidMessageStructureException, UnsupportedDataMessageException {
+    if (content.hasDataMessage() && content.getTargetSentTimestamp() != 0) { 
+      return new SignalServiceEditMessage(content.getTargetSentTimestamp(), createSignalServiceDataMessage(metadata, content.getDataMessage()));
+    } else {
+      throw new InvalidMessageStructureException("Missing data message or timestamp from edit message.");
     }
   }
 

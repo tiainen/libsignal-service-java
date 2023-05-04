@@ -17,6 +17,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import org.whispersystems.signalservice.api.messages.SignalServiceEditMessage;
 
 public class SentTranscriptMessage {
 
@@ -29,6 +30,7 @@ public class SentTranscriptMessage {
   private final boolean                                 isRecipientUpdate;
   private final Optional<SignalServiceStoryMessage>     storyMessage;
   private final Set<SignalServiceStoryMessageRecipient> storyMessageRecipients;
+  private final Optional<SignalServiceEditMessage>      editMessage;
 
   public SentTranscriptMessage(Optional<SignalServiceAddress> destination,
                                long timestamp,
@@ -37,7 +39,8 @@ public class SentTranscriptMessage {
                                Map<ServiceId, Boolean> unidentifiedStatus,
                                boolean isRecipientUpdate,
                                Optional<SignalServiceStoryMessage> storyMessage,
-                               Set<SignalServiceStoryMessageRecipient> storyMessageRecipients)
+                               Set<SignalServiceStoryMessageRecipient> storyMessageRecipients,
+                               Optional<SignalServiceEditMessage> editMessage)
   {
     this.destination              = destination;
     this.timestamp                = timestamp;
@@ -48,6 +51,7 @@ public class SentTranscriptMessage {
     this.isRecipientUpdate        = isRecipientUpdate;
     this.storyMessage             = storyMessage;
     this.storyMessageRecipients   = storyMessageRecipients;
+    this.editMessage              = editMessage;
   }
 
   public Optional<SignalServiceAddress> getDestination() {
@@ -64,6 +68,10 @@ public class SentTranscriptMessage {
 
   public Optional<SignalServiceDataMessage> getDataMessage() {
     return message;
+  }
+
+  public Optional<SignalServiceEditMessage> getEditMessage() {
+    return editMessage;
   }
 
   public Optional<SignalServiceStoryMessage> getStoryMessage() {
