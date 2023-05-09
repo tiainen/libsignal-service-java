@@ -19,10 +19,8 @@ import org.signal.storageservice.protos.groups.GroupJoinInfo;
 import org.signal.libsignal.zkgroup.VerificationFailedException;
 import org.signal.libsignal.zkgroup.profiles.ClientZkProfileOperations;
 import org.signal.libsignal.zkgroup.profiles.ProfileKey;
-import org.signal.libsignal.zkgroup.profiles.ProfileKeyCredential;
 import org.signal.libsignal.zkgroup.profiles.ProfileKeyCredentialRequest;
 import org.signal.libsignal.zkgroup.profiles.ProfileKeyCredentialRequestContext;
-import org.signal.libsignal.zkgroup.profiles.ProfileKeyCredentialResponse;
 import org.signal.libsignal.zkgroup.profiles.ProfileKeyVersion;
 import org.signal.libsignal.protocol.IdentityKey;
 import org.signal.libsignal.protocol.ecc.ECPublicKey;
@@ -2231,12 +2229,6 @@ public class PushServiceSocket {
 
     private ConnectionHolder getRandom(ConnectionHolder[] connections, SecureRandom random) {
         return connections[random.nextInt(connections.length)];
-    }
-
-    public ProfileKeyCredential parseResponse(UUID uuid, ProfileKey profileKey, ProfileKeyCredentialResponse profileKeyCredentialResponse) throws VerificationFailedException {
-        ProfileKeyCredentialRequestContext profileKeyCredentialRequestContext = clientZkProfileOperations.createProfileKeyCredentialRequestContext(random, uuid, profileKey);
-
-        return clientZkProfileOperations.receiveProfileKeyCredential(profileKeyCredentialRequestContext, profileKeyCredentialResponse);
     }
 
     /**
