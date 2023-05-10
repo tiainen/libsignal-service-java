@@ -4,6 +4,7 @@ import java.io.ByteArrayInputStream;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.http.HttpHeaders;
 import java.net.http.HttpResponse;
 import java.util.logging.Logger;
 
@@ -20,8 +21,11 @@ public final class ResponseBody<T> implements Closeable {
 
     public ResponseBody(HttpResponse<T> httpResponse) {
         this.httpResponse = httpResponse;
-        httpResponse.headers().firstValue("content-length")
-                .ifPresent(ls -> this.contentLength = Integer.parseInt(ls));
+        HttpHeaders headers = httpResponse.headers();
+        if (headers != null) {
+            headers.firstValue("content-length")
+                    .ifPresent(ls -> this.contentLength = Integer.parseInt(ls));
+        }
     }
 
     public String string() throws IOException {
