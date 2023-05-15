@@ -185,7 +185,6 @@ public class OkHttpClient {
         }
 
         public Builder retryOnConnectionFailure(boolean automaticNetworkRetry) {
-            LOG.severe("We don't allow automatic networkretries in tokhttpclient");
             return this;
         }
 
@@ -194,17 +193,14 @@ public class OkHttpClient {
         }
 
         public Builder sslSocketFactory(SSLSocketFactory sslSocketFactory, X509TrustManager x509TrustManager) {
-            LOG.severe("We don't allow custom sslfactories in tokhttpclient");
             return this;
         }
 
         public Builder connectionSpecs(List<ConnectionSpec> orElse) {
-            LOG.severe("We don't allow custom connection specs in tokhttpclient");
             return this;
         }
 
         public Builder dns(Dns orElse) {
-            LOG.severe("We don't allow custom dns in tokhttpclient");
             return this;
         }
 
@@ -217,7 +213,6 @@ public class OkHttpClient {
         }
 
         public Builder connectionPool(ConnectionPool connectionPool) {
-            LOG.severe("We don't allow connection pools in tokhttpclient");
             return this;
         }
     }
