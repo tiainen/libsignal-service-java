@@ -1024,15 +1024,8 @@ public class SignalServiceMessageSender {
                 SendGroupMessageResponse response = sendToGroup.get(10, TimeUnit.SECONDS);
                 List<SendMessageResult> messageResults = transformGroupResponseToMessageResults(targetInfo.devices, response, content);
                 return messageResults;
-
-//
-//      SendGroupMessageResponse response = new MessagingService.SendResponseProcessor<>(messagingService.sendToGroup(ciphertext, joinedUnidentifiedAccess, timestamp, online).blockingGet()).getResultOrThrow();
-//      return transformGroupResponseToMessageResults(targetInfo.devices, response, content);
-//
-//      try {
-//        SendGroupMessageResponse response = socket.sendGroupMessage(ciphertext, joinedUnidentifiedAccess, timestamp, online);
-//        return transformGroupResponseToMessageResults(targetInfo.devices, response, content);
             } catch (ExecutionException ee) {
+                LOG.info("Exception trying to send to group: "+ee);
                 Throwable reason = ee.getCause();
                 if (reason instanceof GroupMismatchedDevicesException) {
                     GroupMismatchedDevicesException e = (GroupMismatchedDevicesException) reason;
@@ -1052,11 +1045,11 @@ public class SignalServiceMessageSender {
                     }
                 }
             } catch (Exception ex) {
-                System.err.println("GOT ERR: " + ex);
+                LOG.info("unknown exception while sending to group: " + ex);
                 ex.printStackTrace();
             }
 
-            Log.w(TAG, "[sendGroupMessage][" + timestamp + "] Attempt failed (i = " + i + ")");
+            LOG.warning("Attempt failed (i = " + i + ")");
         }
 
         throw new IOException("Failed to resolve conflicts after " + RETRY_COUNT + " attempts!");
@@ -2131,9 +2124,9 @@ public class SignalServiceMessageSender {
                     try {
                         SendMessageResponse response = socket.sendMessage(messages, unidentifiedAccess, story);
                         return SendMessageResult.success(recipient, messages.getDevices(), true, response.getNeedsSync() || aciStore.isMultiDevice(), System.currentTimeMillis() - startTime, content.getContent());
-                     } catch (InvalidUnidentifiedAccessHeaderException | UnregisteredUserException | MismatchedDevicesException | StaleDevicesException e) {
+                    } catch (InvalidUnidentifiedAccessHeaderException | UnregisteredUserException | MismatchedDevicesException | StaleDevicesException e) {
                         throw e;
-                    } catch (IOException e) {
+                    }  catch (IOException e) {
                         Log.w(TAG, e);
                         Log.w(TAG, "[sendMessage][" + timestamp + "] Unidentified pipe failed, falling back...");
                     }

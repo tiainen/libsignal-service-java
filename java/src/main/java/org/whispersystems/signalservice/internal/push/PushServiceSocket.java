@@ -296,7 +296,7 @@ public class PushServiceSocket {
     private final SecureRandom random;
     private final ClientZkProfileOperations clientZkProfileOperations;
     private final boolean automaticNetworkRetry;
-    private final boolean useGrpc;
+    private boolean useGrpc;
 
     private GrpcClient grpcClient;
 
@@ -1862,6 +1862,18 @@ public class PushServiceSocket {
         SignalRpcReply sReply = this.grpcClient.sendMessage(request);
         return new Response(sReply);
     }
+
+    private void recheckGrpc() {
+        boolean newGrpc = Boolean.getBoolean("wave.grpc");
+        if (newGrpc != this.useGrpc) {
+            LOG.info("We are asked to switch from useGrpc " + useGrpc+" to "+newGrpc);
+            this.useGrpc = newGrpc;
+            if (this.useGrpc && (this.grpcClient == null)) {
+                this.grpcClient = new GrpcClient();
+            }
+        }
+    }
+
     private Response getServiceConnection(String urlFragment,
             String method,
             RequestBody body,
@@ -1872,6 +1884,7 @@ public class PushServiceSocket {
             throws PushNetworkException {
         try {
             Request serviceRequest = buildServiceRequest(urlFragment, method, body, headers, unidentifiedAccess, doNotAddAuthenticationOrUnidentifiedAccessKey);
+            recheckGrpc();
             LOG.info("Need to use grpc? "+useGrpc);
             if (useGrpc) {
                 Map<String, List<String>> realHeaders = serviceRequest.getHttpRequest().headers().map();

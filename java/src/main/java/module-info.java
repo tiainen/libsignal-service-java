@@ -4,7 +4,9 @@ module org.whispersystems.service {
     // requires org.whispersystems.metadata;
     // requires org.whispersystems.protocol;
     requires com.google.protobuf;
+    requires grpc.stub;
     requires libphonenumber;
+    requires grpcproxy.client;
     // requires okhttp3;
     requires okio;
     requires com.fasterxml.jackson.annotation;

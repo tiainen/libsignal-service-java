@@ -1,11 +1,15 @@
 package tokhttp3;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.nio.ByteBuffer;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executors;
@@ -40,6 +44,25 @@ public class OkHttpClient {
     }
 
     public WebSocket newWebSocket(Request request, WebSocketListener listener) {
+        boolean useGrpc = Boolean.getBoolean("wave.grpc");
+        if (useGrpc) {
+            GrpcWebSocket gws;
+            try {
+                LOG.info("Try grpcwebsocket");
+                gws = new GrpcWebSocket(listener);
+                Map<String, String> headers = new HashMap<>();
+                request.getHttpRequest().headers().map().forEach((String k, List<String> v) -> {
+                    v.stream().forEach(val -> headers.put(k, val));
+                });
+                LOG.info("Try opening grpcwebsocket");
+                gws.open(request.getUri().toString(), headers, listener);
+                LOG.info("Opened grpcwebsocket");
+                return gws;
+            } catch (IOException ex) {
+                Logger.getLogger(OkHttpClient.class.getName()).log(Level.SEVERE, null, ex);
+                LOG.severe("Creating websocket using grpc failed, fallback to normal");
+            }
+        }
         java.net.http.WebSocket.Builder wsBuilder = jClient.newWebSocketBuilder();
         TokWebSocket answer = new TokWebSocket(listener);
         URI uri = request.getUri();
