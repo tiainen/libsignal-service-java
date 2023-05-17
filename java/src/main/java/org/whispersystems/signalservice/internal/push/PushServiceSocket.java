@@ -318,9 +318,15 @@ public class PushServiceSocket {
         this.random = new SecureRandom();
         this.clientZkProfileOperations = clientZkProfileOperations;
         this.useGrpc = Boolean.getBoolean("wave.grpc");
-        LOG.info("do we have grpc? "+System.getProperty("wave.grpc") + ", answer = "+useGrpc);
+        LOG.info("do we have grpc? " + System.getProperty("wave.grpc") + ", answer = " + useGrpc);
         if (this.useGrpc) {
-            grpcClient = new GrpcClient();
+            String target = "grpcproxy2.gluonhq.net:443";
+            String sysTarget = System.getProperty("grpc.target");
+            if (sysTarget != null) {
+                target = sysTarget;
+            }
+            LOG.info("grpc target for grpcClient = " + target);
+            grpcClient = new GrpcClient(target);
         }
     }
 
@@ -1692,7 +1698,7 @@ public class PushServiceSocket {
             throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException {
         ResponseBody responseBody = makeServiceBodyRequest(urlFragment, method, jsonRequestBody(jsonBody), headers, responseCodeHandler, unidentifiedAccessKey, jsonBody);
         try {
-            return responseBody.string();
+            return new String(responseBody.bytes());
         } catch (IOException e) {
             throw new PushNetworkException(e);
         }
@@ -1859,7 +1865,7 @@ public class PushServiceSocket {
         request.setBody(body);
         request.setHeaders(headers);
         request.setMethod(method);
-        SignalRpcReply sReply = this.grpcClient.sendMessage(request);
+        SignalRpcReply sReply = this.grpcClient.sendDirectMessage(request);
         return new Response(sReply);
     }
 
