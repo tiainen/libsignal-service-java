@@ -4,9 +4,7 @@ import com.google.protobuf.ByteString;
 
 import org.signal.libsignal.zkgroup.InvalidInputException;
 import org.signal.libsignal.zkgroup.VerificationFailedException;
-import org.signal.libsignal.zkgroup.auth.AuthCredential;
 import org.signal.libsignal.zkgroup.auth.AuthCredentialPresentation;
-import org.signal.libsignal.zkgroup.auth.AuthCredentialResponse;
 import org.signal.libsignal.zkgroup.auth.AuthCredentialWithPni;
 import org.signal.libsignal.zkgroup.auth.AuthCredentialWithPniResponse;
 import org.signal.libsignal.zkgroup.auth.ClientZkAuthOperations;

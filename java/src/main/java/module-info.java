@@ -1,13 +1,10 @@
 module org.whispersystems.service {
     requires java.logging;
     requires java.net.http;
-    // requires org.whispersystems.metadata;
-    // requires org.whispersystems.protocol;
     requires com.google.protobuf;
     requires grpc.stub;
-    requires libphonenumber;
+    // requires libphonenumber;
     requires grpcproxy.client;
-    // requires okhttp3;
     requires okio;
     requires com.fasterxml.jackson.annotation;
     requires com.fasterxml.jackson.core;

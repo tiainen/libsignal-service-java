@@ -4,6 +4,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.Arrays;
@@ -35,8 +36,17 @@ public class OkHttpClient {
         this.jClient = jClient;
     }
 
+    @Deprecated
     public MyCall newCall(Request request) {
+        LOG.info("OLD NEWCALL, we're removing this");
+        Thread.dumpStack();
         return new MyCall(jClient, request);
+    }
+
+    public MyCall newCall(HttpRequest request, byte[] raw) {
+        MyCall answer = new MyCall(jClient, request, raw);
+        LOG.info("NewCall created "+answer);
+        return answer;
     }
 
     public OkHttpClient.Builder newBuilder() {

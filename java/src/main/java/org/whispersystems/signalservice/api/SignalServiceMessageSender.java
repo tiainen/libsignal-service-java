@@ -158,22 +158,22 @@ public class SignalServiceMessageSender {
 
     private static final int RETRY_COUNT = 4;
 
-    private PushServiceSocket socket;
+    private final PushServiceSocket socket;
     private final SignalServiceAccountDataStore aciStore;
     private final SignalSessionLock sessionLock;
     private final SignalServiceAddress localAddress;
     private final int localDeviceId;
     private final PNI localPni;
 
-    private Optional<EventListener> eventListener;
+    private final Optional<EventListener> eventListener;
     private final IdentityKeyPair localPniIdentity;
 
-    private AtomicReference<Optional<SignalServiceMessagePipe>> pipe;
-    private AtomicReference<Optional<SignalServiceMessagePipe>> unidentifiedPipe;
-    private AtomicBoolean isMultiDevice;
+    private final AtomicReference<Optional<SignalServiceMessagePipe>> pipe;
+    private final AtomicReference<Optional<SignalServiceMessagePipe>> unidentifiedPipe;
+    private final AtomicBoolean isMultiDevice;
 
-    private ExecutorService executor;
-    private long maxEnvelopeSize;
+    private final ExecutorService executor;
+    private final long maxEnvelopeSize;
 
     public SignalServiceMessageSender(SignalServiceConfiguration urls,
             CredentialsProvider credentialsProvider,
@@ -330,44 +330,6 @@ public class SignalServiceMessageSender {
 
         sendMessage(recipient, getTargetUnidentifiedAccess(unidentifiedAccess), System.currentTimeMillis(), envelopeContent, false, null);
     }
-//
-//    public OutgoingPushMessageList createMessageBundle(SignalServiceSyncMessage message, Optional<UnidentifiedAccessPair> unidentifiedAccess)
-//            throws IOException, UntrustedIdentityException, InvalidKeyException {
-//        LOG.info("Need to create MessageBundle for " + message);
-//        byte[] content;
-//
-//        if (message.getContacts().isPresent()) {
-//            content = createMultiDeviceContactsContent(message.getContacts().get().getContactsStream().asStream(),
-//                    message.getContacts().get().isComplete());
-//        } else if (message.getGroups().isPresent()) {
-//            content = createMultiDeviceGroupsContent(message.getGroups().get().asStream()).toByteArray();
-//        } else if (message.getRead().isPresent()) {
-//            content = createMultiDeviceReadContent(message.getRead().get());
-//        } else if (message.getViewOnceOpen().isPresent()) {
-//            content = createMultiDeviceViewOnceOpenContent(message.getViewOnceOpen().get());
-//        } else if (message.getBlockedList().isPresent()) {
-//            content = createMultiDeviceBlockedContent(message.getBlockedList().get());
-//        } else if (message.getConfiguration().isPresent()) {
-//            content = createMultiDeviceConfigurationContent(message.getConfiguration().get());
-//        } else if (message.getSent().isPresent()) {
-//            content = createMultiDeviceSentTranscriptContent(message.getSent().get(), unidentifiedAccess).toByteArray();
-//        } else if (message.getStickerPackOperations().isPresent()) {
-//            content = createMultiDeviceStickerPackOperationContent(message.getStickerPackOperations().get());
-//        } else if (message.getFetchType().isPresent()) {
-//            content = createMultiDeviceFetchTypeContent(message.getFetchType().get());
-//        } else if (message.getRequest().isPresent()) {
-//            content = createMultiDeviceRequestContent(message.getRequest().get());
-//        } else {
-//            throw new IOException("Unsupported sync message!");
-//        }
-//
-//        long timestamp = message.getSent().isPresent() ? message.getSent().get().getTimestamp()
-//                : System.currentTimeMillis();
-//        LOG.info("Created content for " + message + ", encrypt now");
-//        OutgoingPushMessageList messages = getEncryptedMessages(socket, localAddress, Optional.<UnidentifiedAccess>empty(), timestamp, content, false);
-//        LOG.info("Created and encrypted MessageBundle for " + message);
-//        return messages;
-//    }
 
     public PushServiceSocket getSocket() {
         return this.socket;
@@ -456,18 +418,6 @@ public class SignalServiceMessageSender {
         sendEvents.onSyncMessageSent();
         System.err.println("SSMS, return results from sendGroupDataMessage: " + results);
         return results;
-    }
-
-    private byte[] createMultiDeviceRequestContent(RequestMessage request) {
-        Content.Builder container = Content.newBuilder();
-        SyncMessage.Builder syncMessage = createSyncMessageBuilder();
-        SyncMessage.Request.Builder requestMessage = SyncMessage.Request.newBuilder();
-        requestMessage.setType(request.getType());
-
-        Content content = container.setSyncMessage(syncMessage.setRequest(requestMessage)).build();
-        LOG.fine("content = " + content);
-        LOG.fine("SYNCMESSAGE contentmap = " + content.getAllFields());
-        return content.toByteArray();
     }
 
     /**
@@ -583,85 +533,6 @@ public class SignalServiceMessageSender {
         return results;
     }
 
-//    /**
-//     * Send a message to a single recipient.
-//     *
-//     * @param recipient The message's destination.
-//     * @param message The message.
-//     * @throws UntrustedIdentityException
-//     * @throws IOException
-//     */
-//    public SendMessageResult sendMessage(SignalServiceAddress recipient,
-//            Optional<UnidentifiedAccessPair> unidentifiedAccess,
-//            SignalServiceDataMessage message)
-//            throws UntrustedIdentityException, IOException {
-//        Content content = createMessageContent(message);
-//        long timestamp = message.getTimestamp();
-//        LOG.info("sending to recipient " + recipient.getIdentifier()+ " with unidentifiedAccess = "+unidentifiedAccess);
-//        SendMessageResult result = sendMessage(recipient, getTargetUnidentifiedAccess(unidentifiedAccess), timestamp, content.toByteArray(), false, null);
-//
-//        if (result.getSuccess() != null && result.getSuccess().isNeedsSync()) {
-//            Content syncMessage = createMultiDeviceSentTranscriptContent(content, Optional.of(recipient), timestamp, Collections.singletonList(result), false);
-//            LOG.info("Message sent successfully, now send syncmessage");
-//            sendMessage(localAddress, Optional.empty(), timestamp, syncMessage.toByteArray(), false, null);
-//        }
-//
-//        // TODO [greyson][session] Delete this when we delete the button
-//        if (message.isEndSession()) {
-//            if (recipient.getUuid().isPresent()) {
-//                aciStore.deleteAllSessions(recipient.getUuid().get().toString());
-//            }
-//            if (recipient.getNumber().isPresent()) {
-//                aciStore.deleteAllSessions(recipient.getNumber().get());
-//            }
-//
-//            if (eventListener.isPresent()) {
-//                eventListener.get().onSecurityEvent(recipient);
-//            }
-//        }
-//
-//        return result;
-//    }
-//
-//    /**
-//     * Send a message to a group.
-//     *
-//     * @param recipients The group members.
-//     * @param message The group message.
-//     * @throws IOException
-//     */
-//    public List<SendMessageResult> sendMessage(List<SignalServiceAddress> recipients,
-//            List<Optional<UnidentifiedAccessPair>> unidentifiedAccess,
-//            boolean isRecipientUpdate,
-//            SignalServiceDataMessage message)
-//            throws IOException, UntrustedIdentityException {
-//        LOG.info("Send message to a group with unregisteed members");
-//        Content content = createMessageContent(message);
-//        long timestamp = message.getTimestamp();
-//        List<SendMessageResult> results = sendMessage(recipients, getTargetUnidentifiedAccess(unidentifiedAccess), timestamp, content.toByteArray(), false, null);
-//        boolean needsSyncInResults = false;
-//
-//        for (SendMessageResult result : results) {
-//            if (result.getSuccess() != null && result.getSuccess().isNeedsSync()) {
-//                needsSyncInResults = true;
-//                break;
-//            }
-//        }
-//
-//        if (needsSyncInResults || isMultiDevice.get()) {
-//            LOG.info("We are multidevice OR we need to sync");
-//            Optional<SignalServiceAddress> recipient = Optional.empty();
-//            if (!message.getGroupContext().isPresent() && recipients.size() == 1) {
-//                recipient = Optional.of(recipients.get(0));
-//            }
-//
-//            Content syncMessage = createMultiDeviceSentTranscriptContent(content, recipient, timestamp, results, isRecipientUpdate);
-//            sendMessage(localAddress, Optional.<UnidentifiedAccess>empty(), timestamp, syncMessage.toByteArray(), false, null);
-//        }
-//
-//        return results;
-//    }
-//
     public SendMessageResult sendSyncMessage(SignalServiceSyncMessage message, Optional<UnidentifiedAccessPair> unidentifiedAccess)
             throws IOException, UntrustedIdentityException {
         Content content;
@@ -715,48 +586,6 @@ public class SignalServiceMessageSender {
         return sendMessage(localAddress, Optional.empty(), timestamp, envelopeContent, false, null, urgent, false);
     }
 
-//    public void sendSyncMessage(SignalServiceSyncMessage message, Optional<UnidentifiedAccessPair> unidentifiedAccess)
-//            throws IOException, UntrustedIdentityException {
-//        byte[] content;
-//
-//        if (message.getContacts().isPresent()) {
-//            content = createMultiDeviceContactsContent(message.getContacts().get().getContactsStream().asStream(),
-//                    message.getContacts().get().isComplete());
-//        } else if (message.getGroups().isPresent()) {
-//            content = createMultiDeviceGroupsContent(message.getGroups().get().asStream()).toByteArray();
-//        } else if (message.getRead().isPresent()) {
-//            content = createMultiDeviceReadContent(message.getRead().get());
-//        } else if (message.getViewOnceOpen().isPresent()) {
-//            content = createMultiDeviceViewOnceOpenContent(message.getViewOnceOpen().get());
-//        } else if (message.getBlockedList().isPresent()) {
-//            content = createMultiDeviceBlockedContent(message.getBlockedList().get());
-//        } else if (message.getConfiguration().isPresent()) {
-//            content = createMultiDeviceConfigurationContent(message.getConfiguration().get());
-//        } else if (message.getSent().isPresent()) {
-//            content = createMultiDeviceSentTranscriptContent(message.getSent().get(), unidentifiedAccess).toByteArray();
-//        } else if (message.getStickerPackOperations().isPresent()) {
-//            content = createMultiDeviceStickerPackOperationContent(message.getStickerPackOperations().get());
-//        } else if (message.getFetchType().isPresent()) {
-//            content = createMultiDeviceFetchTypeContent(message.getFetchType().get());
-//        } else if (message.getMessageRequestResponse().isPresent()) {
-//            content = createMultiDeviceMessageRequestResponseContent(message.getMessageRequestResponse().get());
-//        } else if (message.getKeys().isPresent()) {
-//            content = createMultiDeviceSyncKeysContent(message.getKeys().get());
-//        } else if (message.getRequest().isPresent()) {
-//            content = createMultiDeviceRequestContent(message.getRequest().get());
-//        } else if (message.getVerified().isPresent()) {
-//            sendMessage(message.getVerified().get(), unidentifiedAccess);
-//            return;
-//        } else {
-//            throw new IOException("Unsupported sync message!");
-//        }
-//
-//        long timestamp = message.getSent().isPresent() ? message.getSent().get().getTimestamp()
-//                : System.currentTimeMillis();
-//        LOG.info("Will now invoke sendMessage");
-//        SendMessageResult result = sendMessage(localAddress, Optional.<UnidentifiedAccess>empty(), timestamp, content, false, null);
-//        LOG.info("Result of sendMessage = " + result);
-//    }
     public void setSoTimeoutMillis(long soTimeoutMillis) {
         socket.setSoTimeoutMillis(soTimeoutMillis);
     }
@@ -2519,14 +2348,6 @@ public class SignalServiceMessageSender {
         }
 
         return results;
-    }
-
-    @Deprecated
-    private byte[] enforceMaxContentSize(byte[] content) {
-        if (maxEnvelopeSize > 0 && content.length > maxEnvelopeSize) {
-            throw new ContentTooLargeException(content.length);
-        }
-        return content;
     }
 
     private Content enforceMaxContentSize(Content content) {

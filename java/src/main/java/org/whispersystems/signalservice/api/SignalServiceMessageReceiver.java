@@ -23,14 +23,10 @@ import org.whispersystems.signalservice.api.push.SignalServiceAddress;
 import org.whispersystems.signalservice.api.push.exceptions.MissingConfigurationException;
 import org.whispersystems.signalservice.api.util.CredentialsProvider;
 import org.whispersystems.signalservice.api.util.SleepTimer;
-import org.whispersystems.signalservice.api.util.UuidUtil;
 import org.whispersystems.signalservice.api.websocket.ConnectivityListener;
 import org.whispersystems.signalservice.internal.configuration.SignalServiceConfiguration;
 import org.whispersystems.signalservice.internal.push.PushServiceSocket;
-import org.whispersystems.signalservice.internal.push.SignalServiceEnvelopeEntity;
-import org.whispersystems.signalservice.internal.push.SignalServiceMessagesResult;
 import org.whispersystems.signalservice.internal.sticker.StickerProtos;
-import org.whispersystems.signalservice.internal.util.StaticCredentialsProvider;
 import org.whispersystems.signalservice.internal.util.Util;
 import org.whispersystems.signalservice.internal.util.concurrent.FutureTransformers;
 import org.whispersystems.signalservice.internal.util.concurrent.ListenableFuture;
@@ -42,11 +38,9 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.function.Consumer;
 import org.whispersystems.signalservice.api.push.ServiceId;
 
@@ -66,17 +60,6 @@ public class SignalServiceMessageReceiver {
   private final SleepTimer                 sleepTimer;
   private final ClientZkProfileOperations  clientZkProfileOperations;
   private final boolean allowStories;
-
-    @Deprecated // this will always enable stories
-    public SignalServiceMessageReceiver(SignalServiceConfiguration urls,
-            CredentialsProvider credentials,
-            String signalAgent,
-            ConnectivityListener listener,
-            SleepTimer timer,
-            ClientZkProfileOperations clientZkProfileOperations,
-            boolean automaticNetworkRetry) {
-        this(urls, credentials, signalAgent, listener, timer, clientZkProfileOperations, automaticNetworkRetry, true);
-    }
 
   /**
    * Construct a SignalServiceMessageReceiver.
@@ -116,33 +99,6 @@ public class SignalServiceMessageReceiver {
   public InputStream retrieveAttachment(SignalServiceAttachmentPointer pointer, File destination, long maxSizeBytes)
       throws IOException, InvalidMessageException, MissingConfigurationException {
     return retrieveAttachment(pointer, destination, maxSizeBytes, null);
-  }
-
-  public ListenableFuture<ProfileAndCredential> retrieveProfile(SignalServiceAddress address,
-                                                                 Optional<ProfileKey> profileKey,
-                                                                 Optional<UnidentifiedAccess> unidentifiedAccess,
-                                                                 SignalServiceProfile.RequestType requestType,
-                                                                 Locale locale)
-  {
-   ServiceId serviceId = address.getServiceId();
-
-    if (profileKey.isPresent()) {
-      if (requestType == SignalServiceProfile.RequestType.PROFILE_AND_CREDENTIAL) {
-        return socket.retrieveVersionedProfileAndCredential(serviceId.uuid(), profileKey.get(), unidentifiedAccess, locale);
-      } else {
-        return FutureTransformers.map(socket.retrieveVersionedProfile(serviceId.uuid(), profileKey.get(), unidentifiedAccess, locale), profile -> {
-          return new ProfileAndCredential(profile,
-                                          SignalServiceProfile.RequestType.PROFILE,
-                                          Optional.empty());
-        });
-      }
-    } else {
-      return FutureTransformers.map(socket.retrieveProfile(address, unidentifiedAccess, Locale.getDefault()), profile -> {
-        return new ProfileAndCredential(profile,
-                                        SignalServiceProfile.RequestType.PROFILE,
-                                        Optional.empty());
-      });
-    }
   }
 
   public InputStream retrieveProfileAvatar(String path, File destination, ProfileKey profileKey, long maxSizeBytes)
@@ -254,65 +210,8 @@ public class SignalServiceMessageReceiver {
     return new SignalServiceMessagePipe(webSocket, Optional.of(credentialsProvider), clientZkProfileOperations);
   }
 
-  public List<SignalServiceEnvelope> retrieveMessages(boolean allowStories) throws IOException {
-    return retrieveMessages(new NullMessageReceivedCallback(), allowStories);
-  }
-
-  public List<SignalServiceEnvelope> retrieveMessages(MessageReceivedCallback callback, boolean allowStories)
-      throws IOException
-  {
-    List<SignalServiceEnvelope> results       = new LinkedList<>();
-    SignalServiceMessagesResult messageResult = socket.getMessages(allowStories);
-
-    for (SignalServiceEnvelopeEntity entity : messageResult.getEnvelopes()) {
-      SignalServiceEnvelope envelope;
-
-      if (entity.hasSource() && entity.getSourceDevice() > 0) {
-        SignalServiceAddress address = new SignalServiceAddress(ServiceId.parseOrThrow(entity.getSourceUuid()), entity.getSourceE164());
-        envelope = new SignalServiceEnvelope(entity.getType(),
-                                             Optional.of(address),
-                                             entity.getSourceDevice(),
-                                             entity.getTimestamp(),
-                                             entity.getContent(),
-                                             entity.getServerTimestamp(),
-                                             messageResult.getServerDeliveredTimestamp(),
-                                             entity.getServerUuid(),
-                                             entity.getDestinationUuid(),
-                                             entity.isUrgent(),
-                                             entity.isStory());
-      } else {
-        envelope = new SignalServiceEnvelope(entity.getType(),
-                                             entity.getTimestamp(),
-                                             entity.getContent(),
-                                             entity.getServerTimestamp(),
-                                             messageResult.getServerDeliveredTimestamp(),
-                                             entity.getServerUuid(),
-                                             entity.getDestinationUuid(),
-                                             entity.isUrgent(),
-                                             entity.isStory());
-      }
-
-      callback.onMessage(envelope);
-      results.add(envelope);
-
-      if (envelope.hasServerGuid()) socket.acknowledgeMessage(envelope.getServerGuid());
-      else                    socket.acknowledgeMessage(entity.getSourceE164(), entity.getTimestamp());
-    }
-
-    return results;
-  }
-
   public void setSoTimeoutMillis(long soTimeoutMillis) {
     socket.setSoTimeoutMillis(soTimeoutMillis);
-  }
-
-  public interface MessageReceivedCallback {
-    public void onMessage(SignalServiceEnvelope envelope);
-  }
-
-  public static class NullMessageReceivedCallback implements MessageReceivedCallback {
-    @Override
-    public void onMessage(SignalServiceEnvelope envelope) {}
   }
 
 }

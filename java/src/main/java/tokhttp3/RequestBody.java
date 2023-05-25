@@ -3,6 +3,7 @@ package tokhttp3;
 import java.io.IOException;
 import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublisher;
+import okio.Buffer;
 import okio.BufferedSink;
 
 public abstract class RequestBody {
@@ -18,6 +19,10 @@ public abstract class RequestBody {
 
     public abstract BodyPublisher getBodyPublisher();
 
+    public byte[] getRawBytes() throws IOException {
+         throw new UnsupportedOperationException("Not supported yet.");
+    }
+
     public static RequestBody create(MediaType contentType, byte[] content) {
         RequestBody answer = new MyRequestBody(contentType, content);
 
@@ -29,14 +34,17 @@ public abstract class RequestBody {
     }
 
     static class MyRequestBody extends RequestBody {
+        byte[] cnt;
 
         MyRequestBody(MediaType contentType, byte[] content) {
             this.contentType = contentType;
+            this.cnt = content;
             jRequestBody = HttpRequest.BodyPublishers.ofByteArray(content);
         }
 
         MyRequestBody(MediaType contentType, String content) {
             this.contentType = contentType;
+            this.cnt = content.getBytes();
             jRequestBody = HttpRequest.BodyPublishers.ofString(content);
         }
 
@@ -47,17 +55,29 @@ public abstract class RequestBody {
 
         @Override
         public long contentLength() {
-            throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+            return (cnt == null ? -1 : cnt.length);
         }
 
         @Override
         public MediaType contentType() {
-            throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+            return contentType;
         }
 
         @Override
         public void writeTo(BufferedSink sink) throws IOException {
-            throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+            sink.write(cnt);
+            sink.flush();
+        }
+
+        @Override
+        public byte[] getRawBytes() throws IOException {
+            int len = (int) contentLength();
+            if (len < 1) return new byte[0];
+            byte[] raw = new byte[len];
+            Buffer sink = new Buffer();
+            writeTo(sink);
+            sink.read(raw);
+            return raw;
         }
 
     }

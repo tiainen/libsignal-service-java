@@ -70,6 +70,7 @@ public class Request {
         HttpRequest.Builder builder;
         boolean ws = false;
         URI origUri;
+        String rawBody;
 
         public Builder() {
             this.builder = HttpRequest.newBuilder();

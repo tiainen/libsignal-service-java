@@ -80,6 +80,7 @@ public class Response implements Closeable, AutoCloseable {
     }
 
     public String header(String header) {
+       if (httpResponse.headers() == null) return null;
        return httpResponse.headers().firstValue(header).orElse(null);
     }
 

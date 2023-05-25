@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.http.HttpHeaders;
 import java.net.http.HttpResponse;
+import java.util.Arrays;
 import java.util.logging.Logger;
 
 /**
@@ -37,17 +38,22 @@ public final class ResponseBody<T> implements Closeable {
         if (body instanceof String) {
             return (String) body;
         }
+        if (body instanceof byte[] bb) {
+            return new String(bb);
+        }
         throw new IOException("Not supported yet: " + body.getClass());
-    }
+    } 
 
     public byte[] bytes() throws IOException {
         T body = httpResponse.body();
+        if (body == null) return new byte[0];
         if (body instanceof byte[]) {
             return (byte[]) body;
         }
         if (body instanceof String) {
             return ((String) body).getBytes();
         }
+        System.err.println("Unsupported body classL: "+body.getClass());
         throw new IOException("Not supported yet.");
     }
 

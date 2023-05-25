@@ -112,7 +112,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URLEncoder;
+import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublisher;
+import java.net.http.HttpRequest.BodyPublishers;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
@@ -138,6 +143,7 @@ import javax.net.SocketFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
+import okio.Buffer;
 
 import tokhttp3.Call;
 import tokhttp3.Callback;
@@ -320,7 +326,7 @@ public class PushServiceSocket {
         this.useGrpc = Boolean.getBoolean("wave.grpc");
         LOG.info("do we have grpc? " + System.getProperty("wave.grpc") + ", answer = " + useGrpc);
         if (this.useGrpc) {
-            String target = "grpcproxy2.gluonhq.net:443";
+            String target = "https://grpcproxy2.gluonhq.net";
             String sysTarget = System.getProperty("grpc.target");
             if (sysTarget != null) {
                 target = sysTarget;
@@ -507,21 +513,30 @@ public class PushServiceSocket {
         ServiceConnectionHolder connectionHolder = (ServiceConnectionHolder) getRandom(serviceClients, random);
 
         String path = String.format(Locale.US, GROUP_MESSAGE_PATH, timestamp, online, urgent, story);
-
-        Request.Builder requestBuilder = new Request.Builder();
-        requestBuilder.url(String.format("%s%s", connectionHolder.getUrl(), path));
-        requestBuilder.put(RequestBody.create(MediaType.get("application/vnd.signal-messenger.mrm"), body));
-        requestBuilder.addHeader("Unidentified-Access-Key", Base64.encodeBytes(joinedUnidentifiedAccess));
+        HttpRequest.Builder hrBuilder = HttpRequest.newBuilder();
+        String format = String.format("%s%s", connectionHolder.getUrl(), path);
+        URI uri;
+        try {
+            uri = new URI(format);
+            hrBuilder.uri(uri);
+        } catch (URISyntaxException ex) {
+            LOG.severe("wrong URI! "+format);
+            throw new IOException (ex);
+        }
+        BodyPublisher bodyPublisher = BodyPublishers.ofByteArray(body);
+        hrBuilder.PUT(bodyPublisher);
+        hrBuilder.header("Content-Type", "application/vnd.signal-messenger.mrm");
+        hrBuilder.header("Unidentified-Access-Key", Base64.encodeBytes(joinedUnidentifiedAccess));
 
         if (signalAgent != null) {
-            requestBuilder.addHeader("X-Signal-Agent", signalAgent);
+            hrBuilder.header("X-Signal-Agent", signalAgent);
         }
 
         if (connectionHolder.getHostHeader().isPresent()) {
-            requestBuilder.addHeader("Host", connectionHolder.getHostHeader().get());
+            hrBuilder.header("Host", connectionHolder.getHostHeader().get());
         }
 
-        Call call = connectionHolder.getUnidentifiedClient().newCall(requestBuilder.build());
+        Call call = connectionHolder.getUnidentifiedClient().newCall(hrBuilder.build(), body);
 
         synchronized (connections) {
             connections.add(call);
@@ -564,7 +579,6 @@ public class PushServiceSocket {
         try {
             String responseText = makeServiceRequest(String.format("/v1/messages/%s?story=%s", bundle.getDestination(), story ? "true" : "false"), "PUT", JsonUtil.toJson(bundle), NO_HEADERS, unidentifiedAccess);
             SendMessageResponse response = JsonUtil.fromJson(responseText, SendMessageResponse.class);
-
             response.setSentUnidentfied(unidentifiedAccess.isPresent());
 
             return response;
@@ -1272,18 +1286,26 @@ public class PushServiceSocket {
                 .readTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
                 .build();
 
-        Request.Builder request = new Request.Builder().url(connectionHolder.getUrl() + "/" + path).get();
+        HttpRequest.Builder builder = HttpRequest.newBuilder();
+        String format = connectionHolder.getUrl() + "/" + path;
+        URI uri;
+        try {
+            uri = new URI(format);
+        } catch (URISyntaxException ex) {
+            throw new IllegalArgumentException("Wrong uri for "+format, ex);
+        }
+        builder.uri(uri);
 
         if (connectionHolder.getHostHeader().isPresent()) {
-            request.addHeader("Host", connectionHolder.getHostHeader().get());
+            builder.header("Host", connectionHolder.getHostHeader().get());
         }
 
         if (offset > 0) {
             Log.i(TAG, "Starting download from CDN with offset " + offset);
-            request.addHeader("Range", "bytes=" + offset + "-");
+            builder.header("Range", "bytes=" + offset + "-");
         }
 
-        Call call = okHttpClient.newCall(request.build());
+        Call call = okHttpClient.newCall(builder.build(), new byte[0]);
 
         synchronized (connections) {
             connections.add(call);
@@ -1577,6 +1599,7 @@ public class PushServiceSocket {
     }
 
     private static HttpUrl buildConfiguredUrl(ConnectionHolder connectionHolder, String url) throws IOException {
+
         final HttpUrl endpointUrl = HttpUrl.get(connectionHolder.url);
         final HttpUrl resumableHttpUrl;
         try {
@@ -1584,8 +1607,8 @@ public class PushServiceSocket {
         } catch (IllegalArgumentException e) {
             throw new IOException("Malformed URL!", e);
         }
-
-        return new HttpUrl.Builder().scheme(endpointUrl.scheme())
+        String format = endpointUrl.scheme()+":" + endpointUrl.host();
+        HttpUrl answer = new HttpUrl.Builder().scheme(endpointUrl.scheme())
                 .host(endpointUrl.host())
                 .port(endpointUrl.port())
                 .encodedPath(endpointUrl.encodedPath())
@@ -1593,59 +1616,8 @@ public class PushServiceSocket {
                 .encodedQuery(resumableHttpUrl.encodedQuery())
                 .encodedFragment(resumableHttpUrl.encodedFragment())
                 .build();
+        return answer;
     }
-//
-//    private String OLDmakeServiceRequest(String urlFragment, String method, String jsonBody, Map<String, String> headers, ResponseCodeHandler responseCodeHandler, Optional<UnidentifiedAccess> unidentifiedAccessKey)
-//            throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException {
-//        LOG.fine("need to create request for jsonbody = " + jsonBody);
-//        ResponseBody responseBody = makeServiceBodyRequest(urlFragment, method, jsonRequestBody(jsonBody), headers, responseCodeHandler, unidentifiedAccessKey);
-//        try {
-//            return responseBody.string();
-//        } catch (IOException e) {
-//            LOG.log(Level.SEVERE, "Error " + responseBody, e);
-//            System.err.println("with urlF = " + urlFragment + ", method = " + method + ", body = " + jsonBody);
-//            throw new PushNetworkException(e);
-//        }
-//    }
-//
-//    private ListenableFuture<String> submitServiceRequest(String urlFragment, String method, String jsonBody, Map<String, String> headers, Optional<UnidentifiedAccess> unidentifiedAccessKey) {
-//        OkHttpClient okHttpClient = buildOkHttpClient(unidentifiedAccessKey.isPresent());
-//        Call call = okHttpClient.newCall(buildServiceRequest(urlFragment, method, jsonRequestBody(jsonBody), headers, unidentifiedAccessKey));
-//
-//        synchronized (connections) {
-//            connections.add(call);
-//        }
-//
-//        SettableFuture<String> bodyFuture = new SettableFuture<>();
-//
-//        call.enqueue(new Callback() {
-//            @Override
-//            public void onResponse(Call call, Response response) {
-//                try (ResponseBody body = validateServiceResponse(response).body()) {
-//                    bodyFuture.set(readBodyString(body));
-//                } catch (IOException e) {
-//                    bodyFuture.setException(e);
-//                }
-//            }
-//
-//            @Override
-//            public void onFailure(Call call, IOException e) {
-//                bodyFuture.setException(e);
-//            }
-//        });
-//
-//        return bodyFuture;
-//    }
-//
-//    private ResponseBody makeServiceBodyRequest(String urlFragment,
-//            String method,
-//            RequestBody body,
-//            Map<String, String> headers,
-//            ResponseCodeHandler responseCodeHandler,
-//            Optional<UnidentifiedAccess> unidentifiedAccessKey)
-//            throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException {
-//        return makeServiceRequest(urlFragment, method, body, headers, responseCodeHandler, unidentifiedAccessKey).body();
-//    }
 
     private String makeServiceRequestWithoutAuthentication(String urlFragment, String method, String jsonBody)
             throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException {
@@ -1722,7 +1694,8 @@ public class PushServiceSocket {
             Map<String, String> headers,
             Optional<UnidentifiedAccess> unidentifiedAccessKey) {
         OkHttpClient okHttpClient = buildOkHttpClient(unidentifiedAccessKey.isPresent());
-        Call call = okHttpClient.newCall(buildServiceRequest(urlFragment, method, jsonRequestBody(jsonBody), headers, unidentifiedAccessKey, false));
+        byte[] raw = (jsonBody == null ? new byte[0] : jsonBody.getBytes());
+        Call call = okHttpClient.newCall(buildServiceRequest(urlFragment, method, jsonRequestBody(jsonBody), headers, unidentifiedAccessKey, false), raw);
 
         synchronized (connections) {
             connections.add(call);
@@ -1835,12 +1808,15 @@ public class PushServiceSocket {
                         accountLockFailure.timeRemaining,
                         basicStorageCredentials);
             case 428:
+                LOG.info("Whoops, PSS got statuscode 428");
                 ProofRequiredResponse proofRequiredResponse = readResponseJson(response, ProofRequiredResponse.class);
-                String retryAfterRaw = response.header("Retry-After");
-                long retryAfter = Util.parseInt(retryAfterRaw, -1);
+                long retryAfter = -1;
                 try {
-                    LOG.info("Not good, got a HTTP 428 with content "+response.body().string());
-                } catch (IOException ex) {
+                    String retryAfterRaw = response.header("Retry-After");
+                    retryAfter = Util.parseInt(retryAfterRaw, -1);
+                    LOG.info("Not good, got a HTTP 428 with content " + response.body().string());
+                } catch (Exception ex) {
+                    ex.printStackTrace();
                     Logger.getLogger(PushServiceSocket.class.getName()).log(Level.SEVERE, null, ex);
                 }
                 throw new ProofRequiredException(proofRequiredResponse, retryAfter);
@@ -1866,6 +1842,7 @@ public class PushServiceSocket {
         request.setHeaders(headers);
         request.setMethod(method);
         SignalRpcReply sReply = this.grpcClient.sendDirectMessage(request);
+        LOG.info("GOT GRPC direct message, urlFrag = "+urlFragment+", responsebody bytelen = "+sReply.getMessage().length);
         return new Response(sReply);
     }
 
@@ -1889,23 +1866,31 @@ public class PushServiceSocket {
             String rawBody)
             throws PushNetworkException {
         try {
-            Request serviceRequest = buildServiceRequest(urlFragment, method, body, headers, unidentifiedAccess, doNotAddAuthenticationOrUnidentifiedAccessKey);
+            HttpRequest serviceRequest = buildServiceRequest(urlFragment, method, body, headers, unidentifiedAccess, doNotAddAuthenticationOrUnidentifiedAccessKey);
             recheckGrpc();
             LOG.info("Need to use grpc? "+useGrpc);
             if (useGrpc) {
-                Map<String, List<String>> realHeaders = serviceRequest.getHttpRequest().headers().map();
+                Map<String, List<String>> realHeaders = serviceRequest.headers().map();
                 if (rawBody == null) rawBody = "";
-                return getGrpcConnection(urlFragment, method, rawBody.getBytes(), realHeaders);
+                Response ranswer = getGrpcConnection(urlFragment, method, rawBody.getBytes(), realHeaders);
+                LOG.info("1GRPC answer for frag "+urlFragment+", size = " + ranswer.body().bytes().length);
+                LOG.finest("1GRPC answer = "+Arrays.toString(ranswer.body().bytes()));
+                return ranswer;
             }
             OkHttpClient okHttpClient = buildOkHttpClient(unidentifiedAccess.isPresent());
-            Call call = okHttpClient.newCall(serviceRequest);
+            byte[] b = new byte[0];
+            if (body != null) b = body.getRawBytes();
+            Call call = okHttpClient.newCall(serviceRequest, b);
 
             synchronized (connections) {
                 connections.add(call);
             }
 
             try {
-                return call.execute();
+                Response answer = call.execute();
+                LOG.info("1legacy answer size = " + answer.body().bytes().length);
+                LOG.finest("1legacy answer = " + Arrays.toString(answer.body().bytes()));
+                return answer;
             } finally {
                 synchronized (connections) {
                     connections.remove(call);
@@ -1926,7 +1911,7 @@ public class PushServiceSocket {
                 .build();
     }
 
-    private Request buildServiceRequest(String urlFragment,
+    private HttpRequest buildServiceRequest(String urlFragment,
             String method,
             RequestBody body,
             Map<String, String> headers,
@@ -1937,28 +1922,37 @@ public class PushServiceSocket {
 
 //      Log.d(TAG, "Push service URL: " + connectionHolder.getUrl());
 //      Log.d(TAG, "Opening URL: " + String.format("%s%s", connectionHolder.getUrl(), urlFragment));
-        Request.Builder request = new Request.Builder();
-        request.url(String.format("%s%s", connectionHolder.getUrl(), urlFragment));
-        request.method(method, body);
-
+        HttpRequest.Builder request = HttpRequest.newBuilder();
+        try {
+            request.uri(new URI(String.format("%s%s", connectionHolder.getUrl(), urlFragment)));
+            if (body == null) {
+                request.method(method, BodyPublishers.noBody());
+            } else {
+                request.method(method, BodyPublishers.ofByteArray(body.getRawBytes()));
+                if (body.contentType() != null) request.header("Content-Type", body.contentType().getMediaType());
+            }
+        } catch (URISyntaxException | IOException ex) {
+            LOG.log(Level.SEVERE, null, ex);
+            throw new IllegalArgumentException (ex);
+        }
         for (Map.Entry<String, String> header : headers.entrySet()) {
-            request.addHeader(header.getKey(), header.getValue());
+            request.header(header.getKey(), header.getValue());
         }
 
         if (!headers.containsKey("Authorization") && !doNotAddAuthenticationOrUnidentifiedAccessKey) {
             if (unidentifiedAccess.isPresent()) {
-                request.addHeader("Unidentified-Access-Key", Base64.encodeBytes(unidentifiedAccess.get().getUnidentifiedAccessKey()));
+                request.header("Unidentified-Access-Key", Base64.encodeBytes(unidentifiedAccess.get().getUnidentifiedAccessKey()));
             } else if (credentialsProvider.getPassword() != null) {
-                request.addHeader("Authorization", getAuthorizationHeader(credentialsProvider));
+                request.header("Authorization", getAuthorizationHeader(credentialsProvider));
             }
         }
 
         if (signalAgent != null) {
-            request.addHeader("X-Signal-Agent", signalAgent);
+            request.header("X-Signal-Agent", signalAgent);
         }
 
         if (connectionHolder.getHostHeader().isPresent()) {
-            request.addHeader("Host", connectionHolder.getHostHeader().get());
+            request.header("Host", connectionHolder.getHostHeader().get());
         }
 
         return request.build();
@@ -2047,11 +2041,6 @@ public class PushServiceSocket {
         throw new NonSuccessfulResponseCodeException(response.code(), "Response: " + response);
     }
 
-    private void makeAndCloseStorageRequest(String authorization, String path, String method, RequestBody body)
-            throws PushNetworkException, NonSuccessfulResponseCodeException {
-        makeAndCloseStorageRequest(authorization, path, method, body, NO_HANDLER);
-    }
-
     private void makeAndCloseStorageRequest(String authorization, String path, String method, RequestBody body, ResponseCodeHandler responseCodeHandler)
             throws PushNetworkException, NonSuccessfulResponseCodeException {
         ResponseBody responseBody = makeStorageRequest(authorization, path, method, body, responseCodeHandler);
@@ -2078,20 +2067,43 @@ public class PushServiceSocket {
                 .connectTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
                 .readTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
                 .build();
-
         Log.d(TAG, "Opening URL: " + connectionHolder.getUrl());
-        Request.Builder request = new Request.Builder().url(connectionHolder.getUrl() + path);
-        request.method(method, body);
+        HttpRequest.Builder hrBuilder = HttpRequest.newBuilder();
+        String uriFormat = connectionHolder.getUrl() + path;
+        try {
+            hrBuilder.uri(new URI(uriFormat));
+        } catch (URISyntaxException ex) {
+            LOG.log(Level.SEVERE, "Wrong URI: " + uriFormat, ex);
+        }
+        if (body == null) {
+            BodyPublisher bodyPublisher = BodyPublishers.noBody();
+            hrBuilder.method(method, bodyPublisher);
+        } else {
+            try {
+                BodyPublisher bodyPublisher = BodyPublishers.ofByteArray(body.getRawBytes());
+                hrBuilder.method(method, bodyPublisher);
+                LOG.info("Adding contenttype: "+body.contentType().getMediaType());
+                hrBuilder.header("Content-Type", body.contentType().getMediaType());
+            } catch (IOException ex) {
+                Logger.getLogger(PushServiceSocket.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
 
         if (connectionHolder.getHostHeader().isPresent()) {
-            request.addHeader("Host", connectionHolder.getHostHeader().get());
+            hrBuilder.header("Host", connectionHolder.getHostHeader().get());
         }
 
         if (authorization != null) {
-            request.addHeader("Authorization", authorization);
+            hrBuilder.header("Authorization", authorization);
         }
 
-        Call call = okHttpClient.newCall(request.build());
+        byte[] rawBytes= new byte[0];
+        try {
+            if (body != null) rawBytes = body.getRawBytes();
+        } catch (IOException ioe) {
+            ioe.printStackTrace();
+        }
+        Call call = okHttpClient.newCall(hrBuilder.build(), rawBytes);
 
         synchronized (connections) {
             connections.add(call);

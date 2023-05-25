@@ -31,7 +31,7 @@ public class GrpcWebSocket implements WebSocket {
     public GrpcWebSocket(WebSocketListener listener) throws IOException {
         GrpcConfig config = new GrpcConfig();
         config.useTLS(false);
-        String target = "grpcproxy2.gluonhq.net:443";
+        String target = "https://grpcproxy2.gluonhq.net";
         String sysTarget = System.getProperty("grpc.target");
         if (sysTarget != null) {
             target = sysTarget;
