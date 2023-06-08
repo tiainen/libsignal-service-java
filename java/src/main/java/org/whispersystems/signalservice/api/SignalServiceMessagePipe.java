@@ -196,6 +196,10 @@ public class SignalServiceMessagePipe {
     }
   }
 
+  public boolean isConnected() {
+      return websocket.isConnected();
+  }
+
   public Future<SendMessageResponse> send(OutgoingPushMessageList list, Optional<UnidentifiedAccess> unidentifiedAccess) throws IOException {
     List<String> headers = new LinkedList<String>() {{
       add("content-type:application/json");

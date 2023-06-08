@@ -132,7 +132,6 @@ public class WebSocketConnection extends WebSocketListener {
 
     public synchronized void connect() {
         LOG.info("connect() for " + this);
-
         if (client == null) {
             String filledUri;
 
@@ -390,6 +389,10 @@ public class WebSocketConnection extends WebSocketListener {
     public synchronized void onClosing(WebSocket webSocket, int code, String reason) {
         Log.i(TAG, "onClosing() for " + this+" and webSocket "+webSocket+" with code = " + code+" and reason = "+reason);
         webSocket.close(1000, "OK");
+    }
+
+    public boolean isConnected() {
+        return this.connected;
     }
 
     private long elapsedTime(long startTime) {

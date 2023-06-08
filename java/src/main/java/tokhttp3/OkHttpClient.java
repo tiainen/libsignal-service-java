@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -148,13 +149,14 @@ public class OkHttpClient {
 
         });
         LOG.info("Building websocket...");
-
+        CountDownLatch cdl = new CountDownLatch(1);
         Executors.newCachedThreadPool().submit(() -> {
             try {
                 LOG.info("try to join...");
                 java.net.http.WebSocket ws = buildAsync.join();
                 LOG.info("yes, got ws = " + ws.hashCode());
                 answer.setJavaWebSocket(ws);
+                cdl.countDown();
             } catch (Throwable t) {
                 t.printStackTrace();
                 LOG.log(Level.SEVERE, "error in receiving ws data", t);
@@ -162,7 +164,15 @@ public class OkHttpClient {
             }
             return null;
         });
-
+        try {
+            boolean res = cdl.await(10, TimeUnit.SECONDS);
+            if (!res) {
+                LOG.severe("Failed to reconnect!");
+            }
+        } catch (InterruptedException ex) {
+            LOG.warning("Interrupted while waiting for websocket connection");
+            LOG.log(Level.SEVERE, null, ex);
+        }
         return answer;
     }
 
