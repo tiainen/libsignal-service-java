@@ -259,6 +259,18 @@ public final class SignalAccountRecord implements SignalRecord {
     return proto.getDisplayBadgesOnProfile();
   }
 
+  public boolean isKeepMutedChatsArchived() {
+    return proto.getKeepMutedChatsArchived();
+  }
+
+  public boolean hasSetMyStoriesPrivacy() {
+    return proto.getHasSetMyStoriesPrivacy();
+  }
+
+  public boolean isStoriesDisabled() {
+    return proto.getStoriesDisabled();
+  }
+
   AccountRecord toProto() {
     return proto;
   }
@@ -584,6 +596,11 @@ public final class SignalAccountRecord implements SignalRecord {
 
     public Builder setDisplayBadgesOnProfile(boolean displayBadgesOnProfile) {
       builder.setDisplayBadgesOnProfile(displayBadgesOnProfile);
+      return this;
+    }
+
+    public Builder setStoriesDisabled(boolean storiesDisabled) {
+      builder.setStoriesDisabled(storiesDisabled);
       return this;
     }
 
