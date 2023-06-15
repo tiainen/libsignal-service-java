@@ -136,7 +136,10 @@ public class NetworkClient {
         wsBuilder.header("X-Signal-Agent", signalAgent);
         wsBuilder.header("X-Signal-Receive-Stories", allowStories ? "true" : "false");
         String baseUrl = signalUrl.getUrl().replace("https://", "wss://")
-                .replace("http://", "ws://") + "/v1/websocket/";
+                .replace("http://", "ws://");//
+        if (!baseUrl.endsWith("provisioning/")) {
+            baseUrl = baseUrl + "/v1/websocket/";
+        }
         if (this.credentialsProvider.isPresent()) {
             CredentialsProvider cp = this.credentialsProvider.get();
             String identifier = cp.getAci() != null ? cp.getDeviceUuid() : cp.getE164();
@@ -247,6 +250,24 @@ public class NetworkClient {
 
     public boolean isConnected() {
         throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    /**
+     * Used by the ProvisioningManager which has its own processing.
+     * This method should never be mixed with other read methods.
+     * @return
+     */
+    public WebSocketRequestMessage readRequestMessage(long timeout, TimeUnit unit) {
+        try {
+            if (this.webSocket == null) {
+                createWebSocket();
+            }
+            WebSocketRequestMessage request = wsRequestMessageQueue.take();//poll(timeout, unit);
+            return request;
+        } catch (InterruptedException | IOException ex) {
+            Logger.getLogger(NetworkClient.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return null;
     }
 
     public SignalServiceEnvelope read(long timeout, TimeUnit unit) {
