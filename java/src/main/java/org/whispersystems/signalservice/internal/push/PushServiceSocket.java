@@ -1848,11 +1848,6 @@ public class PushServiceSocket {
         ServiceConnectionHolder connectionHolder = (ServiceConnectionHolder) getRandom(serviceClients, random);
         NetworkClient baseClient = unidentified ? connectionHolder.getUnidentifiedClient() : connectionHolder.getClient();
         return baseClient;
-//        return baseClient.newBuilder()
-//                .connectTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
-//                .readTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
-//                .retryOnConnectionFailure(automaticNetworkRetry)
-//                .build();
     }
 
     private HttpRequest buildServiceRequest(String urlFragment,

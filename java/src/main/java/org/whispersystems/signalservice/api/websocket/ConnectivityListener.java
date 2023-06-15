@@ -9,4 +9,5 @@ public interface ConnectivityListener {
   void onDisconnected();
   void onAuthenticationFailure();
   boolean onGenericFailure(Response response, Throwable throwable);
+  void onError();
 }

@@ -41,6 +41,7 @@ import org.whispersystems.signalservice.api.push.exceptions.MalformedResponseExc
 import org.whispersystems.signalservice.api.push.exceptions.PushNetworkException;
 import org.whispersystems.signalservice.api.push.exceptions.ServerRejectedException;
 import org.whispersystems.signalservice.api.util.CredentialsProvider;
+import org.whispersystems.signalservice.api.websocket.ConnectivityListener;
 import org.whispersystems.signalservice.internal.configuration.SignalUrl;
 import org.whispersystems.signalservice.internal.push.GroupMismatchedDevices;
 import org.whispersystems.signalservice.internal.push.MismatchedDevices;
@@ -70,6 +71,7 @@ public class NetworkClient {
     final String signalAgent;
     final boolean allowStories;
     final Optional<CredentialsProvider> credentialsProvider;
+    final Optional<ConnectivityListener> connectivityListener;
     private static final Logger LOG = Logger.getLogger(NetworkClient.class.getName());
     private WebSocket webSocket;
     private BlockingQueue<byte[]> rawByteQueue = new LinkedBlockingQueue<>();
@@ -86,15 +88,16 @@ public class NetworkClient {
     private static final int KEEPALIVE_TIMEOUT_SECONDS = 55;
 
     public NetworkClient(SignalUrl url, String agent, boolean allowStories) {
-        this(url, Optional.empty(), agent, allowStories);
+        this(url, Optional.empty(), agent, Optional.empty(), allowStories);
     }
 
-    public NetworkClient(SignalUrl url, Optional<CredentialsProvider> cp, String signalAgent, boolean allowStories) {
+    public NetworkClient(SignalUrl url, Optional<CredentialsProvider> cp, String signalAgent, Optional<ConnectivityListener> connectivityListener, boolean allowStories) {
         this.signalUrl = url;
         this.signalAgent = signalAgent;
         this.allowStories = allowStories;
         this.httpClient = buildClient();
         this.credentialsProvider = cp;
+        this.connectivityListener = connectivityListener;
         this.formatProcessingThread = new Thread() {
             @Override
             public void run() {
@@ -463,6 +466,7 @@ public class NetworkClient {
         } else {
             LOG.info("Send request, not using kwik");
             response = getDirectResponse(request);
+            LOG.info("Got response, not using kwik");
         }
         validateResponse(response);
         return response;
@@ -480,7 +484,9 @@ public class NetworkClient {
     private Response getDirectResponse(HttpRequest request) throws IOException {
         HttpResponse httpResponse;
         try {
+            LOG.info("Invoke send on httpClient");
             httpResponse = this.httpClient.send(request, createBodyHandler());
+            LOG.info("Did invoke send on httpClient");
         } catch (InterruptedException ex) {
             LOG.log(Level.SEVERE, null, ex);
             throw new IOException(ex);
@@ -520,6 +526,7 @@ public class NetworkClient {
         @Override
         public void onError(WebSocket webSocket, Throwable error) {
             LOG.log(Level.SEVERE, "ERROR IN WEBSOCKET!", error);
+            connectivityListener.ifPresent(cl -> cl.onError());
             reCreateWebSocket();
         //    error.printStackTrace();
         }
