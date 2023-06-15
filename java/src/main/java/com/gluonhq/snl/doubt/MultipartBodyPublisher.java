@@ -1,5 +1,6 @@
-package tokhttp3;
+package com.gluonhq.snl.doubt;
 
+import com.gluonhq.snl.doubt.MultipartBody.Part;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.http.HttpRequest.BodyPublisher;
@@ -15,7 +16,6 @@ import java.util.StringJoiner;
 import java.util.concurrent.Flow;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import tokhttp3.MultipartBody.Part;
 
 /**
  *

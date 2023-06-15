@@ -2,7 +2,7 @@ package org.whispersystems.signalservice.internal.push;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import tokhttp3.Credentials;
+import com.gluonhq.snl.Credentials;
 
 public class AuthCredentials {
 

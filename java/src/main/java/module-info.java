@@ -32,7 +32,8 @@ module org.whispersystems.service {
     exports org.whispersystems.signalservice.api.util;
     exports org.whispersystems.signalservice.api.websocket;
     exports org.whispersystems.util;
-    exports tokhttp3;
+    exports com.gluonhq.snl;
+ //   exports tokhttp3;
     opens org.whispersystems.signalservice.api.groupsv2 to com.fasterxml.jackson.databind;
     opens org.whispersystems.signalservice.internal.push to com.fasterxml.jackson.databind;
     opens org.whispersystems.signalservice.api.messages.calls to com.fasterxml.jackson.databind;

@@ -5,6 +5,7 @@
  */
 package org.whispersystems.signalservice.api;
 
+import com.gluonhq.snl.NetworkClient;
 import com.google.protobuf.ByteString;
 
 import org.signal.libsignal.zkgroup.profiles.ClientZkProfileOperations;
@@ -168,8 +169,8 @@ public class SignalServiceMessageSender {
     private final Optional<EventListener> eventListener;
     private final IdentityKeyPair localPniIdentity;
 
-    private final AtomicReference<Optional<SignalServiceMessagePipe>> pipe;
-    private final AtomicReference<Optional<SignalServiceMessagePipe>> unidentifiedPipe;
+    private final AtomicReference<Optional<NetworkClient>> pipe;
+    private final AtomicReference<Optional<NetworkClient>> unidentifiedPipe;
     private final AtomicBoolean isMultiDevice;
 
     private final ExecutorService executor;
@@ -181,8 +182,8 @@ public class SignalServiceMessageSender {
             SignalSessionLock sessionLock,
             String signalAgent,
             boolean isMultiDevice,
-            Optional<SignalServiceMessagePipe> pipe,
-            Optional<SignalServiceMessagePipe> unidentifiedPipe,
+            Optional<NetworkClient> pipe,
+            Optional<NetworkClient> unidentifiedPipe,
             Optional<EventListener> eventListener,
             ClientZkProfileOperations clientZkProfileOperations,
             ExecutorService executor,
@@ -594,7 +595,7 @@ public class SignalServiceMessageSender {
         socket.cancelInFlightRequests();
     }
 
-    public void update(SignalServiceMessagePipe pipe, SignalServiceMessagePipe unidentifiedPipe, boolean isMultiDevice) {
+    public void update(NetworkClient pipe, NetworkClient unidentifiedPipe, boolean isMultiDevice) {
         this.pipe.set(Optional.ofNullable(pipe));
         this.unidentifiedPipe.set(Optional.ofNullable(unidentifiedPipe));
         this.isMultiDevice.set(isMultiDevice);
@@ -622,9 +623,10 @@ public class SignalServiceMessageSender {
     }
 
     private SignalServiceAttachmentPointer uploadAttachmentV2(SignalServiceAttachmentStream attachment, byte[] attachmentKey, PushAttachmentData attachmentData)
-            throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException {
+            throws NonSuccessfulResponseCodeException, IOException, MalformedResponseException {
+//throw new UnsupportedOperationException("NYI");
         AttachmentV2UploadAttributes v2UploadAttributes = null;
-        Optional<SignalServiceMessagePipe> localPipe = pipe.get();
+        Optional<SignalServiceMessagePipe> localPipe = Optional.empty();
 
         if (localPipe.isPresent()) {
             Log.d(TAG, "Using pipe to retrieve attachment upload attributes...");
@@ -660,24 +662,26 @@ public class SignalServiceMessageSender {
     }
 
     public ResumableUploadSpec getResumableUploadSpec() throws IOException {
-        AttachmentV3UploadAttributes v3UploadAttributes = null;
-        Optional<SignalServiceMessagePipe> localPipe = pipe.get();
-
-        if (localPipe.isPresent()) {
-            Log.d(TAG, "Using pipe to retrieve attachment upload attributes...");
-            try {
-                v3UploadAttributes = localPipe.get().getAttachmentV3UploadAttributes();
-            } catch (IOException e) {
-                Log.w(TAG, "Failed to retrieve attachment upload attributes using pipe. Falling back...");
-            }
-        }
-
-        if (v3UploadAttributes == null) {
-            Log.d(TAG, "Not using pipe to retrieve attachment upload attributes...");
-            v3UploadAttributes = socket.getAttachmentV3UploadAttributes();
-        }
-
-        return socket.getResumableUploadSpec(v3UploadAttributes);
+   throw new UnsupportedOperationException("NYI");
+//
+//        AttachmentV3UploadAttributes v3UploadAttributes = null;
+//        Optional<SignalServiceMessagePipe> localPipe = pipe.get();
+//
+//        if (localPipe.isPresent()) {
+//            Log.d(TAG, "Using pipe to retrieve attachment upload attributes...");
+//            try {
+//                v3UploadAttributes = localPipe.get().getAttachmentV3UploadAttributes();
+//            } catch (IOException e) {
+//                Log.w(TAG, "Failed to retrieve attachment upload attributes using pipe. Falling back...");
+//            }
+//        }
+//
+//        if (v3UploadAttributes == null) {
+//            Log.d(TAG, "Not using pipe to retrieve attachment upload attributes...");
+//            v3UploadAttributes = socket.getAttachmentV3UploadAttributes();
+//        }
+//
+//        return socket.getResumableUploadSpec(v3UploadAttributes);
     }
 
     private SignalServiceAttachmentPointer uploadAttachmentV3(SignalServiceAttachmentStream attachment, byte[] attachmentKey, PushAttachmentData attachmentData) throws IOException {
@@ -846,7 +850,7 @@ public class SignalServiceMessageSender {
             headers.add("content-type:application/vnd.signal-messenger.mrm");
             headers.add("Unidentified-Access-Key:" + Base64.encodeBytes(joinedUnidentifiedAccess));
 
-            SignalServiceMessagePipe up = this.unidentifiedPipe.get().get();
+            NetworkClient up = this.unidentifiedPipe.get().get();
             LOG.info("ready to send groupmessage via unidentifiedPipe");
             Future<SendGroupMessageResponse> sendToGroup = up.sendToGroup(ciphertext, joinedUnidentifiedAccess, timestamp, online);
             try {
@@ -1934,36 +1938,36 @@ public class SignalServiceMessageSender {
                 } else if (content.getContent().isPresent() && content.getContent().get().hasSenderKeyDistributionMessage()) {
                     LOG.info("Sending a SKDM to " + messages.getDestination() + " for devices: " + messages.getDevices());
                 }
-
-                if (cancelationSignal != null && cancelationSignal.isCanceled()) {
-                    throw new CancelationException();
-                }
-
-                if (!unidentifiedAccess.isPresent()) {
-                    try {
-                        SendMessageResponse response = socket.sendMessage(messages, unidentifiedAccess, story);
-                        return SendMessageResult.success(recipient, messages.getDevices(), false, response.getNeedsSync() || aciStore.isMultiDevice(), System.currentTimeMillis() - startTime, content.getContent());
-                    } catch (InvalidUnidentifiedAccessHeaderException | UnregisteredUserException | MismatchedDevicesException | StaleDevicesException e) {
-                        throw e;
-                    } catch (IOException e) {
-                        Log.w(TAG, e);
-                        Log.w(TAG, "[sendMessage][" + timestamp + "] Pipe failed, falling back... (" + e.getClass().getSimpleName() + ": " + e.getMessage() + ")");
-                    }
-                } else if (unidentifiedAccess.isPresent()) {
-                    try {
-                        SendMessageResponse response = socket.sendMessage(messages, unidentifiedAccess, story);
-                        return SendMessageResult.success(recipient, messages.getDevices(), true, response.getNeedsSync() || aciStore.isMultiDevice(), System.currentTimeMillis() - startTime, content.getContent());
-                    } catch (InvalidUnidentifiedAccessHeaderException | UnregisteredUserException | MismatchedDevicesException | StaleDevicesException e) {
-                        throw e;
-                    }  catch (IOException e) {
-                        Log.w(TAG, e);
-                        Log.w(TAG, "[sendMessage][" + timestamp + "] Unidentified pipe failed, falling back...");
-                    }
-                }
-
-                if (cancelationSignal != null && cancelationSignal.isCanceled()) {
-                    throw new CancelationException();
-                }
+//
+//                if (cancelationSignal != null && cancelationSignal.isCanceled()) {
+//                    throw new CancelationException();
+//                }
+//
+//                if (!unidentifiedAccess.isPresent()) {
+//                    try {
+//                        SendMessageResponse response = socket.sendMessage(messages, unidentifiedAccess, story);
+//                        return SendMessageResult.success(recipient, messages.getDevices(), false, response.getNeedsSync() || aciStore.isMultiDevice(), System.currentTimeMillis() - startTime, content.getContent());
+//                    } catch (InvalidUnidentifiedAccessHeaderException | UnregisteredUserException | MismatchedDevicesException | StaleDevicesException e) {
+//                        throw e;
+//                    } catch (IOException e) {
+//                        Log.w(TAG, e);
+//                        Log.w(TAG, "[sendMessage][" + timestamp + "] Pipe failed, falling back... (" + e.getClass().getSimpleName() + ": " + e.getMessage() + ")");
+//                    }
+//                } else if (unidentifiedAccess.isPresent()) {
+//                    try {
+//                        SendMessageResponse response = socket.sendMessage(messages, unidentifiedAccess, story);
+//                        return SendMessageResult.success(recipient, messages.getDevices(), true, response.getNeedsSync() || aciStore.isMultiDevice(), System.currentTimeMillis() - startTime, content.getContent());
+//                    } catch (InvalidUnidentifiedAccessHeaderException | UnregisteredUserException | MismatchedDevicesException | StaleDevicesException e) {
+//                        throw e;
+//                    }  catch (IOException e) {
+//                        Log.w(TAG, e);
+//                        Log.w(TAG, "[sendMessage][" + timestamp + "] Unidentified pipe failed, falling back...");
+//                    }
+//                }
+//
+//                if (cancelationSignal != null && cancelationSignal.isCanceled()) {
+//                    throw new CancelationException();
+//                }
 
                 SendMessageResponse response = socket.sendMessage(messages, unidentifiedAccess, story);
                 return SendMessageResult.success(recipient, messages.getDevices(), unidentifiedAccess.isPresent(), response.getNeedsSync() || aciStore.isMultiDevice(), System.currentTimeMillis() - startTime, content.getContent());
@@ -1981,11 +1985,17 @@ public class SignalServiceMessageSender {
                     throw afe;
                 }
             } catch (MismatchedDevicesException mde) {
+                LOG.info("Got MMDE, will handle it now");
                 Log.w(TAG, mde);
                 handleMismatchedDevices(socket, recipient, mde.getMismatchedDevices());
             } catch (StaleDevicesException ste) {
                 Log.w(TAG, ste);
                 handleStaleDevices(recipient, ste.getStaleDevices());
+            }
+            catch(Throwable t) {
+                LOG.info("CATCHING a throwable.");
+                        LOG.info("t = "+t);
+                        t.printStackTrace();
             }
         }
 

@@ -6,6 +6,7 @@
 
 package org.whispersystems.signalservice.api;
 
+import com.gluonhq.snl.NetworkClient;
 import org.signal.libsignal.zkgroup.profiles.ClientZkProfileOperations;
 import org.signal.libsignal.zkgroup.profiles.ProfileKey;
 import org.signal.libsignal.protocol.InvalidMessageException;
@@ -38,6 +39,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -156,7 +158,8 @@ public class SignalServiceMessageReceiver {
       throws IOException, InvalidMessageException
   {
     byte[] manifestBytes = socket.retrieveStickerManifest(packId);
-
+      System.err.println("got manifestbytes for packId "+Arrays.toString(packId));
+      System.err.println("manifestbyes = "+Arrays.toString(manifestBytes));
     InputStream           cipherStream = AttachmentCipherInputStream.createForStickerData(manifestBytes, packKey);
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
@@ -184,30 +187,39 @@ public class SignalServiceMessageReceiver {
    * 
    * @return A SignalServiceMessagePipe for receiving Signal Service messages.
    */
-  public SignalServiceMessagePipe createMessagePipe(Consumer callback) {
-    WebSocketConnection webSocket = new WebSocketConnection(urls.getSignalServiceUrls()[0].getUrl(),
-                                                            urls.getSignalServiceUrls()[0].getTrustStore(),
-                                                            Optional.of(credentialsProvider), signalAgent, connectivityListener,
-                                                            sleepTimer,
-                                                            urls.getNetworkInterceptors(),
-                                                            urls.getDns(),
-                                                            urls.getSignalProxy(),
-                                                            callback, allowStories);
+    public NetworkClient createMessagePipe(Consumer callback) {
+        NetworkClient networkClient = new NetworkClient(urls.getSignalServiceUrls()[0], Optional.of(credentialsProvider), signalAgent, allowStories);
+        callback.accept(networkClient);
+//                                                            Optional.of(credentialsProvider), signalAgent,  )
+//    WebSocketConnection webSocket = new WebSocketConnection(urls.getSignalServiceUrls()[0].getUrl(),
+//                                                            urls.getSignalServiceUrls()[0].getTrustStore(),
+//                                                            Optional.of(credentialsProvider), signalAgent, connectivityListener,
+//                                                            sleepTimer,
+////                                                            urls.getNetworkInterceptors(),
+////                                                            urls.getDns(),
+//                                                            urls.getSignalProxy(),
+//                                                            callback, allowStories);
+//
+        // return new SignalServiceMessagePipe(webSocket, Optional.of(credentialsProvider), clientZkProfileOperations);
+        return networkClient;
+    }
 
-    return new SignalServiceMessagePipe(webSocket, Optional.of(credentialsProvider), clientZkProfileOperations);
-  }
+  public NetworkClient createUnidentifiedMessagePipe(Consumer callback) {
+              NetworkClient networkClient = new NetworkClient(urls.getSignalServiceUrls()[0], Optional.empty(), signalAgent, allowStories);
+        callback.accept(networkClient);
+              return networkClient;
 
-  public SignalServiceMessagePipe createUnidentifiedMessagePipe(Consumer callback) {
-    WebSocketConnection webSocket = new WebSocketConnection(urls.getSignalServiceUrls()[0].getUrl(),
-                                                            urls.getSignalServiceUrls()[0].getTrustStore(),
-                                                            Optional.<CredentialsProvider>empty(), signalAgent, connectivityListener,
-                                                            sleepTimer,
-                                                            urls.getNetworkInterceptors(),
-                                                            urls.getDns(),
-                                                            urls.getSignalProxy(),
-                                                            callback, allowStories);
-
-    return new SignalServiceMessagePipe(webSocket, Optional.of(credentialsProvider), clientZkProfileOperations);
+//
+//    WebSocketConnection webSocket = new WebSocketConnection(urls.getSignalServiceUrls()[0].getUrl(),
+//                                                            urls.getSignalServiceUrls()[0].getTrustStore(),
+//                                                            Optional.<CredentialsProvider>empty(), signalAgent, connectivityListener,
+//                                                            sleepTimer,
+////                                                            urls.getNetworkInterceptors(),
+////                                                            urls.getDns(),
+//                                                            urls.getSignalProxy(),
+//                                                            callback, allowStories);
+//
+//    return new SignalServiceMessagePipe(webSocket, Optional.of(credentialsProvider), clientZkProfileOperations);
   }
 
   public void setSoTimeoutMillis(long soTimeoutMillis) {

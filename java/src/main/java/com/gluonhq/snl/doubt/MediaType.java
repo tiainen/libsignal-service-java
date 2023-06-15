@@ -1,29 +1,29 @@
-package tokhttp3;
+package com.gluonhq.snl.doubt;
 
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 // https://android.googlesource.com/platform/external/okhttp/+/master/okhttp/src/main/java/com/squareup/okhttp/MediaType.java
+
 public final class MediaType {
+
     private static final String TOKEN = "([a-zA-Z0-9-!#$%&'*+.^_`{|}~]+)";
-  private static final String QUOTED = "\"([^\"]*)\"";
+    private static final String QUOTED = "\"([^\"]*)\"";
     private static final Pattern TYPE_SUBTYPE = Pattern.compile(TOKEN + "/" + TOKEN);
     private static final Pattern PARAMETER = Pattern.compile(
-      ";\\s*(?:" + TOKEN + "=(?:" + TOKEN + "|" + QUOTED + "))?");
+            ";\\s*(?:" + TOKEN + "=(?:" + TOKEN + "|" + QUOTED + "))?");
 
-  private final String mediaType;
-  private final String type;
-  private final String subtype;
-  private final String charset;
-  
-  
-  
+    private final String mediaType;
+    private final String type;
+    private final String subtype;
+    private final String charset;
+
     private MediaType(String mediaType, String type, String subtype, String charset) {
-    this.mediaType = mediaType;
-    this.type = type;
-    this.subtype = subtype;
-    this.charset = charset;
-  }
+        this.mediaType = mediaType;
+        this.type = type;
+        this.subtype = subtype;
+        this.charset = charset;
+    }
 
     public String getMediaType() {
         return mediaType;
@@ -40,7 +40,7 @@ public final class MediaType {
     public String getCharset() {
         return charset;
     }
-    
+
     public static MediaType get(String string) {
         return parse(string);
     }

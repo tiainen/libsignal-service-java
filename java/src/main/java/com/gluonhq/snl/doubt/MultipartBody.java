@@ -1,4 +1,4 @@
-package tokhttp3;
+package com.gluonhq.snl.doubt;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -92,10 +92,8 @@ public class MultipartBody {
 
         @Override
         public ReadableByteChannel open() throws IOException {
-            BufferedSink sink = new Buffer();
-            fileBody.writeTo(sink);
-            InputStream is = sink.getBuffer().inputStream();
-            return Channels.newChannel(is);
+            ByteArrayInputStream bais = new ByteArrayInputStream(fileBody.getRawBytes());
+            return Channels.newChannel(bais);
         }
     }
 
@@ -124,15 +122,16 @@ public class MultipartBody {
             return this;
         }
 
-        public RequestBody build() {
+        public MultiPartRequestBody build() {
             return new MultiPartRequestBody(parts, mediaType, boundary);
         }
     }
 
-    static class MultiPartRequestBody extends RequestBody {
+    public static class MultiPartRequestBody extends RequestBody {
 
         private List<Part> parts;
         String boundary;
+        private MediaType contentType;
 
         public MultiPartRequestBody(List<Part> parts, MediaType mediaType, String boundary) {
             this.parts = parts;
@@ -149,13 +148,12 @@ public class MultipartBody {
         public MediaType contentType() {
             return this.contentType;
         }
-
-        @Override
-        public void writeTo(BufferedSink sink) throws IOException {
-            throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
-        }
-
-        @Override
+//
+//        @Override
+//        public void writeTo(BufferedSink sink) throws IOException {
+//            throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+//        }
+//
         public HttpRequest.BodyPublisher getBodyPublisher() {
             return new MultipartBodyPublisher(this.parts, boundary, Charset.defaultCharset());
         }

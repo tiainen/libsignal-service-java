@@ -7,8 +7,12 @@ package org.whispersystems.signalservice.internal.push;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.gluonhq.snl.Credentials;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageLite;
+
+import com.gluonhq.snl.Response;
+import com.gluonhq.snl.ResponseBody;
 
 import org.signal.storageservice.protos.groups.AvatarUploadAttributes;
 import org.signal.storageservice.protos.groups.Group;
@@ -144,22 +148,27 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
 import okio.Buffer;
+//
+//import tokhttp3.Call;
+//import tokhttp3.Callback;
+//import tokhttp3.ConnectionPool;
+//import tokhttp3.ConnectionSpec;
+//import tokhttp3.Credentials;
+//import tokhttp3.Dns;
+//import tokhttp3.HttpUrl;
+//import tokhttp3.Interceptor;
+//import tokhttp3.MediaType;
+//import tokhttp3.MultipartBody;
+//import tokhttp3.OkHttpClient;
+//import com.gluonhq.snl.Request;
+import com.gluonhq.snl.doubt.RequestBody;
+import com.gluonhq.snl.NetworkClient;
+import com.gluonhq.snl.Response;
+import com.gluonhq.snl.ResponseBody;
+import com.gluonhq.snl.doubt.MediaType;
+import com.gluonhq.snl.doubt.MultipartBody;
+import java.net.http.HttpResponse;
 
-import tokhttp3.Call;
-import tokhttp3.Callback;
-import tokhttp3.ConnectionPool;
-import tokhttp3.ConnectionSpec;
-import tokhttp3.Credentials;
-import tokhttp3.Dns;
-import tokhttp3.HttpUrl;
-import tokhttp3.Interceptor;
-import tokhttp3.MediaType;
-import tokhttp3.MultipartBody;
-import tokhttp3.OkHttpClient;
-import tokhttp3.Request;
-import tokhttp3.RequestBody;
-import tokhttp3.Response;
-import tokhttp3.ResponseBody;
 import org.signal.libsignal.zkgroup.receipts.ReceiptCredentialPresentation;
 import org.signal.libsignal.protocol.InvalidKeyException;
 import org.signal.libsignal.zkgroup.profiles.ExpiringProfileKeyCredential;
@@ -289,7 +298,7 @@ public class PushServiceSocket {
     private static final int MAX_FOLLOW_UPS = 20;
 
     private long soTimeoutMillis = TimeUnit.SECONDS.toMillis(30);
-    private final Set<Call> connections = new HashSet<>();
+//    private final Set<Call> connections = new HashSet<>();
 
     private final ServiceConnectionHolder[] serviceClients;
     private final Map<Integer, ConnectionHolder[]> cdnClientsMap;
@@ -316,11 +325,11 @@ public class PushServiceSocket {
         this.credentialsProvider = credentialsProvider;
         this.signalAgent = signalAgent;
         this.automaticNetworkRetry = automaticNetworkRetry;
-        this.serviceClients = createServiceConnectionHolders(configuration.getSignalServiceUrls(), configuration.getNetworkInterceptors(), configuration.getDns(), configuration.getSignalProxy());
-        this.cdnClientsMap = createCdnClientsMap(configuration.getSignalCdnUrlMap(), configuration.getNetworkInterceptors(), configuration.getDns(), configuration.getSignalProxy());
-        this.contactDiscoveryClients = createConnectionHolders(configuration.getSignalContactDiscoveryUrls(), configuration.getNetworkInterceptors(), configuration.getDns(), configuration.getSignalProxy());
-        this.keyBackupServiceClients = createConnectionHolders(configuration.getSignalKeyBackupServiceUrls(), configuration.getNetworkInterceptors(), configuration.getDns(), configuration.getSignalProxy());
-        this.storageClients = createConnectionHolders(configuration.getSignalStorageUrls(), configuration.getNetworkInterceptors(), configuration.getDns(), configuration.getSignalProxy());
+        this.serviceClients = createServiceConnectionHolders(configuration.getSignalServiceUrls(), configuration.getSignalProxy());
+        this.cdnClientsMap = createCdnClientsMap(configuration.getSignalCdnUrlMap(), configuration.getSignalProxy());
+        this.contactDiscoveryClients = createConnectionHolders(configuration.getSignalContactDiscoveryUrls(), configuration.getSignalProxy());
+        this.keyBackupServiceClients = createConnectionHolders(configuration.getSignalKeyBackupServiceUrls(), configuration.getSignalProxy());
+        this.storageClients = createConnectionHolders(configuration.getSignalStorageUrls(), configuration.getSignalProxy());
         this.random = new SecureRandom();
         this.clientZkProfileOperations = clientZkProfileOperations;
         this.useGrpc = Boolean.getBoolean("wave.grpc");
@@ -510,68 +519,69 @@ public class PushServiceSocket {
 
     public SendGroupMessageResponse sendGroupMessage(byte[] body, byte[] joinedUnidentifiedAccess, long timestamp, boolean online, boolean urgent, boolean story)
             throws IOException {
-        ServiceConnectionHolder connectionHolder = (ServiceConnectionHolder) getRandom(serviceClients, random);
-
-        String path = String.format(Locale.US, GROUP_MESSAGE_PATH, timestamp, online, urgent, story);
-        HttpRequest.Builder hrBuilder = HttpRequest.newBuilder();
-        String format = String.format("%s%s", connectionHolder.getUrl(), path);
-        URI uri;
-        try {
-            uri = new URI(format);
-            hrBuilder.uri(uri);
-        } catch (URISyntaxException ex) {
-            LOG.severe("wrong URI! "+format);
-            throw new IOException (ex);
-        }
-        BodyPublisher bodyPublisher = BodyPublishers.ofByteArray(body);
-        hrBuilder.PUT(bodyPublisher);
-        hrBuilder.header("Content-Type", "application/vnd.signal-messenger.mrm");
-        hrBuilder.header("Unidentified-Access-Key", Base64.encodeBytes(joinedUnidentifiedAccess));
-
-        if (signalAgent != null) {
-            hrBuilder.header("X-Signal-Agent", signalAgent);
-        }
-
-        if (connectionHolder.getHostHeader().isPresent()) {
-            hrBuilder.header("Host", connectionHolder.getHostHeader().get());
-        }
-
-        Call call = connectionHolder.getUnidentifiedClient().newCall(hrBuilder.build(), body);
-
-        synchronized (connections) {
-            connections.add(call);
-        }
-
-        Response response;
-
-        try {
-            response = call.execute();
-        } catch (IOException e) {
-            throw new PushNetworkException(e);
-        } finally {
-            synchronized (connections) {
-                connections.remove(call);
-            }
-        }
-
-        switch (response.code()) {
-            case 200:
-                return readBodyJson(response.body(), SendGroupMessageResponse.class);
-            case 401:
-                throw new InvalidUnidentifiedAccessHeaderException();
-            case 404:
-                throw new NotFoundException("At least one unregistered user in message send.");
-            case 409:
-                GroupMismatchedDevices[] mismatchedDevices = readBodyJson(response.body(), GroupMismatchedDevices[].class);
-                throw new GroupMismatchedDevicesException(mismatchedDevices);
-            case 410:
-                GroupStaleDevices[] staleDevices = readBodyJson(response.body(), GroupStaleDevices[].class);
-                throw new GroupStaleDevicesException(staleDevices);
-            case 508:
-                throw new ServerRejectedException();
-            default:
-                throw new NonSuccessfulResponseCodeException(response.code());
-        }
+        throw new UnsupportedOperationException("NYI");
+//        ServiceConnectionHolder connectionHolder = (ServiceConnectionHolder) getRandom(serviceClients, random);
+//
+//        String path = String.format(Locale.US, GROUP_MESSAGE_PATH, timestamp, online, urgent, story);
+//        HttpRequest.Builder hrBuilder = HttpRequest.newBuilder();
+//        String format = String.format("%s%s", connectionHolder.getUrl(), path);
+//        URI uri;
+//        try {
+//            uri = new URI(format);
+//            hrBuilder.uri(uri);
+//        } catch (URISyntaxException ex) {
+//            LOG.severe("wrong URI! "+format);
+//            throw new IOException (ex);
+//        }
+//        BodyPublisher bodyPublisher = BodyPublishers.ofByteArray(body);
+//        hrBuilder.PUT(bodyPublisher);
+//        hrBuilder.header("Content-Type", "application/vnd.signal-messenger.mrm");
+//        hrBuilder.header("Unidentified-Access-Key", Base64.encodeBytes(joinedUnidentifiedAccess));
+//
+//        if (signalAgent != null) {
+//            hrBuilder.header("X-Signal-Agent", signalAgent);
+//        }
+//
+//        if (connectionHolder.getHostHeader().isPresent()) {
+//            hrBuilder.header("Host", connectionHolder.getHostHeader().get());
+//        }
+//
+//        Call call = connectionHolder.getUnidentifiedClient().newCall(hrBuilder.build(), body);
+//
+//        synchronized (connections) {
+//            connections.add(call);
+//        }
+//
+//        Response response;
+//
+//        try {
+//            response = call.execute();
+//        } catch (IOException e) {
+//            throw new PushNetworkException(e);
+//        } finally {
+//            synchronized (connections) {
+//                connections.remove(call);
+//            }
+//        }
+//
+//        switch (response.code()) {
+//            case 200:
+//                return readBodyJson(response.body(), SendGroupMessageResponse.class);
+//            case 401:
+//                throw new InvalidUnidentifiedAccessHeaderException();
+//            case 404:
+//                throw new NotFoundException("At least one unregistered user in message send.");
+//            case 409:
+//                GroupMismatchedDevices[] mismatchedDevices = readBodyJson(response.body(), GroupMismatchedDevices[].class);
+//                throw new GroupMismatchedDevicesException(mismatchedDevices);
+//            case 410:
+//                GroupStaleDevices[] staleDevices = readBodyJson(response.body(), GroupStaleDevices[].class);
+//                throw new GroupStaleDevicesException(staleDevices);
+//            case 508:
+//                throw new ServerRejectedException();
+//            default:
+//                throw new NonSuccessfulResponseCodeException(response.code());
+//        }
     }
 
     public SendMessageResponse sendMessage(OutgoingPushMessageList bundle, Optional<UnidentifiedAccess> unidentifiedAccess, boolean story)
@@ -588,25 +598,26 @@ public class PushServiceSocket {
     }
 
     public SignalServiceMessagesResult getMessages(boolean allowStories) throws IOException {
-        Map<String, String> headers = Collections.singletonMap("X-Signal-Receive-Stories", allowStories ? "true" : "false");
-
-        try ( Response response = makeServiceRequest(String.format(MESSAGE_PATH, ""), "GET", (RequestBody) null, headers, NO_HANDLER, Optional.empty(), "")) {
-            validateServiceResponse(response);
-
-            List<SignalServiceEnvelopeEntity> envelopes = readBodyJson(response.body(), SignalServiceEnvelopeEntityList.class).getMessages();
-
-            long serverDeliveredTimestamp = 0;
-            try {
-                String stringValue = response.header(SERVER_DELIVERED_TIMESTAMP_HEADER);
-                stringValue = stringValue != null ? stringValue : "0";
-
-                serverDeliveredTimestamp = Long.parseLong(stringValue);
-            } catch (NumberFormatException e) {
-                Log.w(TAG, e);
-            }
-
-            return new SignalServiceMessagesResult(envelopes, serverDeliveredTimestamp);
-        }
+            throw new UnsupportedOperationException("NYI");
+//  Map<String, String> headers = Collections.singletonMap("X-Signal-Receive-Stories", allowStories ? "true" : "false");
+//
+//        try ( Response response = makeServiceRequest(String.format(MESSAGE_PATH, ""), "GET", (RequestBody) null, headers, NO_HANDLER, Optional.empty(), "")) {
+//            validateServiceResponse(response);
+//
+//            List<SignalServiceEnvelopeEntity> envelopes = readBodyJson(response.body(), SignalServiceEnvelopeEntityList.class).getMessages();
+//
+//            long serverDeliveredTimestamp = 0;
+//            try {
+//                String stringValue = response.header(SERVER_DELIVERED_TIMESTAMP_HEADER);
+//                stringValue = stringValue != null ? stringValue : "0";
+//
+//                serverDeliveredTimestamp = Long.parseLong(stringValue);
+//            } catch (NumberFormatException e) {
+//                Log.w(TAG, e);
+//            }
+//
+//            return new SignalServiceMessagesResult(envelopes, serverDeliveredTimestamp);
+//        }
     }
 
     public void acknowledgeMessage(String sender, long timestamp) throws IOException {
@@ -878,7 +889,7 @@ public class PushServiceSocket {
      * @return The avatar URL path, if one was written.
      */
   public Optional<String> writeProfile(SignalServiceProfileWrite signalServiceProfileWrite, ProfileAvatarData profileAvatar)
-      throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException
+      throws NonSuccessfulResponseCodeException, IOException, MalformedResponseException
   {
     String                        requestBody    = JsonUtil.toJson(signalServiceProfileWrite);
     ProfileAvatarUploadAttributes formAttributes;
@@ -1185,17 +1196,19 @@ public class PushServiceSocket {
     }
 
     public void cancelInFlightRequests() {
-        synchronized (connections) {
-            Log.w(TAG, "Canceling: " + connections.size());
-            for (Call connection : connections) {
-                Log.w(TAG, "Canceling: " + connection);
-                connection.cancel();
-            }
-        }
+        LOG.warning("We don't cancel inflight requests");
+//
+//        synchronized (connections) {
+//            Log.w(TAG, "Canceling: " + connections.size());
+//            for (Call connection : connections) {
+//                Log.w(TAG, "Canceling: " + connection);
+//                connection.cancel();
+//            }
+//        }
     }
 
     public AttachmentV2UploadAttributes getAttachmentV2UploadAttributes()
-            throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException {
+            throws NonSuccessfulResponseCodeException, IOException, MalformedResponseException {
         String response = makeServiceRequest(ATTACHMENT_V2_PATH, "GET", null);
         try {
             return JsonUtil.fromJson(response, AttachmentV2UploadAttributes.class);
@@ -1206,7 +1219,7 @@ public class PushServiceSocket {
     }
 
     public AttachmentV3UploadAttributes getAttachmentV3UploadAttributes()
-            throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException {
+            throws NonSuccessfulResponseCodeException, IOException, MalformedResponseException {
         String response = makeServiceRequest(ATTACHMENT_V3_PATH, "GET", null);
         try {
             return JsonUtil.fromJson(response, AttachmentV3UploadAttributes.class);
@@ -1275,17 +1288,13 @@ public class PushServiceSocket {
 
     private void downloadFromCdn(OutputStream outputStream, long offset, int cdnNumber, String path, long maxSizeBytes, ProgressListener listener)
             throws PushNetworkException, NonSuccessfulResponseCodeException, MissingConfigurationException {
+        LOG.info("need "+path+" from CDN");
         ConnectionHolder[] cdnNumberClients = cdnClientsMap.get(cdnNumber);
         if (cdnNumberClients == null) {
             throw new MissingConfigurationException("Attempted to download from unsupported CDN number: " + cdnNumber + ", Our configuration supports: " + cdnClientsMap.keySet());
         }
         ConnectionHolder connectionHolder = getRandom(cdnNumberClients, random);
-        OkHttpClient okHttpClient = connectionHolder.getClient()
-                .newBuilder()
-                .connectTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
-                .readTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
-                .build();
-
+        NetworkClient client = connectionHolder.getClient();
         HttpRequest.Builder builder = HttpRequest.newBuilder();
         String format = connectionHolder.getUrl() + "/" + path;
         URI uri;
@@ -1304,64 +1313,27 @@ public class PushServiceSocket {
             Log.i(TAG, "Starting download from CDN with offset " + offset);
             builder.header("Range", "bytes=" + offset + "-");
         }
-
-        Call call = okHttpClient.newCall(builder.build(), new byte[0]);
-
-        synchronized (connections) {
-            connections.add(call);
-        }
-
-        Response response = null;
-        ResponseBody body = null;
-
         try {
-            response = call.execute();
+            Response response = client.sendRequest(builder.build(), new byte[0]);
 
             if (response.isSuccessful()) {
-                body = response.body();
+                ResponseBody body = response.body();
 
                 if (body == null) {
                     throw new PushNetworkException("No response body!");
                 }
+                LOG.info("We got "+body.contentLength()+" from CDN");
                 if (body.contentLength() > maxSizeBytes) {
                     throw new PushNetworkException("Response exceeds max size!");
                 }
+                outputStream.write(body.bytes());
 
-                InputStream in = body.byteStream();
-                byte[] buffer = new byte[32768];
-
-                int read = 0;
-                long totalRead = offset;
-
-                while ((read = in.read(buffer, 0, buffer.length)) != -1) {
-                    outputStream.write(buffer, 0, read);
-                    if ((totalRead += read) > maxSizeBytes) {
-                        throw new PushNetworkException("Response exceeded max size!");
-                    }
-
-                    if (listener != null) {
-                        listener.onAttachmentProgress(body.contentLength() + offset, totalRead);
-                    }
-                }
-
-                return;
-            } else if (response.code() == 416) {
+            } else if (response.getStatusCode() == 416) {
                 throw new RangeException(offset);
             }
-        } catch (NonSuccessfulResponseCodeException | PushNetworkException e) {
-            throw e;
-        } catch (IOException e) {
-            throw new PushNetworkException(e);
-        } finally {
-            if (body != null) {
-                body.close();
-            }
-            synchronized (connections) {
-                connections.remove(call);
-            }
+        } catch (IOException ioe) {
+            throw new PushNetworkException(ioe);
         }
-
-        throw new NonSuccessfulResponseCodeException(response.code(), "Response: " + response);
     }
 
     private byte[] uploadToCdn0(String path, String acl, String key, String policy, String algorithm,
@@ -1370,16 +1342,13 @@ public class PushServiceSocket {
             OutputStreamFactory outputStreamFactory, ProgressListener progressListener,
             CancelationSignal cancelationSignal)
             throws PushNetworkException, NonSuccessfulResponseCodeException {
+
         ConnectionHolder connectionHolder = getRandom(cdnClientsMap.get(0), random);
-        OkHttpClient okHttpClient = connectionHolder.getClient()
-                .newBuilder()
-                .connectTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
-                .readTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
-                .build();
+        NetworkClient client = connectionHolder.getClient();
 
         DigestingRequestBody file = new DigestingRequestBody(data, outputStreamFactory, contentType, length, progressListener, cancelationSignal, 0);
 
-        RequestBody requestBody = new MultipartBody.Builder()
+        MultipartBody.MultiPartRequestBody requestBody = new MultipartBody.Builder()
                 .setType(MultipartBody.FORM)
                 .addFormDataPart("acl", acl)
                 .addFormDataPart("key", key)
@@ -1391,289 +1360,293 @@ public class PushServiceSocket {
                 .addFormDataPart("x-amz-signature", signature)
                 .addFormDataPart("file", "file", file)
                 .build();
-
-        Request.Builder request = new Request.Builder()
-                .url(connectionHolder.getUrl() + "/" + path)
-                .post(requestBody);
+        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
+                .uri(URI.create(connectionHolder.getUrl() + "/" + path))
+                .header("Content-Type", requestBody.contentType().getMediaType())
+                .POST(requestBody.getBodyPublisher());
 
         if (connectionHolder.getHostHeader().isPresent()) {
-            request.addHeader("Host", connectionHolder.getHostHeader().get());
+            requestBuilder.header("Host", connectionHolder.getHostHeader().get());
         }
-
-        Call call = okHttpClient.newCall(request.build());
-
-        synchronized (connections) {
-            connections.add(call);
-        }
-
+        HttpRequest request = requestBuilder.build();
         try {
-            Response response;
-
-            try {
-                response = call.execute();
-            } catch (IOException e) {
-                throw new PushNetworkException(e);
-            }
-
-            if (response.isSuccessful()) {
-                return file.getTransmittedDigest();
-            } else {
-                try {
-                    System.err.println("PROBLEM! "+response.body().string());
-                } catch (IOException ex) {
-                    Logger.getLogger(PushServiceSocket.class.getName()).log(Level.SEVERE, null, ex);
-                }
-                throw new NonSuccessfulResponseCodeException(response.code(), "Response: " + response+" with message "+response.message()+" and body "+response.body());
-            }
-        } finally {
-            synchronized (connections) {
-                connections.remove(call);
-            }
+            client.sendRequest(request, new byte[0]);
+        } catch (IOException  ex) {
+            Logger.getLogger(PushServiceSocket.class.getName()).log(Level.SEVERE, null, ex);
+            throw new PushNetworkException(ex);
         }
+        return file.getTransmittedDigest();
+
+//
+//        Call call = okHttpClient.newCall(request.build());
+//
+//        synchronized (connections) {
+//            connections.add(call);
+//        }
+//
+//        try {
+//            Response response;
+//
+//            try {
+//                response = call.execute();
+//            } catch (IOException e) {
+//                throw new PushNetworkException(e);
+//            }
+//
+//            if (response.isSuccessful()) {
+//                return file.getTransmittedDigest();
+//            } else {
+//                try {
+//                    System.err.println("PROBLEM! "+response.body().string());
+//                } catch (IOException ex) {
+//                    Logger.getLogger(PushServiceSocket.class.getName()).log(Level.SEVERE, null, ex);
+//                }
+//                throw new NonSuccessfulResponseCodeException(response.code(), "Response: " + response+" with message "+response.message()+" and body "+response.body());
+//            }
+//        } finally {
+//            synchronized (connections) {
+//                connections.remove(call);
+//            }
+//        }
     }
 
     private String getResumableUploadUrl(String signedUrl, Map<String, String> headers) throws IOException {
-        ConnectionHolder connectionHolder = getRandom(cdnClientsMap.get(2), random);
-        OkHttpClient okHttpClient = connectionHolder.getClient()
-                .newBuilder()
-                .connectTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
-                .readTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
-                .build();
-
-        Request.Builder request = new Request.Builder().url(buildConfiguredUrl(connectionHolder, signedUrl))
-                .post(RequestBody.create(null, ""));
-
-        for (Map.Entry<String, String> header : headers.entrySet()) {
-            if (!header.getKey().equalsIgnoreCase("host")) {
-                request.header(header.getKey(), header.getValue());
-            }
-        }
-
-        if (connectionHolder.getHostHeader().isPresent()) {
-            request.header("host", connectionHolder.getHostHeader().get());
-        }
-
-        request.addHeader("Content-Length", "0");
-        request.addHeader("Content-Type", "application/octet-stream");
-
-        Call call = okHttpClient.newCall(request.build());
-
-        synchronized (connections) {
-            connections.add(call);
-        }
-
-        try {
-            Response response;
-
-            try {
-                response = call.execute();
-            } catch (IOException e) {
-                throw new PushNetworkException(e);
-            }
-
-            if (response.isSuccessful()) {
-                return response.header("location");
-            } else {
-                throw new NonSuccessfulResponseCodeException(response.code(), "Response: " + response);
-            }
-        } finally {
-            synchronized (connections) {
-                connections.remove(call);
-            }
-        }
+           throw new UnsupportedOperationException("NYI");
+//   ConnectionHolder connectionHolder = getRandom(cdnClientsMap.get(2), random);
+//        OkHttpClient okHttpClient = connectionHolder.getClient()
+//                .newBuilder()
+//                .connectTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
+//                .readTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
+//                .build();
+//
+//        Request.Builder request = new Request.Builder().url(buildConfiguredUrl(connectionHolder, signedUrl))
+//                .post(RequestBody.create(null, ""));
+//
+//        for (Map.Entry<String, String> header : headers.entrySet()) {
+//            if (!header.getKey().equalsIgnoreCase("host")) {
+//                request.header(header.getKey(), header.getValue());
+//            }
+//        }
+//
+//        if (connectionHolder.getHostHeader().isPresent()) {
+//            request.header("host", connectionHolder.getHostHeader().get());
+//        }
+//
+//        request.addHeader("Content-Length", "0");
+//        request.addHeader("Content-Type", "application/octet-stream");
+//
+//        Call call = okHttpClient.newCall(request.build());
+//
+//        synchronized (connections) {
+//            connections.add(call);
+//        }
+//
+//        try {
+//            Response response;
+//
+//            try {
+//                response = call.execute();
+//            } catch (IOException e) {
+//                throw new PushNetworkException(e);
+//            }
+//
+//            if (response.isSuccessful()) {
+//                return response.header("location");
+//            } else {
+//                throw new NonSuccessfulResponseCodeException(response.code(), "Response: " + response);
+//            }
+//        } finally {
+//            synchronized (connections) {
+//                connections.remove(call);
+//            }
+//        }
     }
 
     private byte[] uploadToCdn2(String resumableUrl, InputStream data, String contentType, long length, OutputStreamFactory outputStreamFactory, ProgressListener progressListener, CancelationSignal cancelationSignal) throws IOException {
-        ConnectionHolder connectionHolder = getRandom(cdnClientsMap.get(2), random);
-        OkHttpClient okHttpClient = connectionHolder.getClient()
-                .newBuilder()
-                .connectTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
-                .readTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
-                .build();
-
-        ResumeInfo resumeInfo = getResumeInfo(resumableUrl, length);
-        DigestingRequestBody file = new DigestingRequestBody(data, outputStreamFactory, contentType, length, progressListener, cancelationSignal, resumeInfo.contentStart);
-
-        if (resumeInfo.contentStart == length) {
-            Log.w(TAG, "Resume start point == content length");
-            try ( NowhereBufferedSink buffer = new NowhereBufferedSink()) {
-                file.writeTo(buffer);
-            }
-            return file.getTransmittedDigest();
-        }
-
-        Request.Builder request = new Request.Builder().url(buildConfiguredUrl(connectionHolder, resumableUrl))
-                .put(file)
-                .addHeader("Content-Range", resumeInfo.contentRange);
-
-        if (connectionHolder.getHostHeader().isPresent()) {
-            request.header("host", connectionHolder.getHostHeader().get());
-        }
-
-        Call call = okHttpClient.newCall(request.build());
-
-        synchronized (connections) {
-            connections.add(call);
-        }
-
-        try {
-            Response response;
-
-            try {
-                response = call.execute();
-            } catch (IOException e) {
-                throw new PushNetworkException(e);
-            }
-
-            if (response.isSuccessful()) {
-                return file.getTransmittedDigest();
-            } else {
-                throw new NonSuccessfulResponseCodeException(response.code(), "Response: " + response);
-            }
-        } finally {
-            synchronized (connections) {
-                connections.remove(call);
-            }
-        }
+           throw new UnsupportedOperationException("NYI");
+//
+//        ConnectionHolder connectionHolder = getRandom(cdnClientsMap.get(2), random);
+//        OkHttpClient okHttpClient = connectionHolder.getClient()
+//                .newBuilder()
+//                .connectTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
+//                .readTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
+//                .build();
+//
+//        ResumeInfo resumeInfo = getResumeInfo(resumableUrl, length);
+//        DigestingRequestBody file = new DigestingRequestBody(data, outputStreamFactory, contentType, length, progressListener, cancelationSignal, resumeInfo.contentStart);
+//
+//        if (resumeInfo.contentStart == length) {
+//            Log.w(TAG, "Resume start point == content length");
+//            try ( NowhereBufferedSink buffer = new NowhereBufferedSink()) {
+//                file.writeTo(buffer);
+//            }
+//            return file.getTransmittedDigest();
+//        }
+//
+//        Request.Builder request = new Request.Builder().url(buildConfiguredUrl(connectionHolder, resumableUrl))
+//                .put(file)
+//                .addHeader("Content-Range", resumeInfo.contentRange);
+//
+//        if (connectionHolder.getHostHeader().isPresent()) {
+//            request.header("host", connectionHolder.getHostHeader().get());
+//        }
+//
+//        Call call = okHttpClient.newCall(request.build());
+//
+//        synchronized (connections) {
+//            connections.add(call);
+//        }
+//
+//        try {
+//            Response response;
+//
+//            try {
+//                response = call.execute();
+//            } catch (IOException e) {
+//                throw new PushNetworkException(e);
+//            }
+//
+//            if (response.isSuccessful()) {
+//                return file.getTransmittedDigest();
+//            } else {
+//                throw new NonSuccessfulResponseCodeException(response.code(), "Response: " + response);
+//            }
+//        } finally {
+//            synchronized (connections) {
+//                connections.remove(call);
+//            }
+//        }
     }
 
     private ResumeInfo getResumeInfo(String resumableUrl, long contentLength) throws IOException {
-        ConnectionHolder connectionHolder = getRandom(cdnClientsMap.get(2), random);
-        OkHttpClient okHttpClient = connectionHolder.getClient()
-                .newBuilder()
-                .connectTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
-                .readTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
-                .build();
-
-        final long offset;
-        final String contentRange;
-
-        Request.Builder request = new Request.Builder().url(buildConfiguredUrl(connectionHolder, resumableUrl))
-                .put(RequestBody.create(null, ""))
-                .addHeader("Content-Range", String.format(Locale.US, "bytes */%d", contentLength));
-
-        if (connectionHolder.getHostHeader().isPresent()) {
-            request.header("host", connectionHolder.getHostHeader().get());
-        }
-
-        Call call = okHttpClient.newCall(request.build());
-
-        synchronized (connections) {
-            connections.add(call);
-        }
-
-        try {
-            Response response;
-
-            try {
-                response = call.execute();
-            } catch (IOException e) {
-                throw new PushNetworkException(e);
-            }
-
-            if (response.isSuccessful()) {
-                offset = contentLength;
-                contentRange = null;
-            } else if (response.code() == 308) {
-                String rangeCompleted = response.header("Range");
-
-                if (rangeCompleted == null) {
-                    offset = 0;
-                } else {
-                    offset = Long.parseLong(rangeCompleted.split("-")[1]) + 1;
-                }
-
-                contentRange = String.format(Locale.US, "bytes %d-%d/%d", offset, contentLength - 1, contentLength);
-            } else if (response.code() == 404) {
-                throw new ResumeLocationInvalidException();
-            } else {
-                throw new NonSuccessfulResponseCodeException(response.code(), "Response: " + response);
-            }
-        } finally {
-            synchronized (connections) {
-                connections.remove(call);
-            }
-        }
-
-        return new ResumeInfo(contentRange, offset);
+         throw new UnsupportedOperationException("NYI");
+//
+//        ConnectionHolder connectionHolder = getRandom(cdnClientsMap.get(2), random);
+//        OkHttpClient okHttpClient = connectionHolder.getClient()
+//                .newBuilder()
+//                .connectTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
+//                .readTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
+//                .build();
+//
+//        final long offset;
+//        final String contentRange;
+//
+//        Request.Builder request = new Request.Builder().url(buildConfiguredUrl(connectionHolder, resumableUrl))
+//                .put(RequestBody.create(null, ""))
+//                .addHeader("Content-Range", String.format(Locale.US, "bytes */%d", contentLength));
+//
+//        if (connectionHolder.getHostHeader().isPresent()) {
+//            request.header("host", connectionHolder.getHostHeader().get());
+//        }
+//
+//        Call call = okHttpClient.newCall(request.build());
+//
+//        synchronized (connections) {
+//            connections.add(call);
+//        }
+//
+//        try {
+//            Response response;
+//
+//            try {
+//                response = call.execute();
+//            } catch (IOException e) {
+//                throw new PushNetworkException(e);
+//            }
+//
+//            if (response.isSuccessful()) {
+//                offset = contentLength;
+//                contentRange = null;
+//            } else if (response.code() == 308) {
+//                String rangeCompleted = response.header("Range");
+//
+//                if (rangeCompleted == null) {
+//                    offset = 0;
+//                } else {
+//                    offset = Long.parseLong(rangeCompleted.split("-")[1]) + 1;
+//                }
+//
+//                contentRange = String.format(Locale.US, "bytes %d-%d/%d", offset, contentLength - 1, contentLength);
+//            } else if (response.code() == 404) {
+//                throw new ResumeLocationInvalidException();
+//            } else {
+//                throw new NonSuccessfulResponseCodeException(response.code(), "Response: " + response);
+//            }
+//        } finally {
+//            synchronized (connections) {
+//                connections.remove(call);
+//            }
+//        }
+//
+//        return new ResumeInfo(contentRange, offset);
     }
 
-    private static HttpUrl buildConfiguredUrl(ConnectionHolder connectionHolder, String url) throws IOException {
-
-        final HttpUrl endpointUrl = HttpUrl.get(connectionHolder.url);
-        final HttpUrl resumableHttpUrl;
-        try {
-            resumableHttpUrl = HttpUrl.get(url);
-        } catch (IllegalArgumentException e) {
-            throw new IOException("Malformed URL!", e);
-        }
-        String format = endpointUrl.scheme()+":" + endpointUrl.host();
-        HttpUrl answer = new HttpUrl.Builder().scheme(endpointUrl.scheme())
-                .host(endpointUrl.host())
-                .port(endpointUrl.port())
-                .encodedPath(endpointUrl.encodedPath())
-                .addEncodedPathSegments(resumableHttpUrl.encodedPath().substring(1))
-                .encodedQuery(resumableHttpUrl.encodedQuery())
-                .encodedFragment(resumableHttpUrl.encodedFragment())
-                .build();
-        return answer;
-    }
+//    private static HttpUrl buildConfiguredUrl(ConnectionHolder connectionHolder, String url) throws IOException {
+//
+//        final HttpUrl endpointUrl = HttpUrl.get(connectionHolder.url);
+//        final HttpUrl resumableHttpUrl;
+//        try {
+//            resumableHttpUrl = HttpUrl.get(url);
+//        } catch (IllegalArgumentException e) {
+//            throw new IOException("Malformed URL!", e);
+//        }
+//        String format = endpointUrl.scheme()+":" + endpointUrl.host();
+//        HttpUrl answer = new HttpUrl.Builder().scheme(endpointUrl.scheme())
+//                .host(endpointUrl.host())
+//                .port(endpointUrl.port())
+//                .encodedPath(endpointUrl.encodedPath())
+//                .addEncodedPathSegments(resumableHttpUrl.encodedPath().substring(1))
+//                .encodedQuery(resumableHttpUrl.encodedQuery())
+//                .encodedFragment(resumableHttpUrl.encodedFragment())
+//                .build();
+//        return answer;
+//    }
 
     private String makeServiceRequestWithoutAuthentication(String urlFragment, String method, String jsonBody)
-            throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException {
+            throws NonSuccessfulResponseCodeException, IOException, MalformedResponseException {
         return makeServiceRequestWithoutAuthentication(urlFragment, method, jsonBody, NO_HANDLER);
     }
 
     private String makeServiceRequestWithoutAuthentication(String urlFragment, String method, String jsonBody, ResponseCodeHandler responseCodeHandler)
-            throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException {
+            throws NonSuccessfulResponseCodeException, IOException, MalformedResponseException {
         return makeServiceRequestWithoutAuthentication(urlFragment, method, jsonBody, NO_HEADERS, responseCodeHandler);
     }
 
     private String makeServiceRequestWithoutAuthentication(String urlFragment, String method, String jsonBody, Map<String, String> headers)
-            throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException {
+            throws NonSuccessfulResponseCodeException, MalformedResponseException, IOException {
         return makeServiceRequestWithoutAuthentication(urlFragment, method, jsonBody, headers, NO_HANDLER);
     }
 
     private String makeServiceRequestWithoutAuthentication(String urlFragment, String method, String jsonBody, Map<String, String> headers, ResponseCodeHandler responseCodeHandler)
-            throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException {
+            throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException, IOException {
         ResponseBody responseBody = makeServiceRequest(urlFragment, method, jsonRequestBody(jsonBody), headers, responseCodeHandler, Optional.empty(), true, jsonBody).body();
-        try {
             return responseBody.string();
-        } catch (IOException e) {
-            throw new PushNetworkException(e);
-        }
+
     }
 
     private String makeServiceRequest(String urlFragment, String method, String jsonBody)
-            throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException {
+            throws IOException {
         return makeServiceRequest(urlFragment, method, jsonBody, NO_HEADERS, NO_HANDLER, Optional.empty());
     }
 
     public String makeServiceRequest(String urlFragment, String method, String jsonBody, Map<String, String> headers)
-            throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException {
+            throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException, IOException {
         return makeServiceRequest(urlFragment, method, jsonBody, headers, NO_HANDLER, Optional.empty());
     }
 
-    private String makeServiceRequest(String urlFragment, String method, String jsonBody, Map<String, String> headers, ResponseCodeHandler responseCodeHandler)
-            throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException {
+    private String makeServiceRequest(String urlFragment, String method, String jsonBody, Map<String, String> headers, ResponseCodeHandler responseCodeHandler) throws IOException {
         return makeServiceRequest(urlFragment, method, jsonBody, headers, responseCodeHandler, Optional.empty());
     }
 
-    private String makeServiceRequest(String urlFragment, String method, String jsonBody, Map<String, String> headers, Optional<UnidentifiedAccess> unidentifiedAccessKey)
-            throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException {
+    private String makeServiceRequest(String urlFragment, String method, String jsonBody, Map<String, String> headers, Optional<UnidentifiedAccess> unidentifiedAccessKey) throws IOException {
         return makeServiceRequest(urlFragment, method, jsonBody, headers, NO_HANDLER, unidentifiedAccessKey);
     }
 
     private String makeServiceRequest(String urlFragment, String method, String jsonBody,
             Map<String, String> headers, ResponseCodeHandler responseCodeHandler,
-            Optional<UnidentifiedAccess> unidentifiedAccessKey)
-            throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException {
+            Optional<UnidentifiedAccess> unidentifiedAccessKey) throws IOException {
         ResponseBody responseBody = makeServiceBodyRequest(urlFragment, method, jsonRequestBody(jsonBody), headers, responseCodeHandler, unidentifiedAccessKey, jsonBody);
-        try {
-            return new String(responseBody.bytes());
-        } catch (IOException e) {
-            throw new PushNetworkException(e);
-        }
+        return new String(responseBody.bytes());
     }
 
     private static RequestBody jsonRequestBody(String jsonBody) {
@@ -1683,6 +1656,7 @@ public class PushServiceSocket {
     }
 
     private static RequestBody protobufRequestBody(MessageLite protobufBody) {
+
         return protobufBody != null
                 ? RequestBody.create(MediaType.parse("application/x-protobuf"), protobufBody.toByteArray())
                 : null;
@@ -1693,33 +1667,28 @@ public class PushServiceSocket {
             String jsonBody,
             Map<String, String> headers,
             Optional<UnidentifiedAccess> unidentifiedAccessKey) {
-        OkHttpClient okHttpClient = buildOkHttpClient(unidentifiedAccessKey.isPresent());
-        byte[] raw = (jsonBody == null ? new byte[0] : jsonBody.getBytes());
-        Call call = okHttpClient.newCall(buildServiceRequest(urlFragment, method, jsonRequestBody(jsonBody), headers, unidentifiedAccessKey, false), raw);
-
-        synchronized (connections) {
-            connections.add(call);
-        }
+//
+        NetworkClient client = buildNetworkClient(unidentifiedAccessKey.isPresent());
+        RequestBody rb = jsonRequestBody(jsonBody);
+        HttpRequest request = buildServiceRequest(urlFragment, method, rb, headers, unidentifiedAccessKey, false);
 
         SettableFuture<String> bodyFuture = new SettableFuture<>();
-
-        call.enqueue(new Callback() {
-            @Override
-            public void onResponse(Call call, Response response) {
-                try ( ResponseBody body = response.body()) {
+        Thread t = new Thread() {
+            @Override public void run() {
+                try {
+                    byte[] rawBytes= (rb == null? new byte[0] : rb.getRawBytes());
+                    Response response = client.sendRequest(request, rawBytes);
                     validateServiceResponse(response);
+                    ResponseBody body = response.body();
                     bodyFuture.set(readBodyString(body));
-                } catch (IOException e) {
-                    bodyFuture.setException(e);
+
+                } catch (Throwable t) {
+                    t.printStackTrace();
+                    bodyFuture.setException(t);
                 }
             }
-
-            @Override
-            public void onFailure(Call call, IOException e) {
-                bodyFuture.setException(e);
-            }
-        });
-
+        };
+        t.start();
         return bodyFuture;
     }
 
@@ -1730,7 +1699,7 @@ public class PushServiceSocket {
             ResponseCodeHandler responseCodeHandler,
             Optional<UnidentifiedAccess> unidentifiedAccessKey,
             String rawBody)
-            throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException {
+            throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException, IOException {
         return makeServiceRequest(urlFragment, method, body, headers, responseCodeHandler, unidentifiedAccessKey, rawBody).body();
     }
 
@@ -1740,8 +1709,7 @@ public class PushServiceSocket {
             Map<String, String> headers,
             ResponseCodeHandler responseCodeHandler,
             Optional<UnidentifiedAccess> unidentifiedAccessKey,
-            String rawBody)
-            throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException {
+            String rawBody) throws IOException {
         return makeServiceRequest(urlFragment, method, body, headers, responseCodeHandler, unidentifiedAccessKey, false, rawBody);
     }
 
@@ -1752,25 +1720,27 @@ public class PushServiceSocket {
             ResponseCodeHandler responseCodeHandler,
             Optional<UnidentifiedAccess> unidentifiedAccessKey,
             boolean doNotAddAuthenticationOrUnidentifiedAccessKey,
-            String rawBody)
-            throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException {
+            String rawBody) throws IOException {
+//
         Response response = getServiceConnection(urlFragment, method, body, headers, unidentifiedAccessKey, doNotAddAuthenticationOrUnidentifiedAccessKey, rawBody);
-        ResponseBody responseBody = response.body();
-        try {
-            responseCodeHandler.handle(response.code(), responseBody);
-
-            return validateServiceResponse(response);
-        } catch (NonSuccessfulResponseCodeException | PushNetworkException | MalformedResponseException e) {
-            if (responseBody != null) {
-                responseBody.close();
-            }
-            throw e;
-        }
+        return response;
+//        ResponseBody responseBody = response.body();
+//        try {
+//            responseCodeHandler.handle(response.code(), responseBody);
+//
+//            return validateServiceResponse(response);
+//        } catch (NonSuccessfulResponseCodeException | PushNetworkException | MalformedResponseException e) {
+//            if (responseBody != null) {
+//                responseBody.close();
+//            }
+//            throw e;
+//        }
     }
 
     private Response validateServiceResponse(Response response)
             throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException {
-        int responseCode = response.code();
+
+        int responseCode = response.getStatusCode();
         String responseMessage = response.message();
 
         switch (responseCode) {
@@ -1835,16 +1805,16 @@ public class PushServiceSocket {
         return response;
     }
 
-    private Response getGrpcConnection(String urlFragment, String method, byte[] body, Map headers) {
-        SignalRpcMessage request = new SignalRpcMessage();
-        request.setUrlFragment("https://chat.signal.org"+urlFragment);
-        request.setBody(body);
-        request.setHeaders(headers);
-        request.setMethod(method);
-        SignalRpcReply sReply = this.grpcClient.sendDirectMessage(request);
-        LOG.info("GOT GRPC direct message, urlFrag = "+urlFragment+", responsebody bytelen = "+sReply.getMessage().length);
-        return new Response(sReply);
-    }
+//    private Response getGrpcConnection(String urlFragment, String method, byte[] body, Map headers) {
+//        SignalRpcMessage request = new SignalRpcMessage();
+//        request.setUrlFragment("https://chat.signal.org"+urlFragment);
+//        request.setBody(body);
+//        request.setHeaders(headers);
+//        request.setMethod(method);
+//        SignalRpcReply sReply = this.grpcClient.sendDirectMessage(request);
+//        LOG.info("GOT GRPC direct message, urlFrag = "+urlFragment+", responsebody bytelen = "+sReply.getMessage().length);
+//        return new Response(sReply);
+//    }
 
     private void recheckGrpc() {
         boolean newGrpc = Boolean.getBoolean("wave.grpc");
@@ -1864,51 +1834,25 @@ public class PushServiceSocket {
             Optional<UnidentifiedAccess> unidentifiedAccess,
             boolean doNotAddAuthenticationOrUnidentifiedAccessKey,
             String rawBody)
-            throws PushNetworkException {
-        try {
-            HttpRequest serviceRequest = buildServiceRequest(urlFragment, method, body, headers, unidentifiedAccess, doNotAddAuthenticationOrUnidentifiedAccessKey);
-            recheckGrpc();
-            LOG.info("Need to use grpc? "+useGrpc);
-            if (useGrpc) {
-                Map<String, List<String>> realHeaders = serviceRequest.headers().map();
-                if (rawBody == null) rawBody = "";
-                Response ranswer = getGrpcConnection(urlFragment, method, rawBody.getBytes(), realHeaders);
-                LOG.info("1GRPC answer for frag "+urlFragment+", size = " + ranswer.body().bytes().length);
-                LOG.finest("1GRPC answer = "+Arrays.toString(ranswer.body().bytes()));
-                return ranswer;
-            }
-            OkHttpClient okHttpClient = buildOkHttpClient(unidentifiedAccess.isPresent());
-            byte[] b = new byte[0];
-            if (body != null) b = body.getRawBytes();
-            Call call = okHttpClient.newCall(serviceRequest, b);
+            throws IOException {
 
-            synchronized (connections) {
-                connections.add(call);
-            }
-
-            try {
-                Response answer = call.execute();
-                LOG.info("1legacy answer size = " + answer.body().bytes().length);
-                LOG.finest("1legacy answer = " + Arrays.toString(answer.body().bytes()));
-                return answer;
-            } finally {
-                synchronized (connections) {
-                    connections.remove(call);
-                }
-            }
-        } catch (IOException e) {
-            throw new PushNetworkException(e);
-        }
+        HttpRequest serviceRequest = buildServiceRequest(urlFragment, method, body, headers, unidentifiedAccess, doNotAddAuthenticationOrUnidentifiedAccessKey);
+        NetworkClient client = buildNetworkClient(unidentifiedAccess.isPresent());
+        byte[] rawBytes = (body == null ? new byte[0] : body.getRawBytes());
+        Response answer = client.sendRequest(serviceRequest, rawBytes);
+        return answer;
     }
 
-    private OkHttpClient buildOkHttpClient(boolean unidentified) {
+    private NetworkClient buildNetworkClient(boolean unidentified) {
+//
         ServiceConnectionHolder connectionHolder = (ServiceConnectionHolder) getRandom(serviceClients, random);
-        OkHttpClient baseClient = unidentified ? connectionHolder.getUnidentifiedClient() : connectionHolder.getClient();
-        return baseClient.newBuilder()
-                .connectTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
-                .readTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
-                .retryOnConnectionFailure(automaticNetworkRetry)
-                .build();
+        NetworkClient baseClient = unidentified ? connectionHolder.getUnidentifiedClient() : connectionHolder.getClient();
+        return baseClient;
+//        return baseClient.newBuilder()
+//                .connectTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
+//                .readTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
+//                .retryOnConnectionFailure(automaticNetworkRetry)
+//                .build();
     }
 
     private HttpRequest buildServiceRequest(String urlFragment,
@@ -1919,9 +1863,6 @@ public class PushServiceSocket {
             boolean doNotAddAuthenticationOrUnidentifiedAccessKey) {
 
         ServiceConnectionHolder connectionHolder = (ServiceConnectionHolder) getRandom(serviceClients, random);
-
-//      Log.d(TAG, "Push service URL: " + connectionHolder.getUrl());
-//      Log.d(TAG, "Opening URL: " + String.format("%s%s", connectionHolder.getUrl(), urlFragment));
         HttpRequest.Builder request = HttpRequest.newBuilder();
         try {
             request.uri(new URI(String.format("%s%s", connectionHolder.getUrl(), urlFragment)));
@@ -1931,7 +1872,7 @@ public class PushServiceSocket {
                 request.method(method, BodyPublishers.ofByteArray(body.getRawBytes()));
                 if (body.contentType() != null) request.header("Content-Type", body.contentType().getMediaType());
             }
-        } catch (URISyntaxException | IOException ex) {
+        } catch (Exception ex) {
             LOG.log(Level.SEVERE, null, ex);
             throw new IllegalArgumentException (ex);
         }
@@ -1980,73 +1921,77 @@ public class PushServiceSocket {
     private Response makeRequest(ConnectionHolder connectionHolder, String authorization,
             List<String> cookies, String path, String method, String body)
             throws PushNetworkException, NonSuccessfulResponseCodeException {
-        OkHttpClient okHttpClient = connectionHolder.getClient()
-                .newBuilder()
-                .connectTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
-                .readTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
-                .build();
-
-        Request.Builder request = new Request.Builder().url(connectionHolder.getUrl() + path);
-
-        if (body != null) {
-            request.method(method, RequestBody.create(MediaType.parse("application/json"), body));
-        } else {
-            request.method(method, null);
-        }
-
-        if (connectionHolder.getHostHeader().isPresent()) {
-            request.addHeader("Host", connectionHolder.getHostHeader().get());
-        }
-
-        if (authorization != null) {
-            request.addHeader("Authorization", authorization);
-        }
-
-        if (cookies != null && !cookies.isEmpty()) {
-            request.addHeader("Cookie", Util.join(cookies, "; "));
-        }
-
-        Call call = okHttpClient.newCall(request.build());
-
-        synchronized (connections) {
-            connections.add(call);
-        }
-
-        Response response;
-
-        try {
-            response = call.execute();
-
-            if (response.isSuccessful()) {
-                return response;
-            }
-        } catch (IOException e) {
-            throw new PushNetworkException(e);
-        } finally {
-            synchronized (connections) {
-                connections.remove(call);
-            }
-        }
-
-        switch (response.code()) {
-            case 401:
-            case 403:
-                throw new AuthorizationFailedException(response.code(), "Authorization failed!");
-            case 409:
-                throw new RemoteAttestationResponseExpiredException("Remote attestation response expired");
-            case 429:
-                throw new RateLimitException(response.code(), "Rate limit exceeded: " + response.code());
-        }
-
-        throw new NonSuccessfulResponseCodeException(response.code(), "Response: " + response);
+                 throw new UnsupportedOperationException("NYI");
+//
+//        OkHttpClient okHttpClient = connectionHolder.getClient()
+//                .newBuilder()
+//                .connectTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
+//                .readTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
+//                .build();
+//
+//        Request.Builder request = new Request.Builder().url(connectionHolder.getUrl() + path);
+//
+//        if (body != null) {
+//            request.method(method, RequestBody.create(MediaType.parse("application/json"), body));
+//        } else {
+//            request.method(method, null);
+//        }
+//
+//        if (connectionHolder.getHostHeader().isPresent()) {
+//            request.addHeader("Host", connectionHolder.getHostHeader().get());
+//        }
+//
+//        if (authorization != null) {
+//            request.addHeader("Authorization", authorization);
+//        }
+//
+//        if (cookies != null && !cookies.isEmpty()) {
+//            request.addHeader("Cookie", Util.join(cookies, "; "));
+//        }
+//
+//        Call call = okHttpClient.newCall(request.build());
+//
+//        synchronized (connections) {
+//            connections.add(call);
+//        }
+//
+//        Response response;
+//
+//        try {
+//            response = call.execute();
+//
+//            if (response.isSuccessful()) {
+//                return response;
+//            }
+//        } catch (IOException e) {
+//            throw new PushNetworkException(e);
+//        } finally {
+//            synchronized (connections) {
+//                connections.remove(call);
+//            }
+//        }
+//
+//        switch (response.code()) {
+//            case 401:
+//            case 403:
+//                throw new AuthorizationFailedException(response.code(), "Authorization failed!");
+//            case 409:
+//                throw new RemoteAttestationResponseExpiredException("Remote attestation response expired");
+//            case 429:
+//                throw new RateLimitException(response.code(), "Rate limit exceeded: " + response.code());
+//        }
+//
+//        throw new NonSuccessfulResponseCodeException(response.code(), "Response: " + response);
     }
 
     private void makeAndCloseStorageRequest(String authorization, String path, String method, RequestBody body, ResponseCodeHandler responseCodeHandler)
             throws PushNetworkException, NonSuccessfulResponseCodeException {
-        ResponseBody responseBody = makeStorageRequest(authorization, path, method, body, responseCodeHandler);
-        if (responseBody != null) {
-            responseBody.close();
-        }
+            throw new UnsupportedOperationException("NYI");
+//
+//        ResponseBody responseBody = makeStorageRequest(authorization, path, method, body, responseCodeHandler);
+//        if (responseBody != null) {
+//            responseBody.close();
+//        }
     }
 
     private ResponseBody makeStorageRequest(String authorization, String path, String method, RequestBody body)
@@ -2061,12 +2006,9 @@ public class PushServiceSocket {
 
     private Response makeStorageRequestResponse(String authorization, String path, String method, RequestBody body, ResponseCodeHandler responseCodeHandler)
             throws PushNetworkException, NonSuccessfulResponseCodeException {
+
         ConnectionHolder connectionHolder = getRandom(storageClients, random);
-        OkHttpClient okHttpClient = connectionHolder.getClient()
-                .newBuilder()
-                .connectTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
-                .readTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
-                .build();
+        NetworkClient client = connectionHolder.getClient();
         Log.d(TAG, "Opening URL: " + connectionHolder.getUrl());
         HttpRequest.Builder hrBuilder = HttpRequest.newBuilder();
         String uriFormat = connectionHolder.getUrl() + path;
@@ -2079,14 +2021,10 @@ public class PushServiceSocket {
             BodyPublisher bodyPublisher = BodyPublishers.noBody();
             hrBuilder.method(method, bodyPublisher);
         } else {
-            try {
-                BodyPublisher bodyPublisher = BodyPublishers.ofByteArray(body.getRawBytes());
-                hrBuilder.method(method, bodyPublisher);
-                LOG.info("Adding contenttype: "+body.contentType().getMediaType());
-                hrBuilder.header("Content-Type", body.contentType().getMediaType());
-            } catch (IOException ex) {
-                Logger.getLogger(PushServiceSocket.class.getName()).log(Level.SEVERE, null, ex);
-            }
+            BodyPublisher bodyPublisher = BodyPublishers.ofByteArray(body.getRawBytes());
+            hrBuilder.method(method, bodyPublisher);
+            LOG.info("Adding contenttype: " + body.contentType().getMediaType());
+            hrBuilder.header("Content-Type", body.contentType().getMediaType());
         }
 
         if (connectionHolder.getHostHeader().isPresent()) {
@@ -2097,134 +2035,122 @@ public class PushServiceSocket {
             hrBuilder.header("Authorization", authorization);
         }
 
-        byte[] rawBytes= new byte[0];
-        try {
-            if (body != null) rawBytes = body.getRawBytes();
-        } catch (IOException ioe) {
-            ioe.printStackTrace();
-        }
-        Call call = okHttpClient.newCall(hrBuilder.build(), rawBytes);
-
-        synchronized (connections) {
-            connections.add(call);
+        byte[] rawBytes = new byte[0];
+        if (body != null) {
+            rawBytes = body.getRawBytes();
         }
 
-        Response response;
-
+        int statusCode = -1;
+        Response response = null;
         try {
-            response = call.execute();
-
-            if (response.isSuccessful() && response.code() != 204) {
+            response = client.sendRequest(hrBuilder.build(), rawBytes);
+            statusCode = response.getStatusCode();
+            
+            if (response.isSuccessful() && response.getStatusCode() != 204) {
                 return response;
+            }
+
+            ResponseBody responseBody = response.body();
+
+            responseCodeHandler.handle(response.getStatusCode(), responseBody, response::header);
+
+            switch (response.getStatusCode()) {
+                case 204:
+                    throw new NoContentException("No content!");
+                case 401:
+                case 403:
+                    throw new AuthorizationFailedException(response.getStatusCode(), "Authorization failed!");
+                case 404:
+                    throw new NotFoundException("Not found");
+                case 409:
+                    if (response.body() != null) {
+                        throw new ContactManifestMismatchException(readBodyBytes(response.body()));
+                    } else {
+                        throw new ConflictException();
+                    }
+                case 429:
+                    throw new RateLimitException(response.getStatusCode(), "Rate limit exceeded: " + response.getStatusCode());
+                case 499:
+                    throw new DeprecatedVersionException();
             }
         } catch (IOException e) {
             throw new PushNetworkException(e);
-        } finally {
-            synchronized (connections) {
-                connections.remove(call);
-            }
-        }
-        ResponseBody responseBody = response.body();
-
-        responseCodeHandler.handle(response.code(), responseBody, response::header);
-
-        switch (response.code()) {
-            case 204:
-                throw new NoContentException("No content!");
-            case 401:
-            case 403:
-                throw new AuthorizationFailedException(response.code(), "Authorization failed!");
-            case 404:
-                throw new NotFoundException("Not found");
-            case 409:
-                if (response.body() != null) {
-                    throw new ContactManifestMismatchException(readBodyBytes(response.body()));
-                } else {
-                    throw new ConflictException();
-                }
-            case 429:
-                throw new RateLimitException(response.code(), "Rate limit exceeded: " + response.code());
-            case 499:
-                throw new DeprecatedVersionException();
-        }
-
-        throw new NonSuccessfulResponseCodeException(response.code(), "Response: " + response);
+        } 
+        throw new NonSuccessfulResponseCodeException(statusCode, "Response: " + response);
     }
 
     public CallingResponse makeCallingRequest(long requestId, String url, String httpMethod, List<Pair<String, String>> headers, byte[] body) {
-        ConnectionHolder connectionHolder = getRandom(serviceClients, random);
-        OkHttpClient okHttpClient = connectionHolder.getClient()
-                .newBuilder()
-                .followRedirects(false)
-                .connectTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
-                .readTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
-                .build();
-
-        RequestBody requestBody = body != null ? RequestBody.create(null, body) : null;
-        Request.Builder builder = new Request.Builder()
-                .url(url)
-                .method(httpMethod, requestBody);
-
-        if (headers != null) {
-            for (Pair<String, String> header : headers) {
-                builder.addHeader(header.first(), header.second());
-            }
-        }
-
-        Request request = builder.build();
-
-        for (int i = 0; i < MAX_FOLLOW_UPS; i++) {
-            try ( Response response = okHttpClient.newCall(request).execute()) {
-                int responseStatus = response.code();
-
-                if (responseStatus != 307) {
-                    return new CallingResponse.Success(requestId,
-                            responseStatus,
-                            response.body() != null ? response.body().bytes() : new byte[0]);
-                }
-
-                String location = response.header("Location");
-                HttpUrl newUrl = location != null ? request.url().resolve(location) : null;
-
-                if (newUrl != null) {
-                    request = request.newBuilder().url(newUrl).build();
-                } else {
-                    return new CallingResponse.Error(requestId, new IOException("Received redirect without a valid Location header"));
-                }
-            } catch (IOException e) {
-                Log.w(TAG, "Exception during ringrtc http call.", e);
-                return new CallingResponse.Error(requestId, e);
-            }
-        }
-
-        Log.w(TAG, "Calling request max redirects exceeded");
-        return new CallingResponse.Error(requestId, new IOException("Redirect limit exceeded"));
+             throw new UnsupportedOperationException("NYI");
+//
+//        ConnectionHolder connectionHolder = getRandom(serviceClients, random);
+//        OkHttpClient okHttpClient = connectionHolder.getClient()
+//                .newBuilder()
+//                .followRedirects(false)
+//                .connectTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
+//                .readTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
+//                .build();
+//
+//        RequestBody requestBody = body != null ? RequestBody.create(null, body) : null;
+//        Request.Builder builder = new Request.Builder()
+//                .url(url)
+//                .method(httpMethod, requestBody);
+//
+//        if (headers != null) {
+//            for (Pair<String, String> header : headers) {
+//                builder.addHeader(header.first(), header.second());
+//            }
+//        }
+//
+//        Request request = builder.build();
+//
+//        for (int i = 0; i < MAX_FOLLOW_UPS; i++) {
+//            try ( Response response = okHttpClient.newCall(request).execute()) {
+//                int responseStatus = response.code();
+//
+//                if (responseStatus != 307) {
+//                    return new CallingResponse.Success(requestId,
+//                            responseStatus,
+//                            response.body() != null ? response.body().bytes() : new byte[0]);
+//                }
+//
+//                String location = response.header("Location");
+//                HttpUrl newUrl = location != null ? request.url().resolve(location) : null;
+//
+//                if (newUrl != null) {
+//                    request = request.newBuilder().url(newUrl).build();
+//                } else {
+//                    return new CallingResponse.Error(requestId, new IOException("Received redirect without a valid Location header"));
+//                }
+//            } catch (IOException e) {
+//                Log.w(TAG, "Exception during ringrtc http call.", e);
+//                return new CallingResponse.Error(requestId, e);
+//            }
+//        }
+//
+//        Log.w(TAG, "Calling request max redirects exceeded");
+//        return new CallingResponse.Error(requestId, new IOException("Redirect limit exceeded"));
     }
 
     private ServiceConnectionHolder[] createServiceConnectionHolders(SignalUrl[] urls,
-            List<Interceptor> interceptors,
-            Optional<Dns> dns,
             Optional<SignalProxy> proxy) {
         List<ServiceConnectionHolder> serviceConnectionHolders = new LinkedList<>();
 
         for (SignalUrl url : urls) {
-            serviceConnectionHolders.add(new ServiceConnectionHolder(createConnectionClient(url, interceptors, dns, proxy),
-                    createConnectionClient(url, interceptors, dns, proxy),
+            serviceConnectionHolders.add(new ServiceConnectionHolder(createConnectionClient(url, proxy),
+                    createConnectionClient(url, proxy),
                     url.getUrl(), url.getHostHeader()));
         }
-
         return serviceConnectionHolders.toArray(new ServiceConnectionHolder[0]);
     }
 
     private static Map<Integer, ConnectionHolder[]> createCdnClientsMap(final Map<Integer, SignalCdnUrl[]> signalCdnUrlMap,
-            final List<Interceptor> interceptors,
-            final Optional<Dns> dns,
+
             final Optional<SignalProxy> proxy) {
         validateConfiguration(signalCdnUrlMap);
         final Map<Integer, ConnectionHolder[]> result = new HashMap<>();
         for (Map.Entry<Integer, SignalCdnUrl[]> entry : signalCdnUrlMap.entrySet()) {
             result.put(entry.getKey(),
-                    createConnectionHolders(entry.getValue(), interceptors, dns, proxy));
+                    createConnectionHolders(entry.getValue(), proxy));
         }
         return Collections.unmodifiableMap(result);
     }
@@ -2235,46 +2161,19 @@ public class PushServiceSocket {
         }
     }
 
-    private static ConnectionHolder[] createConnectionHolders(SignalUrl[] urls, List<Interceptor> interceptors, Optional<Dns> dns, Optional<SignalProxy> proxy) {
+    private static ConnectionHolder[] createConnectionHolders(SignalUrl[] urls, Optional<SignalProxy> proxy) {
         List<ConnectionHolder> connectionHolders = new LinkedList<>();
 
         for (SignalUrl url : urls) {
-            connectionHolders.add(new ConnectionHolder(createConnectionClient(url, interceptors, dns, proxy), url.getUrl(), url.getHostHeader()));
+            connectionHolders.add(new ConnectionHolder(createConnectionClient(url, proxy), url.getUrl(), url.getHostHeader()));
         }
 
         return connectionHolders.toArray(new ConnectionHolder[0]);
     }
 
-    private static OkHttpClient createConnectionClient(SignalUrl url, List<Interceptor> interceptors, Optional<Dns> dns, Optional<SignalProxy> proxy) {
-        try {
-            TrustManager[] trustManagers = BlacklistingTrustManager.createFor(url.getTrustStore());
+    private static NetworkClient createConnectionClient(SignalUrl url, Optional<SignalProxy> proxy) {
+      return new NetworkClient(url, "FOO", true);
 
-            SSLContext context = SSLContext.getInstance("TLS");
-            context.init(null, trustManagers, null);
-
-            OkHttpClient.Builder builder = new OkHttpClient.Builder()
-                    .sslSocketFactory(new Tls12SocketFactory(context.getSocketFactory()), (X509TrustManager) trustManagers[0])
-                    .connectionSpecs(url.getConnectionSpecs().orElse(Util.immutableList(ConnectionSpec.RESTRICTED_TLS)))
-                    .dns(dns.orElse(Dns.SYSTEM));
-
-            if (proxy.isPresent()) {
-                builder.socketFactory(new TlsProxySocketFactory(proxy.get().getHost(), proxy.get().getPort(), dns));
-            }
-
-            builder.sslSocketFactory(new Tls12SocketFactory(context.getSocketFactory()), (X509TrustManager) trustManagers[0])
-                    .connectionSpecs(url.getConnectionSpecs().orElse(Util.immutableList(ConnectionSpec.RESTRICTED_TLS)))
-                    .build();
-
-            builder.connectionPool(new ConnectionPool(5, 45, TimeUnit.SECONDS));
-
-            for (Interceptor interceptor : interceptors) {
-                builder.addInterceptor(interceptor);
-            }
-
-            return builder.build();
-        } catch (NoSuchAlgorithmException | KeyManagementException e) {
-            throw new AssertionError(e);
-        }
     }
 
     private String getAuthorizationHeader(CredentialsProvider credentialsProvider) {
@@ -2301,11 +2200,8 @@ public class PushServiceSocket {
         if (response == null) {
             throw new PushNetworkException("No body!");
         }
-        try {
             return response.bytes();
-        } catch (IOException e) {
-            throw new PushNetworkException(e);
-        }
+
     }
 
     /**
@@ -2317,11 +2213,8 @@ public class PushServiceSocket {
             throw new PushNetworkException("No body!");
         }
 
-        try {
             return body.string();
-        } catch (IOException e) {
-            throw new PushNetworkException(e);
-        }
+
     }
 
     /**
@@ -2409,17 +2302,17 @@ public class PushServiceSocket {
 
     private static class ConnectionHolder {
 
-        private final OkHttpClient client;
+        private final NetworkClient client;
         private final String url;
         private final Optional<String> hostHeader;
 
-        private ConnectionHolder(OkHttpClient client, String url, Optional<String> hostHeader) {
+        private ConnectionHolder(NetworkClient client, String url, Optional<String> hostHeader) {
             this.client = client;
             this.url = url;
             this.hostHeader = hostHeader;
         }
 
-        OkHttpClient getClient() {
+        NetworkClient getClient() {
             return client;
         }
 
@@ -2434,14 +2327,14 @@ public class PushServiceSocket {
 
     private static class ServiceConnectionHolder extends ConnectionHolder {
 
-        private final OkHttpClient unidentifiedClient;
+        private final NetworkClient unidentifiedClient;
 
-        private ServiceConnectionHolder(OkHttpClient identifiedClient, OkHttpClient unidentifiedClient, String url, Optional<String> hostHeader) {
+        private ServiceConnectionHolder(NetworkClient identifiedClient, NetworkClient unidentifiedClient, String url, Optional<String> hostHeader) {
             super(identifiedClient, url, hostHeader);
             this.unidentifiedClient = unidentifiedClient;
         }
 
-        OkHttpClient getUnidentifiedClient() {
+        NetworkClient getUnidentifiedClient() {
             return unidentifiedClient;
         }
     }
@@ -2578,37 +2471,39 @@ public class PushServiceSocket {
 
     public GroupHistory getGroupsV2GroupHistory(int fromVersion, GroupsV2AuthorizationString authorization, int highestKnownEpoch, boolean includeFirstState)
             throws IOException {
-        Response response = makeStorageRequestResponse(authorization.toString(),
-                String.format(Locale.US, GROUPSV2_GROUP_CHANGES, fromVersion, highestKnownEpoch, includeFirstState),
-                "GET",
-                null,
-                GROUPS_V2_GET_LOGS_HANDLER);
-
-        if (response.body() == null) {
-            throw new PushNetworkException("No body!");
-        }
-
-        GroupChanges groupChanges;
-        try ( InputStream input = response.body().byteStream()) {
-            groupChanges = GroupChanges.parseFrom(input);
-        } catch (IOException e) {
-            throw new PushNetworkException(e);
-        }
-
-        if (response.code() == 206) {
-            String contentRangeHeader = response.header("Content-Range");
-            Optional<ContentRange> contentRange = ContentRange.parse(contentRangeHeader);
-
-            if (contentRange.isPresent()) {
-                Log.i(TAG, "Additional logs for group: " + contentRangeHeader);
-                return new GroupHistory(groupChanges, contentRange);
-            } else {
-                Log.w(TAG, "Unable to parse Content-Range header: " + contentRangeHeader);
-                throw new MalformedResponseException("Unable to parse content range header on 206");
-            }
-        }
-
-        return new GroupHistory(groupChanges, Optional.empty());
+                 throw new UnsupportedOperationException("NYI");
+//
+//        Response response = makeStorageRequestResponse(authorization.toString(),
+//                String.format(Locale.US, GROUPSV2_GROUP_CHANGES, fromVersion, highestKnownEpoch, includeFirstState),
+//                "GET",
+//                null,
+//                GROUPS_V2_GET_LOGS_HANDLER);
+//
+//        if (response.body() == null) {
+//            throw new PushNetworkException("No body!");
+//        }
+//
+//        GroupChanges groupChanges;
+//        try ( InputStream input = response.body().byteStream()) {
+//            groupChanges = GroupChanges.parseFrom(input);
+//        } catch (IOException e) {
+//            throw new PushNetworkException(e);
+//        }
+//
+//        if (response.code() == 206) {
+//            String contentRangeHeader = response.header("Content-Range");
+//            Optional<ContentRange> contentRange = ContentRange.parse(contentRangeHeader);
+//
+//            if (contentRange.isPresent()) {
+//                Log.i(TAG, "Additional logs for group: " + contentRangeHeader);
+//                return new GroupHistory(groupChanges, contentRange);
+//            } else {
+//                Log.w(TAG, "Unable to parse Content-Range header: " + contentRangeHeader);
+//                throw new MalformedResponseException("Unable to parse content range header on 206");
+//            }
+//        }
+//
+//        return new GroupHistory(groupChanges, Optional.empty());
     }
 
     public GroupJoinInfo getGroupJoinInfo(Optional<byte[]> groupLinkPassword, GroupsV2AuthorizationString authorization)
@@ -2635,7 +2530,7 @@ public class PushServiceSocket {
     }
 
   public CurrencyConversions getCurrencyConversions()
-      throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException
+      throws NonSuccessfulResponseCodeException, IOException, MalformedResponseException
   {
     String response = makeServiceRequest(PAYMENTS_CONVERSIONS, "GET", null);
     try {
@@ -2647,7 +2542,7 @@ public class PushServiceSocket {
   }
 
     public void reportSpam(ServiceId serviceId, String serverGuid)
-            throws NonSuccessfulResponseCodeException, MalformedResponseException, PushNetworkException {
+            throws NonSuccessfulResponseCodeException, MalformedResponseException, IOException {
         makeServiceRequest(String.format(REPORT_SPAM, serviceId.toString(), serverGuid), "POST", "");
     }
 
@@ -2658,11 +2553,8 @@ public class PushServiceSocket {
             switch (responseCode) {
                 case 400:
                     String body;
-                    try {
                         body = responseBody != null ? responseBody.string() : "";
-                    } catch (IOException e) {
-                        throw new PushNetworkException(e);
-                    }
+
 
                     if (body.isEmpty()) {
                         throw new ImpossiblePhoneNumberException();

@@ -4,8 +4,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import tokhttp3.Dns;
-import tokhttp3.Interceptor;
+//import tokhttp3.Dns;
+//import tokhttp3.Interceptor;
 
 public final class SignalServiceConfiguration {
 
@@ -14,8 +14,8 @@ public final class SignalServiceConfiguration {
   private final SignalContactDiscoveryUrl[]  signalContactDiscoveryUrls;
   private final SignalKeyBackupServiceUrl[]  signalKeyBackupServiceUrls;
   private final SignalStorageUrl[]           signalStorageUrls;
-  private final List<Interceptor>            networkInterceptors;
-  private final Optional<Dns>                dns;
+//  private final List<Interceptor>            networkInterceptors;
+//  private final Optional<Dns>                dns;
   private final Optional<SignalProxy>        proxy;
   private final byte[]                       zkGroupServerPublicParams;
 
@@ -24,8 +24,8 @@ public final class SignalServiceConfiguration {
                                     SignalContactDiscoveryUrl[] signalContactDiscoveryUrls,
                                     SignalKeyBackupServiceUrl[] signalKeyBackupServiceUrls,
                                     SignalStorageUrl[] signalStorageUrls,
-                                    List<Interceptor> networkInterceptors,
-                                    Optional<Dns> dns,
+//                                    List<Interceptor> networkInterceptors,
+//                                    Optional<Dns> dns,
                                     Optional<SignalProxy> proxy,
                                     byte[] zkGroupServerPublicParams)
   {
@@ -34,8 +34,8 @@ public final class SignalServiceConfiguration {
     this.signalContactDiscoveryUrls = signalContactDiscoveryUrls;
     this.signalKeyBackupServiceUrls = signalKeyBackupServiceUrls;
     this.signalStorageUrls          = signalStorageUrls;
-    this.networkInterceptors        = networkInterceptors;
-    this.dns                        = dns;
+//    this.networkInterceptors        = networkInterceptors;
+//    this.dns                        = dns;
     this.proxy                      = proxy;
     this.zkGroupServerPublicParams  = zkGroupServerPublicParams;
   }
@@ -59,14 +59,14 @@ public final class SignalServiceConfiguration {
   public SignalStorageUrl[] getSignalStorageUrls() {
     return signalStorageUrls;
   }
-
-  public List<Interceptor> getNetworkInterceptors() {
-    return networkInterceptors;
-  }
-
-  public Optional<Dns> getDns() {
-    return dns;
-  }
+//
+//  public List<Interceptor> getNetworkInterceptors() {
+//    return networkInterceptors;
+//  }
+//
+//  public Optional<Dns> getDns() {
+//    return dns;
+//  }
 
   public byte[] getZkGroupServerPublicParams() {
     return zkGroupServerPublicParams;

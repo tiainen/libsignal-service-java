@@ -19,7 +19,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 
-import tokhttp3.Dns;
+//import tokhttp3.Dns;
 
 public class TlsProxySocketFactory extends SocketFactory {
 
@@ -27,9 +27,9 @@ public class TlsProxySocketFactory extends SocketFactory {
 
   private final String        proxyHost;
   private final int           proxyPort;
-  private final Optional<Dns> dns;
+//  private final Optional<Dns> dns;
 
-  public TlsProxySocketFactory(String proxyHost, int proxyPort, Optional<Dns> dns) {
+  public TlsProxySocketFactory(String proxyHost, int proxyPort) {//, Optional<Dns> dns) {
     try {
       SSLContext context = SSLContext.getInstance("TLS");
       context.init(null, null, null);
@@ -37,7 +37,7 @@ public class TlsProxySocketFactory extends SocketFactory {
       this.system    = context.getSocketFactory();
       this.proxyHost = proxyHost;
       this.proxyPort = proxyPort;
-      this.dns       = dns;
+//      this.dns       = dns;
     } catch (NoSuchAlgorithmException | KeyManagementException e) {
       throw new AssertionError(e);
     }
@@ -45,26 +45,26 @@ public class TlsProxySocketFactory extends SocketFactory {
 
   @Override
   public Socket createSocket(String host, int port) throws IOException, UnknownHostException {
-    if (dns.isPresent()) {
-      List<InetAddress> resolved = dns.get().lookup(host);
-
-      if (resolved.size() > 0) {
-        return createSocket(resolved.get(0), port);
-      }
-    }
+//    if (dns.isPresent()) {
+//      List<InetAddress> resolved = dns.get().lookup(host);
+//
+//      if (resolved.size() > 0) {
+//        return createSocket(resolved.get(0), port);
+//      }
+//    }
 
     return new ProxySocket(system.createSocket(proxyHost, proxyPort));
   }
 
   @Override
   public Socket createSocket(String host, int port, InetAddress localHost, int localPort) throws IOException, UnknownHostException {
-    if (dns.isPresent()) {
-      List<InetAddress> resolved = dns.get().lookup(host);
-
-      if (resolved.size() > 0) {
-        return createSocket(resolved.get(0), port, localHost, localPort);
-      }
-    }
+//    if (dns.isPresent()) {
+//      List<InetAddress> resolved = dns.get().lookup(host);
+//
+//      if (resolved.size() > 0) {
+//        return createSocket(resolved.get(0), port, localHost, localPort);
+//      }
+//    }
 
     return new ProxySocket(system.createSocket(proxyHost, proxyPort, localHost, localPort));
   }

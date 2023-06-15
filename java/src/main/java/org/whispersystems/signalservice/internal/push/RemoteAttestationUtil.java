@@ -25,8 +25,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import tokhttp3.Response;
-import tokhttp3.ResponseBody;
+import com.gluonhq.snl.Response;
+import com.gluonhq.snl.ResponseBody;
 
 public final class RemoteAttestationUtil {
 

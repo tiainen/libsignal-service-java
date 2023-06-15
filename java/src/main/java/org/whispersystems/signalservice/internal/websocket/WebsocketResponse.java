@@ -10,7 +10,7 @@ public class WebsocketResponse {
     private final String body;
     private final Map<String, String> headers;
 
-    WebsocketResponse(int status, String body, List<String> headers) {
+    public WebsocketResponse(int status, String body, List<String> headers) {
         this.status = status;
         this.body = body;
         this.headers = parseHeaders(headers);

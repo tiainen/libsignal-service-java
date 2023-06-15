@@ -36,7 +36,7 @@ import org.whispersystems.signalservice.internal.util.JsonUtil;
 import org.whispersystems.signalservice.internal.util.Util;
 import org.whispersystems.signalservice.internal.util.concurrent.FutureTransformers;
 import org.whispersystems.signalservice.internal.util.concurrent.ListenableFuture;
-import org.whispersystems.signalservice.internal.websocket.WebSocketConnection;
+import com.gluonhq.snl.doubt.WebSocketConnection;
 import org.whispersystems.signalservice.internal.websocket.WebsocketResponse;
 import org.whispersystems.util.Base64;
 
@@ -366,7 +366,7 @@ public class SignalServiceMessagePipe {
       }
 
       return JsonUtil.fromJson(response.getBody(), AttachmentV2UploadAttributes.class);
-    } catch (InterruptedException | ExecutionException | TimeoutException e) {
+    } catch (Exception e) {
       throw new IOException(e);
     }
   }
@@ -386,7 +386,7 @@ public class SignalServiceMessagePipe {
       }
 
       return JsonUtil.fromJson(response.getBody(), AttachmentV3UploadAttributes.class);
-    } catch (InterruptedException | ExecutionException | TimeoutException e) {
+    } catch (Exception e) {
       throw new IOException(e);
     }
   }
