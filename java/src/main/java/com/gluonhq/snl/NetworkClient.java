@@ -98,7 +98,8 @@ public class NetworkClient {
         this.httpClient = buildClient();
         this.credentialsProvider = cp;
         this.connectivityListener = connectivityListener;
-        LOG.info("Created NetworkClient with url "+url+", cp = "+cp+" and cl = "+connectivityListener);
+        LOG.info("Created NetworkClient with url "+url+", cp = "+cp+" and cl = "
+                +connectivityListener+" and httpClient = "+httpClient);
         this.formatProcessingThread = new Thread() {
             @Override
             public void run() {
@@ -485,11 +486,11 @@ public class NetworkClient {
     private Response getDirectResponse(HttpRequest request) throws IOException {
         HttpResponse httpResponse;
         try {
-            LOG.info("Invoke send on httpClient");
+            LOG.info("Invoke send on httpClient "+this.httpClient);
             httpResponse = this.httpClient.send(request, createBodyHandler());
             LOG.info("Did invoke send on httpClient");
         } catch (InterruptedException ex) {
-            LOG.log(Level.SEVERE, null, ex);
+            LOG.log(Level.SEVERE, "Error sending using httpClient "+this.httpClient, ex);
             throw new IOException(ex);
         }
         return new Response(httpResponse);
@@ -528,7 +529,7 @@ public class NetworkClient {
         public void onError(WebSocket webSocket, Throwable error) {
             LOG.log(Level.WARNING, "ERROR IN WEBSOCKET, do we have connectivityListener? "+connectivityListener+", err = "+error);
             connectivityListener.ifPresent(cl -> cl.onError());
-            reCreateWebSocket();
+        //    reCreateWebSocket();
         //    error.printStackTrace();
         }
 
