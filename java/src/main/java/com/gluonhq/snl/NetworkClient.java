@@ -98,6 +98,7 @@ public class NetworkClient {
         this.httpClient = buildClient();
         this.credentialsProvider = cp;
         this.connectivityListener = connectivityListener;
+        LOG.info("Created NetworkClient with url "+url+", cp = "+cp+" and cl = "+connectivityListener);
         this.formatProcessingThread = new Thread() {
             @Override
             public void run() {
@@ -525,7 +526,7 @@ public class NetworkClient {
 
         @Override
         public void onError(WebSocket webSocket, Throwable error) {
-            LOG.log(Level.SEVERE, "ERROR IN WEBSOCKET!", error);
+            LOG.log(Level.WARNING, "ERROR IN WEBSOCKET, do we have connectivityListener? "+connectivityListener+", err = "+error);
             connectivityListener.ifPresent(cl -> cl.onError());
             reCreateWebSocket();
         //    error.printStackTrace();
@@ -533,9 +534,9 @@ public class NetworkClient {
 
         @Override
         public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
-            LOG.info("Websocket opened");
-            Thread.dumpStack();
-            throw new UnsupportedOperationException("Not supported yet.");
+            LOG.info("Websocket closed with statusCode "+statusCode+" and reason "+reason+". Do we have a cl? "+connectivityListener);
+            connectivityListener.ifPresent(cl -> cl.onDisconnected());
+            return null;
         }
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
@@ -605,7 +606,7 @@ public class NetworkClient {
                 try {
                     Thread.sleep(TimeUnit.SECONDS.toMillis(KEEPALIVE_TIMEOUT_SECONDS));
 
-                    LOG.finest("Sending keep alive for " + this);
+                    LOG.info("Sending keep alive for " + this);
                     sendKeepAlive();
                 } catch (Throwable e) {
                     LOG.info("FAILED Sending keep alive for " + this);
