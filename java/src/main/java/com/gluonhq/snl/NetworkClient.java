@@ -190,7 +190,7 @@ public class NetworkClient {
 
     }
 
-    private synchronized void sendKeepAlive() throws IOException {
+    private synchronized CompletableFuture<WebSocket> sendKeepAlive() throws IOException {
         byte[] message = WebSocketMessage.newBuilder()
                 .setType(WebSocketMessage.Type.REQUEST)
                 .setRequest(WebSocketRequestMessage.newBuilder()
@@ -199,17 +199,22 @@ public class NetworkClient {
                         .setVerb("GET")
                         .build()).build()
                 .toByteArray();
-        this.webSocket.sendBinary(ByteBuffer.wrap(message), true);
+        CompletableFuture<WebSocket> fut = this.webSocket.sendBinary(ByteBuffer.wrap(message), true);
+        return fut;
     }
 
     public void shutdown() {
         this.closed = true;
+        if (this.keepAliveSender != null) {
+            this.keepAliveSender.shutdownKeepAlive();
+        }
         if (this.webSocket != null) {
             this.webSocket.abort();
         }
     }
 
-    public Future<SendGroupMessageResponse> sendToGroup(byte[] body, byte[] joinedUnidentifiedAccess, long timestamp, boolean online) {
+    public Future<SendGroupMessageResponse> sendToGroup(byte[] body, byte[] joinedUnidentifiedAccess, long timestamp, boolean online) throws IOException {
+        if (closed) throw new IOException ("Trying to use a closed networkclient "+this);
         List<String> headers = new LinkedList<String>() {
             {
                 add("content-type:application/vnd.signal-messenger.mrm");
@@ -456,6 +461,7 @@ public class NetworkClient {
     }
 
     public Response sendRequest(HttpRequest request, byte[] raw) throws IOException {
+        if (closed) throw new IOException ("Trying to use a closed networkclient "+this);
         Response response;
         if (useQuic) {
             LOG.info("Send request, using kwik");
@@ -496,7 +502,8 @@ public class NetworkClient {
         return new Response(httpResponse);
     }
 
-    public synchronized ListenableFuture<WebsocketResponse> sendRequest(WebSocketRequestMessage request) {
+    public synchronized ListenableFuture<WebsocketResponse> sendRequest(WebSocketRequestMessage request) throws IOException {
+        if (closed) throw new IOException ("Trying to use a closed networkclient "+this);
         WebSocketMessage message = WebSocketMessage.newBuilder()
                 .setType(WebSocketMessage.Type.REQUEST)
                 .setRequest(request).build();
@@ -588,7 +595,7 @@ public class NetworkClient {
                 LOG.info("notified listener1");
                 java.net.http.WebSocket.Listener.super.onOpen(webSocket);
                 System.err.println("notified listener2");
-                KeepAliveSender keepAliveSender = new KeepAliveSender();
+                NetworkClient.this.keepAliveSender = new KeepAliveSender();
                 keepAliveSender.start();
             } catch (Throwable e) {
                 e.printStackTrace();
@@ -608,16 +615,21 @@ public class NetworkClient {
                     Thread.sleep(TimeUnit.SECONDS.toMillis(KEEPALIVE_TIMEOUT_SECONDS));
 
                     LOG.info("Sending keep alive for " + this);
-                    sendKeepAlive();
+                    CompletableFuture<WebSocket> fut = sendKeepAlive();
+                    WebSocket get = fut.get(10, TimeUnit.SECONDS);
+                    LOG.info("got keepalive for " + get);
                 } catch (Throwable e) {
                     LOG.info("FAILED Sending keep alive for " + this);
-                    LOG.log(Level.SEVERE, "error in keepalive", e);
+                   // LOG.log(Level.WARNING, "error in keepalive", e);
+                    LOG.info("Closing networkclient "+NetworkClient.this);
+                    NetworkClient.this.shutdown();
+                    LOG.info("Closed networkclient "+NetworkClient.this);
                 }
             }
             LOG.info("No more keepalives for " + this);
         }
 
-        public void shutdown() {
+        public void shutdownKeepAlive() {
             LOG.info("Requesting to stop keep alive for " + this);
             stop.set(true);
         }
