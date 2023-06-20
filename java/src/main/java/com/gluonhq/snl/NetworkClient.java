@@ -2,6 +2,7 @@ package com.gluonhq.snl;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import io.privacyresearch.grpcproxy.SignalRpcMessage;
 import io.privacyresearch.grpcproxy.SignalRpcReply;
 import io.privacyresearch.grpcproxy.client.KwikSender;
@@ -17,6 +18,7 @@ import java.net.http.WebSocket;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -33,6 +35,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.signal.libsignal.protocol.logging.Log;
@@ -65,7 +68,9 @@ import org.whispersystems.util.Base64;
  */
 public class NetworkClient {
 
-    boolean useQuic = false;
+    final boolean useQuic;
+    final String kwikAddress; // = "swave://localhost:7443";
+            // "swave://grpcproxy.gluonhq.net:7443";
     final HttpClient httpClient;
     final SignalUrl signalUrl;
     final String signalAgent;
@@ -73,10 +78,15 @@ public class NetworkClient {
     final Optional<CredentialsProvider> credentialsProvider;
     final Optional<ConnectivityListener> connectivityListener;
     private static final Logger LOG = Logger.getLogger(NetworkClient.class.getName());
+
+    // only one of those will be used, depending if we use quic or not.
     private WebSocket webSocket;
-    private BlockingQueue<byte[]> rawByteQueue = new LinkedBlockingQueue<>();
-    private BlockingQueue<WebSocketRequestMessage> wsRequestMessageQueue = new LinkedBlockingQueue<>();
-    private BlockingQueue<SignalServiceEnvelope> envelopeQueue = new LinkedBlockingQueue<>();
+    private KwikSender.KwikStream kwikStream;
+
+    private KwikSender kwikSender;
+
+    private final BlockingQueue<byte[]> rawByteQueue = new LinkedBlockingQueue<>();
+    private final BlockingQueue<WebSocketRequestMessage> wsRequestMessageQueue = new LinkedBlockingQueue<>();
 
     private final Map<Long, OutgoingRequest> outgoingRequests = new HashMap<>();
 
@@ -86,12 +96,17 @@ public class NetworkClient {
     private boolean closed = false;
     private static final String SERVER_DELIVERED_TIMESTAMP_HEADER = "X-Signal-Timestamp";
     private static final int KEEPALIVE_TIMEOUT_SECONDS = 55;
+    private boolean websocketCreated = false;
 
     public NetworkClient(SignalUrl url, String agent, boolean allowStories) {
         this(url, Optional.empty(), agent, Optional.empty(), allowStories);
     }
 
     public NetworkClient(SignalUrl url, Optional<CredentialsProvider> cp, String signalAgent, Optional<ConnectivityListener> connectivityListener, boolean allowStories) {
+        String property = System.getProperty("wave.quic", "false");
+        System.err.println("NCPROP = "+property);
+        this.useQuic =  "true".equals(property.toLowerCase());
+        this.kwikAddress = System.getProperty("wave.kwikhost", "swave://grpcproxy.gluonhq.net:7443");
         this.signalUrl = url;
         this.signalAgent = signalAgent;
         this.allowStories = allowStories;
@@ -115,31 +130,8 @@ public class NetworkClient {
         return answer;
     }
 
-    long lastRestart = 0l;
-
-    private void reCreateWebSocket() {
-        Thread t = new Thread() {
-            @Override
-            public void run() {
-                if ((System.currentTimeMillis() - lastRestart) < 10000) {
-                    LOG.info("Restart requested, but previous request has been less than 10s. Ignore.");
-                } else {
-                    lastRestart = System.currentTimeMillis();
-                    try {
-                        createWebSocket();
-                    } catch (IOException ex) {
-                        Logger.getLogger(NetworkClient.class.getName()).log(Level.SEVERE, null, ex);
-                    }
-                }
-            }
-        };
-        t.start();
-    }
-
     private void createWebSocket() throws IOException {
-        WebSocket.Builder wsBuilder = this.httpClient.newWebSocketBuilder();
-        wsBuilder.header("X-Signal-Agent", signalAgent);
-        wsBuilder.header("X-Signal-Receive-Stories", allowStories ? "true" : "false");
+        LOG.info("Creating websocket");
         String baseUrl = signalUrl.getUrl().replace("https://", "wss://")
                 .replace("http://", "ws://");//
         if (!baseUrl.endsWith("provisioning/")) {
@@ -150,6 +142,40 @@ public class NetworkClient {
             String identifier = cp.getAci() != null ? cp.getDeviceUuid() : cp.getE164();
             baseUrl = baseUrl + "?login=" + identifier + "&password=" + cp.getPassword();
         }
+        if (useQuic) {
+            createKwikWebSocket(baseUrl);
+        } else {
+            createLegacyWebSocket(baseUrl);
+        }
+        websocketCreated = true;
+    }
+
+    private void createKwikWebSocket(String baseUrl)  throws IOException {
+        Map<String, String> headerMap = new HashMap<>();
+        headerMap.put("X-Signal-Agent", signalAgent);
+        headerMap.put("X-Signal-Receive-Stories", allowStories ? "true" : "false");
+        this.kwikSender = new KwikSender(kwikAddress);
+        Consumer<byte[]> gotData = reply -> {
+            try {
+                LOG.info("WS Got reply");
+                SignalRpcReply signalReply = SignalRpcReply.parseFrom(reply);
+                LOG.info("Reply = "+signalReply);
+                rawByteQueue.put(signalReply.getMessage().toByteArray());
+            } catch (InterruptedException ex) {
+                Logger.getLogger(NetworkClient.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (InvalidProtocolBufferException ex) {
+                Logger.getLogger(NetworkClient.class.getName()).log(Level.SEVERE, null, ex);
+            } catch (Throwable t) {
+                t.printStackTrace();
+            }
+        };
+        this.kwikStream = kwikSender.openWebSocket(baseUrl, headerMap, gotData);
+    }
+
+    private void createLegacyWebSocket(String baseUrl)  throws IOException {
+        WebSocket.Builder wsBuilder = this.httpClient.newWebSocketBuilder();
+        wsBuilder.header("X-Signal-Agent", signalAgent);
+        wsBuilder.header("X-Signal-Receive-Stories", allowStories ? "true" : "false");
         URI uri = null;
         try {
             LOG.info("CREATEWS to " + baseUrl);
@@ -190,7 +216,7 @@ public class NetworkClient {
 
     }
 
-    private synchronized CompletableFuture<WebSocket> sendKeepAlive() throws IOException {
+    private synchronized CompletableFuture sendKeepAlive() throws IOException {
         byte[] message = WebSocketMessage.newBuilder()
                 .setType(WebSocketMessage.Type.REQUEST)
                 .setRequest(WebSocketRequestMessage.newBuilder()
@@ -199,7 +225,14 @@ public class NetworkClient {
                         .setVerb("GET")
                         .build()).build()
                 .toByteArray();
-        CompletableFuture<WebSocket> fut = this.webSocket.sendBinary(ByteBuffer.wrap(message), true);
+        System.err.println("KEEPALIVE: "+Arrays.toString(message));
+        CompletableFuture fut = CompletableFuture.runAsync(() -> {
+            try {
+                sendToStream(message);
+            } catch (Exception ex) {
+                Logger.getLogger(NetworkClient.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        });
         return fut;
     }
 
@@ -281,8 +314,9 @@ public class NetworkClient {
     }
 
     public SignalServiceEnvelope read(long timeout, TimeUnit unit) {
-        if (this.webSocket == null) { // TODO: create WS before starting to read
+        if (!this.websocketCreated) { // TODO: create WS before starting to read
             try {
+                LOG.info("Need to CreateWebSocket for "+this);
                 createWebSocket();
             } catch (IOException ex) {
                 Logger.getLogger(NetworkClient.class.getName()).log(Level.SEVERE, null, ex);
@@ -333,8 +367,7 @@ public class NetworkClient {
                         .setType(WebSocketMessage.Type.RESPONSE)
                         .setResponse(response)
                         .build();
-                msg.toByteArray();
-                webSocket.sendBinary(ByteBuffer.wrap(msg.toByteArray()), true);
+                sendToStream(msg.toByteArray());
             } catch (Exception ioe) {
                 LOG.log(Level.SEVERE, "IO exception in sending response", ioe);
             }
@@ -378,7 +411,7 @@ public class NetworkClient {
         });
         requestBuilder.setMethod(method);
         LOG.info("Getting ready to send DM to kwikproxy");
-        KwikSender kwikSender = new KwikSender("swave://grpcproxy.gluonhq.net:7443");
+        KwikSender kwikSender = new KwikSender(kwikAddress);
         SignalRpcReply sReply = kwikSender.sendSignalMessage(requestBuilder.build());
         LOG.info("Statuscode = " + sReply.getStatuscode());
         ByteString message = sReply.getMessage();
@@ -415,7 +448,7 @@ public class NetworkClient {
             try {
                 LOG.info("Wait for raw bytes");
                 byte[] raw = rawByteQueue.take();
-                LOG.info("Got raw bytes");
+                LOG.finest("Got raw bytes: "+Arrays.toString(raw));
                 WebSocketMessage message = WebSocketMessage.parseFrom(raw);
                 LOG.info("Got message, type = " + message.getType());
                 if (message.getType() == WebSocketMessage.Type.REQUEST) {
@@ -502,6 +535,13 @@ public class NetworkClient {
         return new Response(httpResponse);
     }
 
+    private void sendToStream(byte[] payload) throws IOException {
+        if (useQuic) {
+            this.kwikSender.writeMessageToStream(kwikStream, payload);
+        } else {
+            this.webSocket.sendBinary(ByteBuffer.wrap(payload), true);
+        }
+    }
     public synchronized ListenableFuture<WebsocketResponse> sendRequest(WebSocketRequestMessage request) throws IOException {
         if (closed) throw new IOException ("Trying to use a closed networkclient "+this);
         WebSocketMessage message = WebSocketMessage.newBuilder()
@@ -509,7 +549,7 @@ public class NetworkClient {
                 .setRequest(request).build();
         SettableFuture<WebsocketResponse> future = new SettableFuture<>();
         outgoingRequests.put(request.getId(), new OutgoingRequest(future, System.currentTimeMillis()));
-        webSocket.sendBinary(ByteBuffer.wrap(message.toByteArray()), true);
+        this.sendToStream(message.toByteArray());
         return future;
     }
 
@@ -615,8 +655,8 @@ public class NetworkClient {
                     Thread.sleep(TimeUnit.SECONDS.toMillis(KEEPALIVE_TIMEOUT_SECONDS));
 
                     LOG.info("Sending keep alive for " + this);
-                    CompletableFuture<WebSocket> fut = sendKeepAlive();
-                    WebSocket get = fut.get(10, TimeUnit.SECONDS);
+                    CompletableFuture fut = sendKeepAlive();
+                    Object get = fut.get(10, TimeUnit.SECONDS);
                     LOG.info("got keepalive for " + get);
                 } catch (Throwable e) {
                     LOG.info("FAILED Sending keep alive for " + this);
