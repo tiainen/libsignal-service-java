@@ -38,7 +38,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.signal.libsignal.protocol.logging.Log;
 import org.whispersystems.signalservice.api.messages.SignalServiceEnvelope;
 import org.whispersystems.signalservice.api.push.exceptions.MalformedResponseException;
 import org.whispersystems.signalservice.api.push.exceptions.PushNetworkException;
@@ -48,6 +47,7 @@ import org.whispersystems.signalservice.api.websocket.ConnectivityListener;
 import org.whispersystems.signalservice.internal.configuration.SignalUrl;
 import org.whispersystems.signalservice.internal.push.GroupMismatchedDevices;
 import org.whispersystems.signalservice.internal.push.MismatchedDevices;
+import org.whispersystems.signalservice.internal.push.OutgoingPushMessageList;
 import org.whispersystems.signalservice.internal.push.SendGroupMessageResponse;
 import org.whispersystems.signalservice.internal.push.exceptions.GroupMismatchedDevicesException;
 import org.whispersystems.signalservice.internal.push.exceptions.MismatchedDevicesException;
@@ -104,7 +104,6 @@ public class NetworkClient {
 
     public NetworkClient(SignalUrl url, Optional<CredentialsProvider> cp, String signalAgent, Optional<ConnectivityListener> connectivityListener, boolean allowStories) {
         String property = System.getProperty("wave.quic", "false");
-        System.err.println("NCPROP = "+property);
         this.useQuic =  "true".equals(property.toLowerCase());
         this.kwikAddress = System.getProperty("wave.kwikhost", "swave://grpcproxy.gluonhq.net:7443");
         this.signalUrl = url;
@@ -269,7 +268,6 @@ public class NetworkClient {
         ListenableFuture<SendGroupMessageResponse> answer = FutureTransformers.map(response, value -> {
             if (value.getStatus() == 404) {
                 System.err.println("ERROR: sendGroup -> 404");
-                Thread.dumpStack();
                 throw new IOException();
             } else if (value.getStatus() == 409) {
                 GroupMismatchedDevices[] mismatchedDevices = JsonUtil.fromJsonResponse(value.getBody(), GroupMismatchedDevices[].class);
@@ -289,6 +287,25 @@ public class NetworkClient {
             }
         });
         return answer;
+    }
+
+    // placeholder for using a bidirection stream to send 1-1 messages
+    public void sendDirectOverStream(OutgoingPushMessageList list, boolean story) throws IOException {
+        List<String> headers = new LinkedList<String>() {
+            {
+                add("content-type:application/json");
+            }
+        };
+
+        WebSocketRequestMessage requestMessage = WebSocketRequestMessage.newBuilder()
+                .setId(new SecureRandom().nextLong())
+                .setVerb("PUT")
+                .setPath(String.format("/v1/messages/%s?story=%s", list.getDestination(), story ? "true" : "false"))
+                .addAllHeaders(headers)
+                .setBody(ByteString.copyFrom(JsonUtil.toJson(list).getBytes()))
+                .build();
+        ListenableFuture<WebsocketResponse> response = sendRequest(requestMessage);
+
     }
 
     public boolean isConnected() {
@@ -339,6 +356,7 @@ public class NetworkClient {
     }
 
     Optional<SignalServiceEnvelope> handleWebSocketRequestMessage(WebSocketRequestMessage request) throws IOException {
+        LOG.info("Handle WS requestMessage ");
         WebSocketProtos.WebSocketResponseMessage response = createWebSocketResponse(request);
 
         try {
@@ -361,6 +379,7 @@ public class NetworkClient {
                 return Optional.empty();
             }
         } finally {
+            LOG.info("[NC] sendResponse to websocket request msg");
             LOG.finer("[SSMP] readOrEmpty SHOULD send response");
             try {
                 WebSocketMessage msg = WebSocketMessage.newBuilder()
