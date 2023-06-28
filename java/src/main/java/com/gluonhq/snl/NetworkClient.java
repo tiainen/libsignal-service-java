@@ -30,10 +30,12 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.logging.Level;
@@ -68,7 +70,7 @@ import org.whispersystems.util.Base64;
  */
 public class NetworkClient {
 
-    final boolean useQuic;
+    private boolean useQuic;
     final String kwikAddress; // = "swave://localhost:7443";
             // "swave://grpcproxy.gluonhq.net:7443";
     final HttpClient httpClient;
@@ -83,7 +85,7 @@ public class NetworkClient {
     private WebSocket webSocket;
     private KwikSender.KwikStream kwikStream;
 
-    private KwikSender kwikSender;
+    private final KwikSender kwikSender;
 
     private final BlockingQueue<byte[]> rawByteQueue = new LinkedBlockingQueue<>();
     private final BlockingQueue<WebSocketRequestMessage> wsRequestMessageQueue = new LinkedBlockingQueue<>();
@@ -104,8 +106,18 @@ public class NetworkClient {
 
     public NetworkClient(SignalUrl url, Optional<CredentialsProvider> cp, String signalAgent, Optional<ConnectivityListener> connectivityListener, boolean allowStories) {
         String property = System.getProperty("wave.quic", "false");
-        this.useQuic =  "true".equals(property.toLowerCase());
+        this.useQuic = "true".equals(property.toLowerCase());
         this.kwikAddress = System.getProperty("wave.kwikhost", "swave://grpcproxy.gluonhq.net:7443");
+        URI uri = null;
+        try {
+            uri = new URI(kwikAddress);
+        } catch (URISyntaxException ex) {
+            LOG.log(Level.SEVERE, "wrong format for quic address", ex);
+            LOG.warning("Fallback to non-quic transport");
+            this.useQuic = false;
+        }
+        this.kwikSender = (uri == null? null : new KwikSender(uri));
+
         this.signalUrl = url;
         this.signalAgent = signalAgent;
         this.allowStories = allowStories;
@@ -153,7 +165,6 @@ public class NetworkClient {
         Map<String, String> headerMap = new HashMap<>();
         headerMap.put("X-Signal-Agent", signalAgent);
         headerMap.put("X-Signal-Receive-Stories", allowStories ? "true" : "false");
-        this.kwikSender = new KwikSender(kwikAddress);
         Consumer<byte[]> gotData = reply -> {
             try {
                 LOG.info("WS Got reply");
@@ -419,7 +430,7 @@ public class NetworkClient {
         }
     }
 
-    private Response getKwikResponse(URI uri, String method, byte[] body, Map<String, List<String>> headers) throws IOException {
+    private CompletableFuture<Response> getKwikResponse(URI uri, String method, byte[] body, Map<String, List<String>> headers) throws IOException {
         SignalRpcMessage.Builder requestBuilder = SignalRpcMessage.newBuilder();
         requestBuilder.setUrlfragment(uri.toString());
         requestBuilder.setBody(ByteString.copyFrom(body));
@@ -430,19 +441,21 @@ public class NetworkClient {
         });
         requestBuilder.setMethod(method);
         LOG.info("Getting ready to send DM to kwikproxy");
-        KwikSender kwikSender = new KwikSender(kwikAddress);
-        SignalRpcReply sReply = kwikSender.sendSignalMessage(requestBuilder.build());
-        LOG.info("Statuscode = " + sReply.getStatuscode());
-        ByteString message = sReply.getMessage();
-        LOG.info("Got message, "+message);
-        LOG.info("Size = "+message.size());
-        
-        byte[] raw = sReply.getMessage().toByteArray();
-        LOG.info("RawSize = "+raw.length);
-        Response<byte[]> answer = new Response<>(raw, sReply.getStatuscode());
+        CompletableFuture<SignalRpcReply> sReplyFuture = kwikSender.sendSignalMessage(requestBuilder.build());
+        CompletableFuture<Response> answer = sReplyFuture.thenApply(reply -> new Response<byte[]>(reply.getMessage().toByteArray(), reply.getStatuscode()));
+//            SignalRpcReply sReply = sReplyFuture.get(10, TimeUnit.SECONDS);
+//            LOG.info("Statuscode = " + sReply.getStatuscode());
+//            ByteString message = sReply.getMessage();
+//            LOG.info("Got message, " + message);
+//            LOG.info("Size = " + message.size());
+//
+//            byte[] raw = sReply.getMessage().toByteArray();
+//            LOG.info("RawSize = " + raw.length);
+//            Response<byte[]> answer = new Response<>(raw, sReply.getStatuscode());
 //                LOG.info("Length of answer = " + sReply.getMessage().length);
         return answer;
     }
+
 
     private static Optional<String> findHeader(WebSocketRequestMessage message, String targetHeader) {
         if (message.getHeadersCount() == 0) {
@@ -511,36 +524,50 @@ public class NetworkClient {
         };
         return mbh;
     }
-
     public Response sendRequest(HttpRequest request, byte[] raw) throws IOException {
+        try {
+            return asyncSendRequest(request, raw).get(30, TimeUnit.SECONDS);
+        } catch (InterruptedException | ExecutionException| TimeoutException ex) {
+            LOG.log(Level.SEVERE, null, ex);
+            throw new IOException(ex);
+        }
+    }
+
+    public CompletableFuture<Response> asyncSendRequest(HttpRequest request, byte[] raw) throws IOException {
         if (closed) throw new IOException ("Trying to use a closed networkclient "+this);
-        Response response;
+        CompletableFuture<Response> response;
         if (useQuic) {
             LOG.info("Send request, using kwik");
             URI uri = request.uri();
             String method = request.method();
             Map headers = request.headers().map();
-            Response answer = getKwikResponse(uri, method, raw, headers);
+            CompletableFuture<Response> answer = getKwikResponse(uri, method, raw, headers);
             LOG.info("Got request, using kwik");
             response = answer;
         } else {
             LOG.info("Send request, not using kwik");
-            response = getDirectResponse(request);
+            response = CompletableFuture.completedFuture(getDirectResponse(request));
             LOG.info("Got response, not using kwik");
         }
-        validateResponse(response);
+        response.thenApply(res -> validateResponse(res));
         return response;
     }
 
-    private void validateResponse(Response response) throws MismatchedDevicesException, PushNetworkException, MalformedResponseException {
-        int statusCode = response.getStatusCode();
-        switch (statusCode) {
-            case 409:
-                LOG.info("Got a 409 exception, throw MMDE");
-                MismatchedDevices mismatchedDevices = readResponseJson(response, MismatchedDevices.class);
-                throw new MismatchedDevicesException(mismatchedDevices);
+    private Response validateResponse(Response response) {
+        try {
+            int statusCode = response.getStatusCode();
+            switch (statusCode) {
+                case 409:
+                    LOG.info("Got a 409 exception, throw MMDE");
+                    MismatchedDevices mismatchedDevices = readResponseJson(response, MismatchedDevices.class);
+                    throw new MismatchedDevicesException(mismatchedDevices);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
+        return response;
     }
+
     private Response getDirectResponse(HttpRequest request) throws IOException {
         HttpResponse httpResponse;
         try {
