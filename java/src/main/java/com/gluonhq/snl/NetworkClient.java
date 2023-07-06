@@ -256,6 +256,15 @@ public class NetworkClient {
         }
     }
 
+    /**
+     * Sends a message to a group. This method returns immediately with a Future
+     * @param body
+     * @param joinedUnidentifiedAccess
+     * @param timestamp
+     * @param online
+     * @return
+     * @throws IOException 
+     */
     public Future<SendGroupMessageResponse> sendToGroup(byte[] body, byte[] joinedUnidentifiedAccess, long timestamp, boolean online) throws IOException {
         if (closed) throw new IOException ("Trying to use a closed networkclient "+this);
         List<String> headers = new LinkedList<String>() {
@@ -301,7 +310,7 @@ public class NetworkClient {
     }
 
     // placeholder for using a bidirection stream to send 1-1 messages
-    public void sendDirectOverStream(OutgoingPushMessageList list, boolean story) throws IOException {
+    private void sendDirectOverStream(OutgoingPushMessageList list, boolean story) throws IOException {
         List<String> headers = new LinkedList<String>() {
             {
                 add("content-type:application/json");
@@ -320,7 +329,7 @@ public class NetworkClient {
     }
 
     public boolean isConnected() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return true;
     }
 
     /**
@@ -524,16 +533,31 @@ public class NetworkClient {
         };
         return mbh;
     }
+
+    /**
+     * Sends a request and blocks forever until there is a response
+     * @param request
+     * @param raw
+     * @return
+     * @throws IOException
+     */
     public Response sendRequest(HttpRequest request, byte[] raw) throws IOException {
         try {
-            return asyncSendRequest(request, raw).get(30, TimeUnit.SECONDS);
-        } catch (InterruptedException | ExecutionException| TimeoutException ex) {
+            return asyncSendRequest(request, raw).get(); //.get(30, TimeUnit.SECONDS);
+        } catch (InterruptedException | ExecutionException ex) {
             LOG.log(Level.SEVERE, null, ex);
             throw new IOException(ex);
         }
     }
 
-    public CompletableFuture<Response> asyncSendRequest(HttpRequest request, byte[] raw) throws IOException {
+    /**
+     * Sends a request and immediately return a Future.
+     * @param request
+     * @param raw
+     * @return
+     * @throws IOException
+     */
+    private CompletableFuture<Response> asyncSendRequest(HttpRequest request, byte[] raw) throws IOException {
         if (closed) throw new IOException ("Trying to use a closed networkclient "+this);
         CompletableFuture<Response> response;
         if (useQuic) {
@@ -588,7 +612,8 @@ public class NetworkClient {
             this.webSocket.sendBinary(ByteBuffer.wrap(payload), true);
         }
     }
-    public synchronized ListenableFuture<WebsocketResponse> sendRequest(WebSocketRequestMessage request) throws IOException {
+
+    private synchronized ListenableFuture<WebsocketResponse> sendRequest(WebSocketRequestMessage request) throws IOException {
         if (closed) throw new IOException ("Trying to use a closed networkclient "+this);
         WebSocketMessage message = WebSocketMessage.newBuilder()
                 .setType(WebSocketMessage.Type.REQUEST)
