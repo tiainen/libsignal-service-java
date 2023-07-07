@@ -158,8 +158,6 @@ public class SignalServiceMessageReceiver {
       throws IOException, InvalidMessageException
   {
     byte[] manifestBytes = socket.retrieveStickerManifest(packId);
-      System.err.println("got manifestbytes for packId "+Arrays.toString(packId));
-      System.err.println("manifestbyes = "+Arrays.toString(manifestBytes));
     InputStream           cipherStream = AttachmentCipherInputStream.createForStickerData(manifestBytes, packKey);
     ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 

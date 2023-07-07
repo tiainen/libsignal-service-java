@@ -1288,7 +1288,7 @@ public class PushServiceSocket {
 
     private void downloadFromCdn(OutputStream outputStream, long offset, int cdnNumber, String path, long maxSizeBytes, ProgressListener listener)
             throws PushNetworkException, NonSuccessfulResponseCodeException, MissingConfigurationException {
-        LOG.info("need "+path+" from CDN");
+        LOG.info("need "+path+" for download from CDN");
         ConnectionHolder[] cdnNumberClients = cdnClientsMap.get(cdnNumber);
         if (cdnNumberClients == null) {
             throw new MissingConfigurationException("Attempted to download from unsupported CDN number: " + cdnNumber + ", Our configuration supports: " + cdnClientsMap.keySet());
