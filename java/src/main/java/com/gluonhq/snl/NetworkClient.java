@@ -83,7 +83,7 @@ public class NetworkClient {
 
     // only one of those will be used, depending if we use quic or not.
     private WebSocket webSocket;
-    private KwikSender.KwikStream kwikStream;
+    private KwikSender.KwikConnectionHolder kwikStream;
 
     private final KwikSender kwikSender;
 
