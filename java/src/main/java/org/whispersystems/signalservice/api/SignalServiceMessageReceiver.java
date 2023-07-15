@@ -186,7 +186,7 @@ public class SignalServiceMessageReceiver {
    * @return A SignalServiceMessagePipe for receiving Signal Service messages.
    */
     public NetworkClient createMessagePipe(Consumer callback) {
-        NetworkClient networkClient = new NetworkClient(urls.getSignalServiceUrls()[0], Optional.of(credentialsProvider), signalAgent, Optional.of(connectivityListener), allowStories);
+        NetworkClient networkClient = NetworkClient.createNetworkClient(urls.getSignalServiceUrls()[0], Optional.of(credentialsProvider), signalAgent, Optional.of(connectivityListener), allowStories);
         callback.accept(networkClient);
 //                                                            Optional.of(credentialsProvider), signalAgent,  )
 //    WebSocketConnection webSocket = new WebSocketConnection(urls.getSignalServiceUrls()[0].getUrl(),
@@ -203,7 +203,7 @@ public class SignalServiceMessageReceiver {
     }
 
   public NetworkClient createUnidentifiedMessagePipe(Consumer callback) {
-              NetworkClient networkClient = new NetworkClient(urls.getSignalServiceUrls()[0], Optional.empty(), signalAgent, Optional.of(connectivityListener), allowStories);
+              NetworkClient networkClient = NetworkClient.createNetworkClient(urls.getSignalServiceUrls()[0], Optional.empty(), signalAgent, Optional.of(connectivityListener), allowStories);
         callback.accept(networkClient);
               return networkClient;
 

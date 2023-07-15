@@ -2167,8 +2167,7 @@ public class PushServiceSocket {
     }
 
     private static NetworkClient createConnectionClient(SignalUrl url, Optional<SignalProxy> proxy) {
-      return new NetworkClient(url, "FOO", true);
-
+      return NetworkClient.createNetworkClient(url, "FOO", true);
     }
 
     private String getAuthorizationHeader(CredentialsProvider credentialsProvider) {
