@@ -9,12 +9,13 @@ public class WebsocketResponse {
     private final int status;
     private final String body;
     private final Map<String, String> headers;
+    private final boolean unidentified;
 
-    public WebsocketResponse(int status, String body, List<String> headers) {
+    public WebsocketResponse(int status, String body, List<String> headers, boolean unidentified) {
         this.status = status;
         this.body = body;
         this.headers = parseHeaders(headers);
-
+        this.unidentified = unidentified;
     }
 
     public int getStatus() {
@@ -27,6 +28,10 @@ public class WebsocketResponse {
 
     public String getHeader(String key) {
         return headers.get(key.toLowerCase());
+    }
+
+    public boolean isUnidentified() {
+        return unidentified;
     }
 
     private static Map<String, String> parseHeaders(List<String> rawHeaders) {

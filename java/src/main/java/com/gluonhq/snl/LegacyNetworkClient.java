@@ -47,6 +47,7 @@ public class LegacyNetworkClient extends NetworkClient {
         return answer;
     }
 
+    @Override
     void implCreateWebSocket(String baseUrl) throws IOException {
         WebSocket.Builder wsBuilder = this.httpClient.newWebSocketBuilder();
         wsBuilder.header("X-Signal-Agent", signalAgent);

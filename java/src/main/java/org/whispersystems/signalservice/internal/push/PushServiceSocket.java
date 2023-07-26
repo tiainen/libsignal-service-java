@@ -1856,6 +1856,7 @@ public class PushServiceSocket {
             Map<String, String> headers,
             Optional<UnidentifiedAccess> unidentifiedAccess,
             boolean doNotAddAuthenticationOrUnidentifiedAccessKey) {
+        System.err.println("BUILD SERVICE REQUEST results with method "+method+ " and headers = "+headers);
 
         ServiceConnectionHolder connectionHolder = (ServiceConnectionHolder) getRandom(serviceClients, random);
         HttpRequest.Builder request = HttpRequest.newBuilder();
@@ -1890,7 +1891,8 @@ public class PushServiceSocket {
         if (connectionHolder.getHostHeader().isPresent()) {
             request.header("Host", connectionHolder.getHostHeader().get());
         }
-
+        
+        System.err.println("BUILD SERVICE REQUEST results in "+request);
         return request.build();
     }
 

@@ -4,17 +4,22 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.privacyresearch.grpcproxy.SignalRpcMessage;
 import io.privacyresearch.grpcproxy.SignalRpcReply;
-import io.privacyresearch.grpcproxy.client.KwikSender;
+import io.privacyresearch.grpcproxy.client.QuicClientTransport;
+import io.privacyresearch.grpcproxy.client.QuicSignalLayer;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.http.HttpRequest;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.whispersystems.signalservice.api.util.CredentialsProvider;
@@ -28,10 +33,11 @@ import org.whispersystems.signalservice.internal.configuration.SignalUrl;
 public class QuicNetworkClient extends NetworkClient {
 
     private static final Logger LOG = Logger.getLogger(QuicNetworkClient.class.getName());
-    private final KwikSender kwikSender;
+    private final QuicSignalLayer kwikSender;
     final String kwikAddress; // = "swave://localhost:7443";
     // "swave://grpcproxy.gluonhq.net:7443";
-    private KwikSender.KwikConnectionHolder kwikStream;
+    private QuicClientTransport.ControlledQuicStream kwikStream;
+    private final ExecutorService directExecutorService = Executors.newFixedThreadPool(1);
 
 
     public QuicNetworkClient(SignalUrl url, String agent, boolean allowStories) {
@@ -40,8 +46,8 @@ public class QuicNetworkClient extends NetworkClient {
 
     public QuicNetworkClient(SignalUrl url, Optional<CredentialsProvider> cp, String signalAgent, Optional<ConnectivityListener> connectivityListener, boolean allowStories) {
         super(url, cp, signalAgent, connectivityListener, allowStories);
-                URI uri = null;
-                        this.kwikAddress = System.getProperty("wave.kwikhost", "swave://grpcproxy.gluonhq.net:7443");
+        URI uri = null;
+        this.kwikAddress = System.getProperty("wave.kwikhost", "swave://grpcproxy.gluonhq.net:7443");
 
         try {
             uri = new URI(kwikAddress);
@@ -49,7 +55,7 @@ public class QuicNetworkClient extends NetworkClient {
             LOG.log(Level.SEVERE, "wrong format for quic address", ex);
             LOG.warning("Fallback to non-quic transport");
         }
-        this.kwikSender = (uri == null? null : new KwikSender(uri));
+        this.kwikSender = (uri == null ? null : new QuicSignalLayer(uri));
     }
 
     @Override
@@ -75,7 +81,7 @@ public class QuicNetworkClient extends NetworkClient {
             try {
                 LOG.info("WS Got reply");
                 SignalRpcReply signalReply = SignalRpcReply.parseFrom(reply);
-                LOG.info("Reply = "+signalReply);
+                LOG.info("Reply has statuscode "+signalReply.getStatuscode());
                 rawByteQueue.put(signalReply.getMessage().toByteArray());
             } catch (InterruptedException ex) {
                 Logger.getLogger(NetworkClient.class.getName()).log(Level.SEVERE, null, ex);
@@ -85,7 +91,7 @@ public class QuicNetworkClient extends NetworkClient {
                 t.printStackTrace();
             }
         };
-        this.kwikStream = kwikSender.openWebSocket(baseUrl, headerMap, gotData);
+        this.kwikStream = kwikSender.openControlledStream(baseUrl, headerMap, gotData);
     }
 
     @Override
@@ -99,10 +105,14 @@ public class QuicNetworkClient extends NetworkClient {
             });
         });
         requestBuilder.setMethod(method);
-        LOG.info("Getting ready to send DM to kwikproxy");
-        CompletableFuture<SignalRpcReply> sReplyFuture = kwikSender.sendSignalMessage(requestBuilder.build());
+        LOG.info("Getting ready to send DM to kwikproxy with method = "+method+", body length = "+body.length+" and hl = "+headers.size());
+        CompletableFuture<SignalRpcReply> sReplyFuture = sendSignalMessage(requestBuilder.build());
         CompletableFuture<Response> answer = sReplyFuture.thenApply(reply -> new Response<byte[]>(reply.getMessage().toByteArray(), reply.getStatuscode()));
         return answer;
+    }
+    
+    private CompletableFuture<SignalRpcReply> sendSignalMessage(SignalRpcMessage msg) {
+        return kwikSender.sendSignalMessage(msg);
     }
 
     @Override

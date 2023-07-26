@@ -25,24 +25,45 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.whispersystems.signalservice.api.crypto.UnidentifiedAccess;
 import org.whispersystems.signalservice.api.messages.SignalServiceEnvelope;
+import org.whispersystems.signalservice.api.push.exceptions.AuthorizationFailedException;
+import org.whispersystems.signalservice.api.push.exceptions.DeprecatedVersionException;
+import org.whispersystems.signalservice.api.push.exceptions.ExpectationFailedException;
 import org.whispersystems.signalservice.api.push.exceptions.MalformedResponseException;
+import org.whispersystems.signalservice.api.push.exceptions.NonSuccessfulResponseCodeException;
+import org.whispersystems.signalservice.api.push.exceptions.NotFoundException;
+import org.whispersystems.signalservice.api.push.exceptions.ProofRequiredException;
 import org.whispersystems.signalservice.api.push.exceptions.PushNetworkException;
+import org.whispersystems.signalservice.api.push.exceptions.RateLimitException;
 import org.whispersystems.signalservice.api.push.exceptions.ServerRejectedException;
+import org.whispersystems.signalservice.api.push.exceptions.UnregisteredUserException;
 import org.whispersystems.signalservice.api.util.CredentialsProvider;
 import org.whispersystems.signalservice.api.websocket.ConnectivityListener;
+import org.whispersystems.signalservice.internal.ServiceResponse;
 import org.whispersystems.signalservice.internal.configuration.SignalUrl;
+import org.whispersystems.signalservice.internal.push.AuthCredentials;
+import org.whispersystems.signalservice.internal.push.DeviceLimit;
+import org.whispersystems.signalservice.internal.push.DeviceLimitExceededException;
 import org.whispersystems.signalservice.internal.push.GroupMismatchedDevices;
+import org.whispersystems.signalservice.internal.push.LockedException;
 import org.whispersystems.signalservice.internal.push.MismatchedDevices;
 import org.whispersystems.signalservice.internal.push.OutgoingPushMessageList;
+import org.whispersystems.signalservice.internal.push.ProofRequiredResponse;
+import org.whispersystems.signalservice.internal.push.PushServiceSocket;
 import org.whispersystems.signalservice.internal.push.SendGroupMessageResponse;
+import org.whispersystems.signalservice.internal.push.SendMessageResponse;
+import org.whispersystems.signalservice.internal.push.StaleDevices;
 import org.whispersystems.signalservice.internal.push.exceptions.GroupMismatchedDevicesException;
 import org.whispersystems.signalservice.internal.push.exceptions.MismatchedDevicesException;
+import org.whispersystems.signalservice.internal.push.exceptions.StaleDevicesException;
 import org.whispersystems.signalservice.internal.util.JsonUtil;
 import org.whispersystems.signalservice.internal.util.Util;
 import org.whispersystems.signalservice.internal.util.concurrent.FutureTransformers;
 import org.whispersystems.signalservice.internal.util.concurrent.ListenableFuture;
 import org.whispersystems.signalservice.internal.util.concurrent.SettableFuture;
+import org.whispersystems.signalservice.internal.websocket.DefaultResponseMapper;
+import org.whispersystems.signalservice.internal.websocket.ResponseMapper;
 import org.whispersystems.signalservice.internal.websocket.WebSocketProtos;
 import org.whispersystems.signalservice.internal.websocket.WebSocketProtos.WebSocketMessage;
 import org.whispersystems.signalservice.internal.websocket.WebSocketProtos.WebSocketRequestMessage;
@@ -79,8 +100,9 @@ public abstract class NetworkClient {
         return createNetworkClient(url, Optional.empty(), agent, Optional.empty(), allowStories);
     }
     public static NetworkClient createNetworkClient(SignalUrl url, Optional<CredentialsProvider> cp, String agent, Optional<ConnectivityListener> cl, boolean allowStories) {
-        String property = System.getProperty("wave.quic", "false");
+        String property = System.getProperty("wave.quic", "true");
         boolean useQuic = "true".equals(property.toLowerCase());
+        LOG.info("Creating networkclient, using quic? "+ useQuic);
         if (useQuic) {
             return new QuicNetworkClient(url, cp, agent, cl, allowStories);
         } else {
@@ -200,13 +222,13 @@ public abstract class NetworkClient {
     }
 
     // placeholder for using a bidirection stream to send 1-1 messages
-    private void sendDirectOverStream(OutgoingPushMessageList list, boolean story) throws IOException {
+    public Future<SendMessageResponse> sendDirectOverStream(OutgoingPushMessageList list,Optional<UnidentifiedAccess> unidentifiedAccess, boolean story) throws IOException {
         List<String> headers = new LinkedList<String>() {
             {
                 add("content-type:application/json");
             }
         };
-
+        unidentifiedAccess.ifPresent(ua -> headers.add("Unidentified-Access-Key:" + Base64.encodeBytes(unidentifiedAccess.get().getUnidentifiedAccessKey())));
         WebSocketRequestMessage requestMessage = WebSocketRequestMessage.newBuilder()
                 .setId(new SecureRandom().nextLong())
                 .setVerb("PUT")
@@ -215,7 +237,33 @@ public abstract class NetworkClient {
                 .setBody(ByteString.copyFrom(JsonUtil.toJson(list).getBytes()))
                 .build();
         ListenableFuture<WebsocketResponse> response = sendRequest(requestMessage);
+        ResponseMapper<SendMessageResponse> responseMapper = DefaultResponseMapper.extend(SendMessageResponse.class)
+                .withResponseMapper((status, body, getHeader, unidentified) -> {
+                    SendMessageResponse sendMessageResponse = Util.isEmpty(body) ? new SendMessageResponse(false, unidentified)
+                            : JsonUtil.fromJsonResponse(body, SendMessageResponse.class);
+                    sendMessageResponse.setSentUnidentfied(unidentified);
 
+                    return ServiceResponse.forResult(sendMessageResponse, status, body);
+                })
+                .withCustomError(404, (status, body, getHeader) -> new UnregisteredUserException(list.getDestination(), new NotFoundException("not found")))
+                .build();
+        ListenableFuture<SendMessageResponse> answer = FutureTransformers.map(response, value -> {
+            int status = value.getStatus();
+            LOG.info(signalAgent);
+            validateWebsocketResponse(value);
+            if (status == 404) {
+                throw new UnregisteredUserException(list.getDestination(), new NotFoundException("not found"));     
+            }
+            String body = value.getBody();
+            boolean una = value.isUnidentified();
+            LOG.info("Got Value from directSend: " + value+" with status = "+status);
+            SendMessageResponse sendMessageResponse = Util.isEmpty(body) ? new SendMessageResponse(false, una)
+                    : JsonUtil.fromJsonResponse(body, SendMessageResponse.class);
+            sendMessageResponse.setSentUnidentfied(una);
+            return sendMessageResponse;
+        });
+// return FutureTransformers.map(response, responseMapper);
+    return answer;
     }
 
     public boolean isConnected() {
@@ -230,7 +278,7 @@ public abstract class NetworkClient {
      */
     public WebSocketRequestMessage readRequestMessage(long timeout, TimeUnit unit) {
         try {
-            if (this.websocketCreated) {
+            if (!this.websocketCreated) {
                 createWebSocket();
             }
             WebSocketRequestMessage request = wsRequestMessageQueue.take();//poll(timeout, unit);
@@ -254,7 +302,7 @@ public abstract class NetworkClient {
             while (true) { // we only return existing envelopes
                 LOG.info("Wait for requestMessage...");
                 WebSocketRequestMessage request = wsRequestMessageQueue.take();//poll(timeout, unit);
-                LOG.info("Got requestMessage, process now " + request);
+                LOG.info("Got requestMessage, process now " + request.getVerb()+" " + request.getPath());
                 Optional<SignalServiceEnvelope> sse = handleWebSocketRequestMessage(request);
                 if (sse.isPresent()) {
                     return sse.get();
@@ -370,7 +418,8 @@ public abstract class NetworkClient {
                         listener.getResponseFuture().set(
                                 new WebsocketResponse(message.getResponse().getStatus(),
                                         new String(message.getResponse().getBody().toByteArray()),
-                                        message.getResponse().getHeadersList()));
+                                        message.getResponse().getHeadersList(), true));
+                        // TODO: true means unidentified, this is not always the case!
                     }
                 }
             } catch (Throwable t) {
@@ -466,13 +515,18 @@ public abstract class NetworkClient {
         return future;
     }
 
-    private static <T> T readResponseJson(Response response, Class<T> clazz)
+    private static <T> T readResponseJson(WebsocketResponse response, Class<T> clazz)
             throws PushNetworkException, MalformedResponseException {
-        return readBodyJson(response.body(), clazz);
+        return readBodyJson(response.getBody(), clazz);
     }
 
-    private static <T> T readBodyJson(ResponseBody body, Class<T> clazz) throws PushNetworkException, MalformedResponseException {
-        String json = body.string();
+    private static <T> T readResponseJson(Response response, Class<T> clazz)
+            throws PushNetworkException, MalformedResponseException {
+        return readBodyJson(response.body().string(), clazz);
+    }
+
+    private static <T> T readBodyJson(String json, Class<T> clazz) throws PushNetworkException, MalformedResponseException {
+      //  String json = body.string();
         try {
             return JsonUtil.fromJson(json, clazz);
         } catch (JsonProcessingException e) {
@@ -501,5 +555,72 @@ public abstract class NetworkClient {
             return startTimestamp;
         }
     }
+    
+private WebsocketResponse validateWebsocketResponse(WebsocketResponse response)
+            throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException {
 
+        int responseCode = response.getStatus();
+        String responseMessage = response.getBody();
+
+        switch (responseCode) {
+            case 413:
+            case 429: {
+                long retryAfterLong = Util.parseLong(response.getHeader("Retry-After"), -1);
+                Optional<Long> retryAfter = retryAfterLong != -1 ? Optional.of(TimeUnit.SECONDS.toMillis(retryAfterLong)) : Optional.empty();
+                throw new RateLimitException(responseCode, "Rate limit exceeded: " + responseCode, retryAfter);
+            }
+            case 401:
+            case 403:
+                throw new AuthorizationFailedException(responseCode, "Authorization failed!");
+            case 404:
+                throw new NotFoundException("Not found");
+            case 409:
+                MismatchedDevices mismatchedDevices = readResponseJson(response, MismatchedDevices.class);
+
+                throw new MismatchedDevicesException(mismatchedDevices);
+            case 410:
+                StaleDevices staleDevices = readResponseJson(response, StaleDevices.class);
+
+                throw new StaleDevicesException(staleDevices);
+            case 411:
+                DeviceLimit deviceLimit = readResponseJson(response, DeviceLimit.class);
+
+                throw new DeviceLimitExceededException(deviceLimit);
+            case 417:
+                throw new ExpectationFailedException();
+            case 423:
+                PushServiceSocket.RegistrationLockFailure accountLockFailure = readResponseJson(response, PushServiceSocket.RegistrationLockFailure.class);
+                AuthCredentials credentials = accountLockFailure.backupCredentials;
+                String basicStorageCredentials = credentials != null ? credentials.asBasic() : null;
+
+                throw new LockedException(accountLockFailure.length,
+                        accountLockFailure.timeRemaining,
+                        basicStorageCredentials);
+            case 428:
+                LOG.info("Whoops, PSS got statuscode 428");
+                ProofRequiredResponse proofRequiredResponse = readResponseJson(response, ProofRequiredResponse.class);
+                long retryAfter = -1;
+                try {
+                    String retryAfterRaw = response.getHeader("Retry-After");
+                    retryAfter = Util.parseInt(retryAfterRaw, -1);
+                    LOG.info("Not good, got a HTTP 428 with content " + response.getBody());
+                } catch (Exception ex) {
+                    ex.printStackTrace();
+                    Logger.getLogger(PushServiceSocket.class.getName()).log(Level.SEVERE, null, ex);
+                }
+                throw new ProofRequiredException(proofRequiredResponse, retryAfter);
+
+            case 499:
+                throw new DeprecatedVersionException();
+
+            case 508:
+                throw new ServerRejectedException();
+        }
+
+        if (responseCode != 200 && responseCode != 202 && responseCode != 204) {
+            throw new NonSuccessfulResponseCodeException(responseCode, "Bad response: " + responseCode + " " + responseMessage);
+        }
+
+        return response;
+    }
 }

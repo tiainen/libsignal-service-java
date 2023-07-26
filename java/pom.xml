@@ -37,7 +37,7 @@
         <dependency>
           <groupId>io.privacyresearch</groupId>
           <artifactId>grpcproxy-client</artifactId>
-          <version>1.0.12</version>
+          <version>1.0.14-SNAPSHOT</version>
         </dependency>
 <!--
         <dependency>

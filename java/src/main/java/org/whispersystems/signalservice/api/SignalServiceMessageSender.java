@@ -453,32 +453,74 @@ public class SignalServiceMessageSender {
         Log.d(TAG, "[" + message.getTimestamp() + "] Sending a data message.");
 
         Content content = createMessageContent(message);
-        if (includePniSignature) {
-            Log.d(TAG, "[" + message.getTimestamp() + "] Including PNI signature.");
-            content = content.toBuilder()
-                    .setPniSignatureMessage(createPniSignatureMessage())
-                    .build();
-        }
-
-        EnvelopeContent envelopeContent = EnvelopeContent.encrypted(content, contentHint, message.getGroupId());
-
-        sendEvents.onMessageEncrypted();
-
-        long timestamp = message.getTimestamp();
-        SendMessageResult result = sendMessage(recipient, getTargetUnidentifiedAccess(unidentifiedAccess), timestamp, envelopeContent, false, null);
-
-        sendEvents.onMessageSent();
-
-        if (result.getSuccess() != null && result.getSuccess().isNeedsSync()) {
-            Content syncMessage = createMultiDeviceSentTranscriptContent(content, Optional.of(recipient), timestamp, Collections.singletonList(result), false, Collections.emptySet());
-            EnvelopeContent syncMessageContent = EnvelopeContent.encrypted(syncMessage, ContentHint.IMPLICIT, Optional.empty());
-            sendMessage(localAddress, Optional.empty(), timestamp, syncMessageContent, false, null, false, false);
-        }
-
-        sendEvents.onSyncMessageSent();
-
-        return result;
+        return sendContent(recipient, unidentifiedAccess, contentHint, message, sendEvents, urgent, includePniSignature, content);
+//        if (includePniSignature) {
+//            Log.d(TAG, "[" + message.getTimestamp() + "] Including PNI signature.");
+//            content = content.toBuilder()
+//                    .setPniSignatureMessage(createPniSignatureMessage())
+//                    .build();
+//        }
+//
+//        EnvelopeContent envelopeContent = EnvelopeContent.encrypted(content, contentHint, message.getGroupId());
+//
+//        sendEvents.onMessageEncrypted();
+//
+//        long timestamp = message.getTimestamp();
+//        SendMessageResult result = sendMessage(recipient, getTargetUnidentifiedAccess(unidentifiedAccess), timestamp, envelopeContent, false, null);
+//
+//        sendEvents.onMessageSent();
+//
+//        if (result.getSuccess() != null && result.getSuccess().isNeedsSync()) {
+//            Content syncMessage = createMultiDeviceSentTranscriptContent(content, Optional.of(recipient), timestamp, Collections.singletonList(result), false, Collections.emptySet());
+//            EnvelopeContent syncMessageContent = EnvelopeContent.encrypted(syncMessage, ContentHint.IMPLICIT, Optional.empty());
+//            sendMessage(localAddress, Optional.empty(), timestamp, syncMessageContent, false, null, false, false);
+//        }
+//
+//        sendEvents.onSyncMessageSent();
+//
+//        return result;
     }
+  /**
+   * Sends content to a single recipient.
+   */
+  private SendMessageResult sendContent(SignalServiceAddress recipient,
+                                        Optional<UnidentifiedAccessPair> unidentifiedAccess,
+                                        ContentHint contentHint,
+                                        SignalServiceDataMessage message,
+                                        IndividualSendEvents sendEvents,
+                                        boolean urgent, 
+                                        boolean includePniSignature,
+                                        Content content)
+      throws UntrustedIdentityException, IOException
+  {
+    if (includePniSignature) {
+      Log.d(TAG, "[" + message.getTimestamp() + "] Including PNI signature.");
+      content = content.toBuilder()
+                       .setPniSignatureMessage(createPniSignatureMessage())
+                       .build();
+    }
+
+    EnvelopeContent envelopeContent = EnvelopeContent.encrypted(content, contentHint, message.getGroupId());
+
+    sendEvents.onMessageEncrypted();
+
+    long              timestamp = message.getTimestamp();
+    SendMessageResult result    = sendMessage(recipient, getTargetUnidentifiedAccess(unidentifiedAccess), timestamp, envelopeContent, false, null, urgent, false); 
+
+    sendEvents.onMessageSent();
+
+    if (result.getSuccess() != null && result.getSuccess().isNeedsSync()) {
+      Content         syncMessage        = createMultiDeviceSentTranscriptContent(content, Optional.of(recipient), timestamp, Collections.singletonList(result), false, Collections.emptySet());
+      EnvelopeContent syncMessageContent = EnvelopeContent.encrypted(syncMessage, ContentHint.IMPLICIT, Optional.empty());
+
+      sendMessage(localAddress, Optional.empty(), timestamp, syncMessageContent, false, null, false, false); 
+    }
+
+    sendEvents.onSyncMessageSent();
+
+    return result; 
+  }
+
 
     /**
      * Sends a message to a group using client-side fanout.
@@ -1925,7 +1967,7 @@ public class SignalServiceMessageSender {
             throws UntrustedIdentityException, IOException {
         enforceMaxContentSize(content);
         long startTime = System.currentTimeMillis();
-
+LOG.info("UNA = "+unidentifiedAccess);
         for (int i = 0; i < RETRY_COUNT; i++) {
             if (cancelationSignal != null && cancelationSignal.isCanceled()) {
                 throw new CancelationException();
@@ -1968,10 +2010,20 @@ public class SignalServiceMessageSender {
 //                if (cancelationSignal != null && cancelationSignal.isCanceled()) {
 //                    throw new CancelationException();
 //                }
-
-                SendMessageResponse response = socket.sendMessage(messages, unidentifiedAccess, story);
+                NetworkClient nc = unidentifiedAccess.isPresent()
+                        ? this.unidentifiedPipe.get().get()
+                        : this.pipe.get().get();
+                LOG.info("ready to send DIRECT message via unidentifiedPipe or not " + unidentifiedAccess.isPresent());
+                Future<SendMessageResponse> sendDirectOverStream = nc.sendDirectOverStream(messages, unidentifiedAccess, story);
+                try {
+                SendMessageResponse response = sendDirectOverStream.get(10, TimeUnit.SECONDS);
                 return SendMessageResult.success(recipient, messages.getDevices(), unidentifiedAccess.isPresent(), response.getNeedsSync() || aciStore.isMultiDevice(), System.currentTimeMillis() - startTime, content.getContent());
-
+                } catch (ExecutionException ee) {
+                    LOG.info("Catched execution exception, throw root which is "+ee.getCause());
+                    throw ee.getCause();
+                }
+//                SendMessageResponse response = socket.sendMessage(messages, unidentifiedAccess, story);
+//                return SendMessageResult.success(recipient, messages.getDevices(), unidentifiedAccess.isPresent(), response.getNeedsSync() || aciStore.isMultiDevice(), System.currentTimeMillis() - startTime, content.getContent());
             } catch (InvalidKeyException ike) {
                 Log.w(TAG, ike);
                 unidentifiedAccess = Optional.empty();
@@ -1989,8 +2041,10 @@ public class SignalServiceMessageSender {
                 Log.w(TAG, mde);
                 handleMismatchedDevices(socket, recipient, mde.getMismatchedDevices());
             } catch (StaleDevicesException ste) {
+                LOG.info("Got stale devices, handle those!");
                 Log.w(TAG, ste);
                 handleStaleDevices(recipient, ste.getStaleDevices());
+                LOG.info("Got stale devices, handled those!");
             }
             catch(Throwable t) {
                 LOG.info("CATCHING a throwable.");
