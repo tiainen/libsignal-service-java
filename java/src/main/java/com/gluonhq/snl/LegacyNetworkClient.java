@@ -22,7 +22,9 @@ import java.util.logging.Logger;
 import org.whispersystems.signalservice.api.util.CredentialsProvider;
 import org.whispersystems.signalservice.api.websocket.ConnectivityListener;
 import org.whispersystems.signalservice.internal.configuration.SignalUrl;
+import org.whispersystems.signalservice.internal.push.OutgoingPushMessageList;
 import org.whispersystems.signalservice.internal.websocket.WebSocketProtos;
+import org.whispersystems.signalservice.internal.websocket.WebSocketProtos.WebSocketMessage;
 
 /**
  *
@@ -103,7 +105,8 @@ public class LegacyNetworkClient extends NetworkClient {
     }
 
     @Override
-    void sendToStream(byte[] payload) throws IOException {
+    void sendToStream(WebSocketMessage msg, OutgoingPushMessageList list) throws IOException {
+        byte[] payload = msg.toByteArray();
         this.webSocket.sendBinary(ByteBuffer.wrap(payload), true);
     }
 
@@ -130,18 +133,17 @@ public class LegacyNetworkClient extends NetworkClient {
     }
 
     private synchronized CompletableFuture sendKeepAlive() throws IOException {
-        byte[] message = WebSocketProtos.WebSocketMessage.newBuilder()
+        WebSocketMessage message = WebSocketProtos.WebSocketMessage.newBuilder()
                 .setType(WebSocketProtos.WebSocketMessage.Type.REQUEST)
                 .setRequest(WebSocketProtos.WebSocketRequestMessage.newBuilder()
                         .setId(System.currentTimeMillis())
                         .setPath("/v1/keepalive")
                         .setVerb("GET")
-                        .build()).build()
-                .toByteArray();
-        System.err.println("KEEPALIVE: " + Arrays.toString(message));
+                        .build()).build();
+        LOG.info("KEEPALIVE: " + message);
         CompletableFuture fut = CompletableFuture.runAsync(() -> {
             try {
-                sendToStream(message);
+                sendToStream(message, null);
             } catch (Exception ex) {
                 Logger.getLogger(NetworkClient.class.getName()).log(Level.SEVERE, null, ex);
             }

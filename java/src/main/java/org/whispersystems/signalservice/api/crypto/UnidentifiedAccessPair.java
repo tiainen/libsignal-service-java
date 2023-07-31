@@ -11,7 +11,7 @@ public class UnidentifiedAccessPair {
     private static final Logger LOG = Logger.getLogger(UnidentifiedAccessPair.class.getName());
 
     public UnidentifiedAccessPair(UnidentifiedAccess targetUnidentifiedAccess, UnidentifiedAccess selfUnidentifiedAccess) {
-        LOG.info("Create UAP, me[0] = " +selfUnidentifiedAccess.getUnidentifiedAccessKey()[0] +
+        LOG.finest("Create UAP, me[0] = " +selfUnidentifiedAccess.getUnidentifiedAccessKey()[0] +
                     " and them[0] = " + targetUnidentifiedAccess.getUnidentifiedAccessKey()[0]);
         this.targetUnidentifiedAccess = Optional.of(targetUnidentifiedAccess);
         this.selfUnidentifiedAccess = Optional.of(selfUnidentifiedAccess);

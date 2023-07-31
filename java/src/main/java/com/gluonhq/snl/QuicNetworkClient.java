@@ -25,6 +25,11 @@ import java.util.logging.Logger;
 import org.whispersystems.signalservice.api.util.CredentialsProvider;
 import org.whispersystems.signalservice.api.websocket.ConnectivityListener;
 import org.whispersystems.signalservice.internal.configuration.SignalUrl;
+import org.whispersystems.signalservice.internal.push.OutgoingPushMessage;
+import org.whispersystems.signalservice.internal.push.OutgoingPushMessageList;
+import org.whispersystems.signalservice.internal.websocket.WebSocketProtos;
+import org.whispersystems.signalservice.internal.websocket.WebSocketProtos.WebSocketMessage;
+import org.whispersystems.signalservice.internal.websocket.WebSocketProtos.WebSocketRequestMessage;
 
 /**
  *
@@ -127,8 +132,44 @@ public class QuicNetworkClient extends NetworkClient {
     }
 
     @Override
-    void sendToStream(byte[] payload) throws IOException {
-        this.kwikSender.writeMessageToStream(kwikStream, payload);
+    void sendToStream(WebSocketMessage msg, OutgoingPushMessageList list) throws IOException {
+        msg = convertMessage(msg, list);
+        SignalRpcMessage.Builder builder = SignalRpcMessage.newBuilder();
+        builder.setBody(ByteString.copyFrom(msg.toByteArray()));
+        SignalRpcMessage signalMessage = builder.build();
+        this.kwikSender.writeMessageToStream(kwikStream, signalMessage);
     }
 
+    /**
+     * Remove json messages from the WebSocketMessage, and replace with serialized
+     * OutgoingPushMessageList
+     * @param msg
+     * @param list
+     * @return 
+     */
+    WebSocketMessage convertMessage(WebSocketMessage msg, OutgoingPushMessageList list) {
+        if ((list == null) || (msg.getRequest() == null)) return msg;
+        WebSocketRequestMessage wrm = msg.getRequest();
+        WebSocketProtos.WebSocketRequestMessage.Builder newBuilder = wrm.toBuilder();
+        newBuilder.setBody(ByteString.EMPTY);
+        WebSocketProtos.PushMessageList.Builder pmlBuilder = WebSocketProtos.PushMessageList.newBuilder();
+        pmlBuilder.setDestination(list.getDestination())
+                .setTimestamp(list.getTimestamp())
+                .setUrgent(list.isUrgent())
+                .setOnline(list.isOnline());
+        for (OutgoingPushMessage opm : list.getMessages()) {
+            WebSocketProtos.PushMessage pm = WebSocketProtos.PushMessage.newBuilder()
+                    .setContent(opm.getContent())
+                    .setDestinationDeviceId(opm.getDestinationDeviceId())
+                    .setDestinationRegistrationId(opm.getDestinationRegistrationId())
+                    .setType(opm.getType()).build();
+            pmlBuilder.addPushMessage(pm);
+        }
+        newBuilder.setPushMessageList(pmlBuilder.build());
+        WebSocketProtos.WebSocketRequestMessage newRequestMessage = newBuilder.build();
+        int newSize = newRequestMessage.toByteArray().length;
+        int oldSize = wrm.toByteArray().length;
+        LOG.info("converted websocketmessage from OLD SIZE = "+oldSize+" to newSize = "+newSize);
+        return msg.toBuilder().setRequest(newRequestMessage).build();
+    }
 }

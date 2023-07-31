@@ -106,7 +106,7 @@ public abstract class NetworkClient {
         if (useQuic) {
             return new QuicNetworkClient(url, cp, agent, cl, allowStories);
         } else {
-            return new LegacyNetworkClient(url, Optional.empty(), agent, Optional.empty(), allowStories);
+            return new LegacyNetworkClient(url, cp, agent, cl, allowStories);
         }
     }
 
@@ -131,7 +131,7 @@ public abstract class NetworkClient {
     }
 
     private void createWebSocket() throws IOException {
-        LOG.info("Creating websocket");
+        LOG.info("Creating websocket, using credentialsprovider? "+this.credentialsProvider.isPresent());
         String baseUrl = signalUrl.getUrl().replace("https://", "wss://")
                 .replace("http://", "ws://");//
         if (!baseUrl.endsWith("provisioning/")) {
@@ -150,7 +150,7 @@ public abstract class NetworkClient {
         throw new UnsupportedOperationException();
     }
 
-    void sendToStream(byte[] payload) throws IOException {
+    void sendToStream(WebSocketMessage msg, OutgoingPushMessageList list) throws IOException {
         throw new UnsupportedOperationException();
     }
 
@@ -236,7 +236,10 @@ public abstract class NetworkClient {
                 .addAllHeaders(headers)
                 .setBody(ByteString.copyFrom(JsonUtil.toJson(list).getBytes()))
                 .build();
-        ListenableFuture<WebsocketResponse> response = sendRequest(requestMessage);
+        LOG.info("Send direct msg to "+list.getDestination());
+        LOG.finest("JSONLISTSIZE = "+ JsonUtil.toJson(list).getBytes().length);
+        LOG.finest("jsonlist = "+JsonUtil.toJson(list));
+        ListenableFuture<WebsocketResponse> response = sendRequest(requestMessage, list);
         ResponseMapper<SendMessageResponse> responseMapper = DefaultResponseMapper.extend(SendMessageResponse.class)
                 .withResponseMapper((status, body, getHeader, unidentified) -> {
                     SendMessageResponse sendMessageResponse = Util.isEmpty(body) ? new SendMessageResponse(false, unidentified)
@@ -345,7 +348,7 @@ public abstract class NetworkClient {
                         .setType(WebSocketMessage.Type.RESPONSE)
                         .setResponse(response)
                         .build();
-                sendToStream(msg.toByteArray());
+                sendToStream(msg, null);
             } catch (Exception ioe) {
                 LOG.log(Level.SEVERE, "IO exception in sending response", ioe);
             }
@@ -501,8 +504,11 @@ public abstract class NetworkClient {
         }
         return response;
     }
-
     private synchronized ListenableFuture<WebsocketResponse> sendRequest(WebSocketRequestMessage request) throws IOException {
+        return sendRequest(request, null);
+    }
+
+    private synchronized ListenableFuture<WebsocketResponse> sendRequest(WebSocketRequestMessage request, OutgoingPushMessageList list) throws IOException {
         if (closed) {
             throw new IOException("Trying to use a closed networkclient " + this);
         }
@@ -511,7 +517,9 @@ public abstract class NetworkClient {
                 .setRequest(request).build();
         SettableFuture<WebsocketResponse> future = new SettableFuture<>();
         outgoingRequests.put(request.getId(), new OutgoingRequest(future, System.currentTimeMillis()));
-        this.sendToStream(message.toByteArray());
+        LOG.finest("SENDING WSRM, path = "+request.getPath()+" with id = "+request.getId());
+        LOG.finest("Bytes in wsm = "+message.toByteArray().length+" and request size = "+ request.toByteArray().length+" and body size = "+request.getBody().toByteArray().length);
+        this.sendToStream(message, list);
         return future;
     }
 

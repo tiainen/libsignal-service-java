@@ -2016,8 +2016,8 @@ LOG.info("UNA = "+unidentifiedAccess);
                 LOG.info("ready to send DIRECT message via unidentifiedPipe or not " + unidentifiedAccess.isPresent());
                 Future<SendMessageResponse> sendDirectOverStream = nc.sendDirectOverStream(messages, unidentifiedAccess, story);
                 try {
-                SendMessageResponse response = sendDirectOverStream.get(10, TimeUnit.SECONDS);
-                return SendMessageResult.success(recipient, messages.getDevices(), unidentifiedAccess.isPresent(), response.getNeedsSync() || aciStore.isMultiDevice(), System.currentTimeMillis() - startTime, content.getContent());
+                    SendMessageResponse response = sendDirectOverStream.get(10, TimeUnit.SECONDS);
+                    return SendMessageResult.success(recipient, messages.getDevices(), unidentifiedAccess.isPresent(), response.getNeedsSync() || aciStore.isMultiDevice(), System.currentTimeMillis() - startTime, content.getContent());
                 } catch (ExecutionException ee) {
                     LOG.info("Catched execution exception, throw root which is "+ee.getCause());
                     throw ee.getCause();
@@ -2391,7 +2391,7 @@ LOG.info("UNA = "+unidentifiedAccess);
 
     private Optional<UnidentifiedAccess> getTargetUnidentifiedAccess(Optional<UnidentifiedAccessPair> unidentifiedAccess) {
         if (unidentifiedAccess.isPresent()) {
-            LOG.info("GTE, pair = " + unidentifiedAccess.get() + ", me = "
+            LOG.finest("GTE, pair = " + unidentifiedAccess.get() + ", me = "
                     + Arrays.toString(unidentifiedAccess.get().getSelfUnidentifiedAccess().get().getUnidentifiedAccessKey())
                     + " and them = " + Arrays.toString(unidentifiedAccess.get().getTargetUnidentifiedAccess().get().getUnidentifiedAccessKey()));
             return unidentifiedAccess.get().getTargetUnidentifiedAccess();

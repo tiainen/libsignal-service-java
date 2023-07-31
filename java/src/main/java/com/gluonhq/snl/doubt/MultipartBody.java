@@ -154,7 +154,7 @@ public class MultipartBody {
 //            throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
 //        }
 //
-        public HttpRequest.BodyPublisher getBodyPublisher() {
+        public MultipartBodyPublisher getBodyPublisher() {
             return new MultipartBodyPublisher(this.parts, boundary, Charset.defaultCharset());
         }
 

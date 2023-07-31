@@ -167,6 +167,7 @@ import com.gluonhq.snl.Response;
 import com.gluonhq.snl.ResponseBody;
 import com.gluonhq.snl.doubt.MediaType;
 import com.gluonhq.snl.doubt.MultipartBody;
+import com.gluonhq.snl.doubt.MultipartBodyPublisher;
 import java.net.http.HttpResponse;
 
 import org.signal.libsignal.zkgroup.receipts.ReceiptCredentialPresentation;
@@ -1347,7 +1348,6 @@ public class PushServiceSocket {
         NetworkClient client = connectionHolder.getClient();
 
         DigestingRequestBody file = new DigestingRequestBody(data, outputStreamFactory, contentType, length, progressListener, cancelationSignal, 0);
-
         MultipartBody.MultiPartRequestBody requestBody = new MultipartBody.Builder()
                 .setType(MultipartBody.FORM)
                 .addFormDataPart("acl", acl)
@@ -1360,17 +1360,18 @@ public class PushServiceSocket {
                 .addFormDataPart("x-amz-signature", signature)
                 .addFormDataPart("file", "file", file)
                 .build();
+        MultipartBodyPublisher mbp = requestBody.getBodyPublisher();
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
                 .uri(URI.create(connectionHolder.getUrl() + "/" + path))
                 .header("Content-Type", requestBody.contentType().getMediaType())
-                .POST(requestBody.getBodyPublisher());
+                .POST(mbp);
 
         if (connectionHolder.getHostHeader().isPresent()) {
             requestBuilder.header("Host", connectionHolder.getHostHeader().get());
         }
         HttpRequest request = requestBuilder.build();
         try {
-            client.sendRequest(request, new byte[0]);
+            client.sendRequest(request, mbp.getRawData());
         } catch (IOException  ex) {
             Logger.getLogger(PushServiceSocket.class.getName()).log(Level.SEVERE, null, ex);
             throw new PushNetworkException(ex);

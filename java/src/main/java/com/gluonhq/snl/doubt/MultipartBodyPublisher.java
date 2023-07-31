@@ -27,6 +27,7 @@ public class MultipartBodyPublisher implements BodyPublisher {
     private Charset charset;
 
     private final BodyPublisher delegate;
+    private final byte[] rawData;
 
     private List<Part> parts;
     private static final Logger LOG = Logger.getLogger(MultipartBodyPublisher.class.getName());
@@ -49,7 +50,12 @@ public class MultipartBodyPublisher implements BodyPublisher {
         } catch (IOException ex) {
             Logger.getLogger(MultipartBodyPublisher.class.getName()).log(Level.SEVERE, null, ex);
         }
-        this.delegate = BodyPublishers.ofByteArray(baos.toByteArray());
+        rawData = baos.toByteArray();
+        this.delegate = BodyPublishers.ofByteArray(rawData);
+    }
+
+    public byte[] getRawData() {
+        return this.rawData;
     }
 
     @Override

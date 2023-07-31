@@ -18,10 +18,8 @@ public class Response<T> {
         this.statusCode = statusCode;
     }
     public Response(HttpResponse<T> httpAnswer) {
-     //   this.httpAnswer = httpAnswer;
         this.body = httpAnswer.body();
         this.statusCode = httpAnswer.statusCode();
-        System.err.println("Got response "+httpAnswer.body());
     }
 
     public ResponseBody<T> body() {

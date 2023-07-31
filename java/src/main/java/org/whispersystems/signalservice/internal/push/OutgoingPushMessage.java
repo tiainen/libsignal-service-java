@@ -13,6 +13,7 @@ public class OutgoingPushMessage {
 
   @JsonProperty
   private int    type;
+
   @JsonProperty
   private int    destinationDeviceId;
   @JsonProperty
@@ -35,4 +36,15 @@ public class OutgoingPushMessage {
     return destinationDeviceId;
   }
 
+    public int getType() {
+        return type;
+    }
+
+    public int getDestinationRegistrationId() {
+        return destinationRegistrationId;
+    }
+
+    public String getContent() {
+        return content;
+    }
 }
