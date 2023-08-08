@@ -52,7 +52,7 @@ public class QuicNetworkClient extends NetworkClient {
     public QuicNetworkClient(SignalUrl url, Optional<CredentialsProvider> cp, String signalAgent, Optional<ConnectivityListener> connectivityListener, boolean allowStories) {
         super(url, cp, signalAgent, connectivityListener, allowStories);
         URI uri = null;
-        this.kwikAddress = System.getProperty("wave.kwikhost", "swave://grpcproxy.gluonhq.net:7443");
+        this.kwikAddress = System.getProperty("wave.kwikhost", "swave://grpcproxy.gluonhq.net:7444");
 
         try {
             uri = new URI(kwikAddress);
