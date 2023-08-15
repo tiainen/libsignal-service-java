@@ -285,6 +285,8 @@ public abstract class NetworkClient {
                 createWebSocket();
             }
             WebSocketRequestMessage request = wsRequestMessageQueue.take();//poll(timeout, unit);
+            int left = wsRequestMessageQueue.size();
+            LOG.info("IncomingQueue size after take = "+left);
             return request;
         } catch (InterruptedException | IOException ex) {
             Logger.getLogger(NetworkClient.class.getName()).log(Level.SEVERE, null, ex);
@@ -305,6 +307,8 @@ public abstract class NetworkClient {
             while (true) { // we only return existing envelopes
                 LOG.info("Wait for requestMessage...");
                 WebSocketRequestMessage request = wsRequestMessageQueue.take();//poll(timeout, unit);
+                int left = wsRequestMessageQueue.size();
+                LOG.info("IncomingQueue size after take = "+left);
                 LOG.info("Got requestMessage, process now " + request.getVerb()+" " + request.getPath());
                 Optional<SignalServiceEnvelope> sse = handleWebSocketRequestMessage(request);
                 if (sse.isPresent()) {
@@ -414,6 +418,8 @@ public abstract class NetworkClient {
                 if (message.getType() == WebSocketMessage.Type.REQUEST) {
                     LOG.info("Add request message to queue");
                     wsRequestMessageQueue.put(message.getRequest());
+                    int queueSize = wsRequestMessageQueue.size();
+                    LOG.info("IncomingQueue size after put = "+queueSize);
                 } else if (message.getType() == WebSocketMessage.Type.RESPONSE) {
                     OutgoingRequest listener = outgoingRequests.get(message.getResponse().getId());
                     LOG.info("incoming message is response for request with id " + message.getResponse().getId() + " and listener = " + listener);
