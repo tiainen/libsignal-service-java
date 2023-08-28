@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.http.HttpRequest;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,7 +18,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.whispersystems.signalservice.api.util.CredentialsProvider;
@@ -38,7 +36,7 @@ import org.whispersystems.signalservice.internal.websocket.WebSocketProtos.WebSo
 public class QuicNetworkClient extends NetworkClient {
 
     private static final Logger LOG = Logger.getLogger(QuicNetworkClient.class.getName());
-    private final QuicSignalLayer kwikSender;
+    private final QuicSignalLayer quicSignalLayer;
     final String kwikAddress; // = "swave://localhost:7443";
     // "swave://grpcproxy.gluonhq.net:7443";
     private QuicClientTransport.ControlledQuicStream kwikStream;
@@ -60,21 +58,7 @@ public class QuicNetworkClient extends NetworkClient {
             LOG.log(Level.SEVERE, "wrong format for quic address", ex);
             LOG.warning("Fallback to non-quic transport");
         }
-        this.kwikSender = (uri == null ? null : new QuicSignalLayer(uri));
-    }
-
-    @Override
-    protected CompletableFuture<Response> asyncSendRequest(HttpRequest request, byte[] raw) throws IOException {
-
-        CompletableFuture<Response> response;
-        LOG.info("Send request, using kwik");
-        URI uri = request.uri();
-        String method = request.method();
-        Map headers = request.headers().map();
-        CompletableFuture<Response> answer = getKwikResponse(uri, method, raw, headers);
-        LOG.info("Got request, using kwik");
-        response = answer;
-        return response;
+        this.quicSignalLayer = (uri == null ? null : new QuicSignalLayer(uri));
     }
 
     @Override
@@ -96,11 +80,11 @@ public class QuicNetworkClient extends NetworkClient {
                 t.printStackTrace();
             }
         };
-        this.kwikStream = kwikSender.openControlledStream(baseUrl, headerMap, gotData);
+        this.kwikStream = quicSignalLayer.openControlledStream(baseUrl, headerMap, gotData);
     }
 
     @Override
-    CompletableFuture<Response> getKwikResponse(URI uri, String method, byte[] body, Map<String, List<String>> headers) throws IOException {
+    protected CompletableFuture<Response> implAsyncSendRequest(URI uri, String method, byte[] body, Map<String, List<String>> headers) throws IOException {
         SignalRpcMessage.Builder requestBuilder = SignalRpcMessage.newBuilder();
         requestBuilder.setUrlfragment(uri.toString());
         requestBuilder.setBody(ByteString.copyFrom(body));
@@ -110,23 +94,23 @@ public class QuicNetworkClient extends NetworkClient {
             });
         });
         requestBuilder.setMethod(method);
-        LOG.info("Getting ready to send DM to kwikproxy with method = "+method+", body length = "+body.length+" and hl = "+headers.size());
+        LOG.info("Getting ready to send DM to kwikproxy with uri = " + uri+", method = " + method + ", body length = "+body.length+" and hl = "+headers.size());
         CompletableFuture<SignalRpcReply> sReplyFuture = sendSignalMessage(requestBuilder.build());
         CompletableFuture<Response> answer = sReplyFuture.thenApply(reply -> new Response<byte[]>(reply.getMessage().toByteArray(), reply.getStatuscode()));
         return answer;
     }
     
     private CompletableFuture<SignalRpcReply> sendSignalMessage(SignalRpcMessage msg) {
-        return kwikSender.sendSignalMessage(msg);
+        return quicSignalLayer.sendSignalMessage(msg);
     }
 
     @Override
     protected CompletableFuture<Response> implAsyncSendRequest(HttpRequest request, byte[] raw) throws IOException {
-        LOG.info("Send request, using kwik");
+        LOG.info("Send request, using Kwik");
         URI uri = request.uri();
         String method = request.method();
         Map headers = request.headers().map();
-        CompletableFuture<Response> response = getKwikResponse(uri, method, raw, headers);
+        CompletableFuture<Response> response = implAsyncSendRequest(uri, method, raw, headers);
         LOG.info("Got request, using kwik");
         return response;
     }
@@ -137,7 +121,7 @@ public class QuicNetworkClient extends NetworkClient {
         SignalRpcMessage.Builder builder = SignalRpcMessage.newBuilder();
         builder.setBody(ByteString.copyFrom(msg.toByteArray()));
         SignalRpcMessage signalMessage = builder.build();
-        this.kwikSender.writeMessageToStream(kwikStream, signalMessage);
+        this.quicSignalLayer.writeMessageToStream(kwikStream, signalMessage);
     }
 
     /**

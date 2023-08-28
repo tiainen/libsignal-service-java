@@ -1,0 +1,46 @@
+syntax = "proto3";
+option java_multiple_files = true; 
+option java_package = "io.privacyresearch.servermodel";
+
+message UserRemoteConfigListMessage {
+  int64 serverEpoch = 1;
+  repeated UserRemoteConfigMessage userRemoteConfig = 2;
+}
+
+message UserRemoteConfigMessage {
+  string name = 1;
+  optional bool enabled = 2;
+  optional string value = 3;
+}
+
+message PreKeyResponseMessage {
+  bytes identityKey = 1;
+  repeated PreKeyResponseItemMessage devices = 2;
+}
+
+message PreKeyResponseItemMessage {
+  int32 deviceId = 1;
+  int32 registrationId = 2;
+  SignedPreKeyEntityMessage signedPreKeyEntity = 3;
+  PreKeyEntityMessage preKeyEntity = 4;
+}
+
+message SignedPreKeyEntityMessage {
+  int64 keyId          = 1;
+  bytes publicKeyBytes = 2;
+  bytes signature      = 3;    
+}
+
+message PreKeyEntityMessage {
+  int64 keyId          = 1;
+  bytes publicKeyBytes = 2;
+}
+
+message CredentialsResponseMessage {
+  repeated CredentialsMessage credentials = 1;
+}
+
+message CredentialsMessage {
+  bytes credentials = 1;
+  int64 redemptionTime = 2;
+}

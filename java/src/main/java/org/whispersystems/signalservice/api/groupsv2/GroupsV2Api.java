@@ -1,5 +1,6 @@
 package org.whispersystems.signalservice.api.groupsv2;
 
+import com.gluonhq.snl.NetworkAPI;
 import com.google.protobuf.ByteString;
 
 import org.signal.libsignal.zkgroup.InvalidInputException;
@@ -47,7 +48,7 @@ public final class GroupsV2Api {
   public HashMap<Long, AuthCredentialWithPniResponse> getCredentials(long todaySeconds)
       throws IOException
   {
-    return parseCredentialResponse(socket.retrieveGroupsV2Credentials(todaySeconds));
+    return parseCredentialResponse(NetworkAPI.retrieveGroupsV2Credentials(todaySeconds));
   }
 
   /**

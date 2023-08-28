@@ -96,13 +96,18 @@ public abstract class NetworkClient {
     private static final String SERVER_DELIVERED_TIMESTAMP_HEADER = "X-Signal-Timestamp";
     private boolean websocketCreated = false;
     
+    public static NetworkClient createNetworkClient(Optional<CredentialsProvider> cp) {
+        return createNetworkClient(null, cp, null, Optional.empty(), false);
+    }
+
     public static NetworkClient createNetworkClient(SignalUrl url, String agent, boolean allowStories) {
         return createNetworkClient(url, Optional.empty(), agent, Optional.empty(), allowStories);
     }
+
     public static NetworkClient createNetworkClient(SignalUrl url, Optional<CredentialsProvider> cp, String agent, Optional<ConnectivityListener> cl, boolean allowStories) {
         String property = System.getProperty("wave.quic", "true");
         boolean useQuic = "true".equals(property.toLowerCase());
-        LOG.info("Creating networkclient, using quic? "+ useQuic);
+        LOG.info("Creating Networkclient, using quic? "+ useQuic);
         if (useQuic) {
             return new QuicNetworkClient(url, cp, agent, cl, allowStories);
         } else {
@@ -111,7 +116,7 @@ public abstract class NetworkClient {
     }
 
     public NetworkClient(SignalUrl url, Optional<CredentialsProvider> cp, String signalAgent, Optional<ConnectivityListener> connectivityListener, boolean allowStories) {
-        String property = System.getProperty("wave.quic", "false");
+        String property = System.getProperty("wave.quic", "true");
 
         this.useQuic = "true".equals(property.toLowerCase());
         this.signalUrl = url;
@@ -176,7 +181,7 @@ public abstract class NetworkClient {
      * @throws IOException
      */
     public Future<SendGroupMessageResponse> sendToGroup(byte[] body, byte[] joinedUnidentifiedAccess, long timestamp, boolean online) throws IOException {
-        if (closed) {
+ if (closed) {
             throw new IOException("Trying to use a closed networkclient " + this);
         }
         List<String> headers = new LinkedList<String>() {
@@ -385,10 +390,6 @@ public abstract class NetworkClient {
         }
     }
 
-    CompletableFuture<Response> getKwikResponse(URI uri, String method, byte[] body, Map<String, List<String>> headers) throws IOException {
-        throw new UnsupportedOperationException();
-    }
-
     private static Optional<String> findHeader(WebSocketRequestMessage message, String targetHeader) {
         if (message.getHeadersCount() == 0) {
             return Optional.empty();
@@ -468,7 +469,7 @@ public abstract class NetworkClient {
      * @return
      * @throws IOException
      */
-    public Response sendRequest(HttpRequest request, byte[] raw) throws IOException {
+    public final Response sendRequest(HttpRequest request, byte[] raw) throws IOException {
         try {
             return asyncSendRequest(request, raw).get(); //.get(30, TimeUnit.SECONDS);
         } catch (InterruptedException | ExecutionException ex) {
@@ -485,7 +486,7 @@ public abstract class NetworkClient {
      * @return
      * @throws IOException
      */
-    protected CompletableFuture<Response> asyncSendRequest(HttpRequest request, byte[] raw) throws IOException {
+    public final CompletableFuture<Response> asyncSendRequest(HttpRequest request, byte[] raw) throws IOException {
         if (closed) {
             throw new IOException("Trying to use a closed networkclient " + this);
         }
@@ -493,8 +494,35 @@ public abstract class NetworkClient {
         response.thenApply(res -> validateResponse(res));
         return response;
     }
+    
+    public final Response sendRequest(URI uri, String method, byte[] body, Map<String, List<String>>headers) throws IOException {
+        try {
+            return asyncSendRequest(uri, method, body, headers).get();
+        } catch (InterruptedException | ExecutionException ex) {
+            LOG.log(Level.SEVERE, null, ex);
+            throw new IOException(ex);
+        }
+    }
+
+    /**
+     * Sends a request and immediately return a Future.
+     *
+     * @param request
+     * @param raw
+     * @return
+     * @throws IOException
+     */
+    public final CompletableFuture<Response> asyncSendRequest(URI uri, String method, byte[] body, Map<String, List<String>>headers) throws IOException {
+        if (closed) {
+            throw new IOException("Trying to use a closed networkclient " + this);
+        }
+        CompletableFuture<Response> response = implAsyncSendRequest(uri, method, body, headers);
+        response.thenApply(res -> validateResponse(res));
+        return response;
+    }
 
     protected abstract CompletableFuture<Response> implAsyncSendRequest(HttpRequest request, byte[] raw) throws IOException;
+    protected abstract CompletableFuture<Response> implAsyncSendRequest(URI uri, String method, byte[] body, Map<String, List<String>> headers) throws IOException;
 
     private Response validateResponse(Response response) {
         try {

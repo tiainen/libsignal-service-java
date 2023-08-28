@@ -37,7 +37,7 @@
         <dependency>
           <groupId>io.privacyresearch</groupId>
           <artifactId>grpcproxy-client</artifactId>
-          <version>1.0.17</version>
+          <version>1.0.19</version>
         </dependency>
 <!--
         <dependency>
@@ -140,7 +140,7 @@
            <configuration>
              <doclint>none</doclint>
              <failOnError>false</failOnError>
-             <skip>false</skip>
+             <skip>true</skip>
            </configuration>
          </plugin>
   <plugin>
@@ -148,9 +148,13 @@
         <artifactId>protobuf-maven-plugin</artifactId>
         <version>0.6.1</version>
         <configuration>
+                    <protocArtifact>com.google.protobuf:protoc:3.21.7:exe:${os.detected.classifier}</protocArtifact>
+                    <pluginId>grpc-java</pluginId>
+                    <pluginArtifact>io.grpc:protoc-gen-grpc-java:1.54.1:exe:${os.detected.classifier}</pluginArtifact>
+<!--
           <javaOptions>lite</javaOptions>
           <protocExecutable>protoc</protocExecutable>
-          <!-- <protocExecutable>/usr/local/bin/protoc</protocExecutable> -->
+-->
         </configuration>
         <executions>
           <execution>

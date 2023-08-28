@@ -7,6 +7,7 @@
 package org.whispersystems.signalservice.api;
 
 
+import com.gluonhq.snl.NetworkAPI;
 import com.google.protobuf.ByteString;
 
 import org.signal.libsignal.protocol.IdentityKey;
@@ -170,7 +171,8 @@ public class SignalServiceAccountManager {
   }
 
   public byte[] getSenderCertificate() throws IOException {
-    return this.pushServiceSocket.getSenderCertificate();
+   //S   pushServiceSocket.getSenderCertificate();
+      return NetworkAPI.getSenderCertificate(credentials);
   }
 
   public byte[] getSenderCertificateForPhoneNumberPrivacy() throws IOException {
@@ -726,16 +728,18 @@ public class SignalServiceAccountManager {
     }
   }
 
-  public Map<String, Object> getRemoteConfig() throws IOException {
-    RemoteConfigResponse response = this.pushServiceSocket.getRemoteConfig();
-    Map<String, Object>  out      = new HashMap<>();
-
-    for (RemoteConfigResponse.Config config : response.getConfig()) {
-      out.put(config.getName(), config.getValue() != null ? config.getValue() : config.isEnabled());
+    public Map<String, Object> getRemoteConfig() throws IOException {
+        return NetworkAPI.getRemoteConfig(credentials);
+//
+//    RemoteConfigResponse response = this.pushServiceSocket.getRemoteConfig();
+//    Map<String, Object>  out      = new HashMap<>();
+//
+//    for (RemoteConfigResponse.Config config : response.getConfig()) {
+//      out.put(config.getName(), config.getValue() != null ? config.getValue() : config.isEnabled());
+//    }
+//      System.err.println("GETREMOTECONFIG, return "+out);
+//    return out;
     }
-
-    return out;
-  }
 
 
   public String getNewDeviceVerificationCode() throws IOException {

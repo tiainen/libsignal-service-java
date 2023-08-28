@@ -6,10 +6,13 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
+import java.net.http.HttpRequest.BodyPublishers;
 import java.net.http.HttpResponse;
 import java.net.http.WebSocket;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -149,6 +152,30 @@ public class LegacyNetworkClient extends NetworkClient {
             }
         });
         return fut;
+    }
+
+    @Override
+    protected CompletableFuture<Response> implAsyncSendRequest(URI uri, String method, byte[] body, Map<String, List<String>> headers) throws IOException {
+        HttpRequest.Builder request = HttpRequest.newBuilder();
+        String scheme = uri.getScheme();
+        if (scheme.startsWith("x")) {
+            try {
+                uri = new URI(uri.toString().substring(1));
+            } catch (URISyntaxException ex) {
+                ex.printStackTrace();
+                throw new IOException (ex);
+            }
+        }
+        request.uri(uri);
+        if (body == null) {
+            request.method(method, BodyPublishers.noBody());
+        } else {
+            request.method(method, BodyPublishers.ofByteArray(body));
+        }
+        for (Map.Entry<String, List<String>> header : headers.entrySet()) {
+            request.header(header.getKey(), header.getValue().get(0));
+        }
+        return implAsyncSendRequest(request.build(), body);
     }
 
     class MyWebsocketListener implements WebSocket.Listener {

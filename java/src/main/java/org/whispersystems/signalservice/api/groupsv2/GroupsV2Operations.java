@@ -486,7 +486,7 @@ public final class GroupsV2Operations {
       List<DecryptedPendingMember>    decryptedPendingMembers    = new ArrayList<>(pendingMembersList.size());
       List<DecryptedRequestingMember> decryptedRequestingMembers = new ArrayList<>(requestingMembersList.size());
       List<DecryptedBannedMember>     decryptedBannedMembers     = new ArrayList<>(group.getBannedMembersCount());
-
+Thread.dumpStack();
       for (Member member : membersList) {
         try {
           decryptedMembers.add(decryptMember(member).build());

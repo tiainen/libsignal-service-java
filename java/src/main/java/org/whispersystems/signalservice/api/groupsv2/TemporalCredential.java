@@ -10,6 +10,13 @@ public class TemporalCredential {
   @JsonProperty
   private long redemptionTime;
 
+  public TemporalCredential() {}
+  
+  public TemporalCredential(byte[] c, long r) {
+      this.credential = c;
+      this.redemptionTime = r;
+  }
+
   public byte[] getCredential() {
     return credential;
   }

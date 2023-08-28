@@ -1,15 +1,11 @@
 package org.whispersystems.signalservice.internal.configuration;
 
-
 import org.whispersystems.signalservice.api.push.TrustStore;
-import org.whispersystems.signalservice.internal.util.BlacklistingTrustManager;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
         
-import javax.net.ssl.TrustManager;
-
 import com.gluonhq.snl.doubt.ConnectionSpec;
 
 public class SignalUrl {

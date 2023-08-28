@@ -11,9 +11,6 @@ import com.gluonhq.snl.Credentials;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageLite;
 
-import com.gluonhq.snl.Response;
-import com.gluonhq.snl.ResponseBody;
-
 import org.signal.storageservice.protos.groups.AvatarUploadAttributes;
 import org.signal.storageservice.protos.groups.Group;
 import org.signal.storageservice.protos.groups.GroupChange;
@@ -45,7 +42,6 @@ import org.whispersystems.signalservice.api.messages.multidevice.DeviceInfo;
 import org.whispersystems.signalservice.api.profiles.ProfileAndCredential;
 import org.whispersystems.signalservice.api.profiles.SignalServiceProfile;
 import org.whispersystems.signalservice.api.profiles.SignalServiceProfileWrite;
-import org.whispersystems.signalservice.api.push.ContactTokenDetails;
 import org.whispersystems.signalservice.api.push.SignalServiceAddress;
 import org.whispersystems.signalservice.api.push.SignedPreKeyEntity;
 import org.whispersystems.signalservice.api.push.exceptions.AuthorizationFailedException;
@@ -62,7 +58,6 @@ import org.whispersystems.signalservice.api.push.exceptions.NotFoundException;
 import org.whispersystems.signalservice.api.push.exceptions.PushNetworkException;
 import org.whispersystems.signalservice.api.push.exceptions.RangeException;
 import org.whispersystems.signalservice.api.push.exceptions.RateLimitException;
-import org.whispersystems.signalservice.api.push.exceptions.RemoteAttestationResponseExpiredException;
 import org.whispersystems.signalservice.api.push.exceptions.ResumeLocationInvalidException;
 import org.whispersystems.signalservice.api.push.exceptions.ServerRejectedException;
 import org.whispersystems.signalservice.api.push.exceptions.UnregisteredUserException;
@@ -70,9 +65,6 @@ import org.whispersystems.signalservice.api.push.exceptions.UsernameMalformedExc
 import org.whispersystems.signalservice.api.push.exceptions.UsernameTakenException;
 import org.whispersystems.signalservice.api.storage.StorageAuthResponse;
 import org.whispersystems.signalservice.api.util.CredentialsProvider;
-import org.whispersystems.signalservice.api.util.Tls12SocketFactory;
-import org.whispersystems.signalservice.api.util.TlsProxySocketFactory;
-import org.whispersystems.signalservice.api.util.UuidUtil;
 import org.whispersystems.signalservice.internal.configuration.SignalCdnUrl;
 import org.whispersystems.signalservice.internal.configuration.SignalProxy;
 import org.whispersystems.signalservice.internal.configuration.SignalServiceConfiguration;
@@ -98,7 +90,6 @@ import org.whispersystems.signalservice.internal.storage.protos.ReadOperation;
 import org.whispersystems.signalservice.internal.storage.protos.StorageItems;
 import org.whispersystems.signalservice.internal.storage.protos.StorageManifest;
 import org.whispersystems.signalservice.internal.storage.protos.WriteOperation;
-import org.whispersystems.signalservice.internal.util.BlacklistingTrustManager;
 import org.whispersystems.signalservice.internal.util.Hex;
 import org.whispersystems.signalservice.internal.util.JsonUtil;
 import org.whispersystems.signalservice.internal.util.Util;
@@ -123,44 +114,20 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpRequest.BodyPublisher;
 import java.net.http.HttpRequest.BodyPublishers;
 import java.nio.charset.StandardCharsets;
-import java.security.KeyManagementException;
-import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.net.SocketFactory;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
-import okio.Buffer;
-//
-//import tokhttp3.Call;
-//import tokhttp3.Callback;
-//import tokhttp3.ConnectionPool;
-//import tokhttp3.ConnectionSpec;
-//import tokhttp3.Credentials;
-//import tokhttp3.Dns;
-//import tokhttp3.HttpUrl;
-//import tokhttp3.Interceptor;
-//import tokhttp3.MediaType;
-//import tokhttp3.MultipartBody;
-//import tokhttp3.OkHttpClient;
-//import com.gluonhq.snl.Request;
 import com.gluonhq.snl.doubt.RequestBody;
 import com.gluonhq.snl.NetworkClient;
 import com.gluonhq.snl.Response;
@@ -168,7 +135,6 @@ import com.gluonhq.snl.ResponseBody;
 import com.gluonhq.snl.doubt.MediaType;
 import com.gluonhq.snl.doubt.MultipartBody;
 import com.gluonhq.snl.doubt.MultipartBodyPublisher;
-import java.net.http.HttpResponse;
 
 import org.signal.libsignal.zkgroup.receipts.ReceiptCredentialPresentation;
 import org.signal.libsignal.protocol.InvalidKeyException;
@@ -187,15 +153,9 @@ import org.whispersystems.signalservice.api.push.exceptions.UsernameIsNotReserve
 import org.whispersystems.signalservice.api.storage.SignalStorageManifest;
 import org.whispersystems.signalservice.api.storage.SignalStorageModels;
 import org.whispersystems.signalservice.api.storage.StorageKey;
-import org.whispersystems.signalservice.internal.ServiceResponse;
-import org.whispersystems.signalservice.internal.push.exceptions.GroupMismatchedDevicesException;
-import org.whispersystems.signalservice.internal.push.exceptions.GroupStaleDevicesException;
-import org.whispersystems.signalservice.internal.push.exceptions.InvalidUnidentifiedAccessHeaderException;
 import org.whispersystems.signalservice.internal.push.exceptions.PaymentsRegionException;
 import org.whispersystems.signalservice.internal.push.http.AcceptLanguagesUtil;
 import org.signal.libsignal.grpc.GrpcClient;
-import org.signal.libsignal.grpc.SignalRpcMessage;
-import org.signal.libsignal.grpc.SignalRpcReply;
 
 /**
  * @author Moxie Marlinspike
@@ -233,8 +193,6 @@ public class PushServiceSocket {
     private static final String DEVICE_PATH = "/v1/devices/%s";
 
     private static final String DIRECTORY_AUTH_PATH = "/v1/directory/auth";
-    private static final String MESSAGE_PATH = "/v1/messages/%s";
-    private static final String GROUP_MESSAGE_PATH = "/v1/messages/multi_recipient?ts=%s&online=%s&urgent=%s&story=%s";
     private static final String SENDER_ACK_MESSAGE_PATH = "/v1/messages/%s/%d";
     private static final String UUID_ACK_MESSAGE_PATH = "/v1/messages/uuid/%s";
     private static final String ATTACHMENT_V2_PATH = "/v2/attachments/form/upload";
@@ -299,7 +257,6 @@ public class PushServiceSocket {
     private static final int MAX_FOLLOW_UPS = 20;
 
     private long soTimeoutMillis = TimeUnit.SECONDS.toMillis(30);
-//    private final Set<Call> connections = new HashSet<>();
 
     private final ServiceConnectionHolder[] serviceClients;
     private final Map<Integer, ConnectionHolder[]> cdnClientsMap;
@@ -518,73 +475,6 @@ public class PushServiceSocket {
         return makeServiceRequest(String.format(REGISTER_CAPABILITIES_PATH, ""), "PUT", payload);
     }
 
-    public SendGroupMessageResponse sendGroupMessage(byte[] body, byte[] joinedUnidentifiedAccess, long timestamp, boolean online, boolean urgent, boolean story)
-            throws IOException {
-        throw new UnsupportedOperationException("NYI");
-//        ServiceConnectionHolder connectionHolder = (ServiceConnectionHolder) getRandom(serviceClients, random);
-//
-//        String path = String.format(Locale.US, GROUP_MESSAGE_PATH, timestamp, online, urgent, story);
-//        HttpRequest.Builder hrBuilder = HttpRequest.newBuilder();
-//        String format = String.format("%s%s", connectionHolder.getUrl(), path);
-//        URI uri;
-//        try {
-//            uri = new URI(format);
-//            hrBuilder.uri(uri);
-//        } catch (URISyntaxException ex) {
-//            LOG.severe("wrong URI! "+format);
-//            throw new IOException (ex);
-//        }
-//        BodyPublisher bodyPublisher = BodyPublishers.ofByteArray(body);
-//        hrBuilder.PUT(bodyPublisher);
-//        hrBuilder.header("Content-Type", "application/vnd.signal-messenger.mrm");
-//        hrBuilder.header("Unidentified-Access-Key", Base64.encodeBytes(joinedUnidentifiedAccess));
-//
-//        if (signalAgent != null) {
-//            hrBuilder.header("X-Signal-Agent", signalAgent);
-//        }
-//
-//        if (connectionHolder.getHostHeader().isPresent()) {
-//            hrBuilder.header("Host", connectionHolder.getHostHeader().get());
-//        }
-//
-//        Call call = connectionHolder.getUnidentifiedClient().newCall(hrBuilder.build(), body);
-//
-//        synchronized (connections) {
-//            connections.add(call);
-//        }
-//
-//        Response response;
-//
-//        try {
-//            response = call.execute();
-//        } catch (IOException e) {
-//            throw new PushNetworkException(e);
-//        } finally {
-//            synchronized (connections) {
-//                connections.remove(call);
-//            }
-//        }
-//
-//        switch (response.code()) {
-//            case 200:
-//                return readBodyJson(response.body(), SendGroupMessageResponse.class);
-//            case 401:
-//                throw new InvalidUnidentifiedAccessHeaderException();
-//            case 404:
-//                throw new NotFoundException("At least one unregistered user in message send.");
-//            case 409:
-//                GroupMismatchedDevices[] mismatchedDevices = readBodyJson(response.body(), GroupMismatchedDevices[].class);
-//                throw new GroupMismatchedDevicesException(mismatchedDevices);
-//            case 410:
-//                GroupStaleDevices[] staleDevices = readBodyJson(response.body(), GroupStaleDevices[].class);
-//                throw new GroupStaleDevicesException(staleDevices);
-//            case 508:
-//                throw new ServerRejectedException();
-//            default:
-//                throw new NonSuccessfulResponseCodeException(response.code());
-//        }
-    }
-
     public SendMessageResponse sendMessage(OutgoingPushMessageList bundle, Optional<UnidentifiedAccess> unidentifiedAccess, boolean story)
             throws IOException {
         try {
@@ -596,29 +486,6 @@ public class PushServiceSocket {
         } catch (NotFoundException nfe) {
             throw new UnregisteredUserException(bundle.getDestination(), nfe);
         }
-    }
-
-    public SignalServiceMessagesResult getMessages(boolean allowStories) throws IOException {
-            throw new UnsupportedOperationException("NYI");
-//  Map<String, String> headers = Collections.singletonMap("X-Signal-Receive-Stories", allowStories ? "true" : "false");
-//
-//        try ( Response response = makeServiceRequest(String.format(MESSAGE_PATH, ""), "GET", (RequestBody) null, headers, NO_HANDLER, Optional.empty(), "")) {
-//            validateServiceResponse(response);
-//
-//            List<SignalServiceEnvelopeEntity> envelopes = readBodyJson(response.body(), SignalServiceEnvelopeEntityList.class).getMessages();
-//
-//            long serverDeliveredTimestamp = 0;
-//            try {
-//                String stringValue = response.header(SERVER_DELIVERED_TIMESTAMP_HEADER);
-//                stringValue = stringValue != null ? stringValue : "0";
-//
-//                serverDeliveredTimestamp = Long.parseLong(stringValue);
-//            } catch (NumberFormatException e) {
-//                Log.w(TAG, e);
-//            }
-//
-//            return new SignalServiceMessagesResult(envelopes, serverDeliveredTimestamp);
-//        }
     }
 
     public void acknowledgeMessage(String sender, long timestamp) throws IOException {
@@ -1057,29 +924,6 @@ public class PushServiceSocket {
         String payload = JsonUtil.toJson(new RedeemReceiptRequest(Base64.encodeBytes(receiptCredentialPresentation.serialize()), visible, primary));
         makeServiceRequest(DONATION_REDEEM_RECEIPT, "POST", payload);
     }
-//
-//    public List<ContactTokenDetails> retrieveDirectory(Set<String> contactTokens)
-//            throws NonSuccessfulResponseCodeException, PushNetworkException, MalformedResponseException {
-//        try {
-//            ContactTokenList contactTokenList = new ContactTokenList(new LinkedList<>(contactTokens));
-//            String response = makeServiceRequest(DIRECTORY_TOKENS_PATH, "PUT", JsonUtil.toJson(contactTokenList));
-//            ContactTokenDetailsList activeTokens = JsonUtil.fromJson(response, ContactTokenDetailsList.class);
-//
-//            return activeTokens.getContacts();
-//        } catch (IOException e) {
-//            Log.w(TAG, e);
-//            throw new MalformedResponseException("Unable to parse entity", e);
-//        }
-//    }
-//
-//    public ContactTokenDetails getContactTokenDetails(String contactToken) throws IOException {
-//        try {
-//            String response = makeServiceRequest(String.format(DIRECTORY_VERIFY_PATH, contactToken), "GET", null);
-//            return JsonUtil.fromJson(response, ContactTokenDetails.class);
-//        } catch (NotFoundException nfe) {
-//            return null;
-//        }
-//    }
 
     private String getCredentials(String authPath) throws IOException {
         String response = makeServiceRequest(authPath, "GET", null, NO_HEADERS);
@@ -1198,14 +1042,6 @@ public class PushServiceSocket {
 
     public void cancelInFlightRequests() {
         LOG.warning("We don't cancel inflight requests");
-//
-//        synchronized (connections) {
-//            Log.w(TAG, "Canceling: " + connections.size());
-//            for (Call connection : connections) {
-//                Log.w(TAG, "Canceling: " + connection);
-//                connection.cancel();
-//            }
-//        }
     }
 
     public AttachmentV2UploadAttributes getAttachmentV2UploadAttributes()
@@ -1377,38 +1213,6 @@ public class PushServiceSocket {
             throw new PushNetworkException(ex);
         }
         return file.getTransmittedDigest();
-
-//
-//        Call call = okHttpClient.newCall(request.build());
-//
-//        synchronized (connections) {
-//            connections.add(call);
-//        }
-//
-//        try {
-//            Response response;
-//
-//            try {
-//                response = call.execute();
-//            } catch (IOException e) {
-//                throw new PushNetworkException(e);
-//            }
-//
-//            if (response.isSuccessful()) {
-//                return file.getTransmittedDigest();
-//            } else {
-//                try {
-//                    System.err.println("PROBLEM! "+response.body().string());
-//                } catch (IOException ex) {
-//                    Logger.getLogger(PushServiceSocket.class.getName()).log(Level.SEVERE, null, ex);
-//                }
-//                throw new NonSuccessfulResponseCodeException(response.code(), "Response: " + response+" with message "+response.message()+" and body "+response.body());
-//            }
-//        } finally {
-//            synchronized (connections) {
-//                connections.remove(call);
-//            }
-//        }
     }
 
     private String getResumableUploadUrl(String signedUrl, Map<String, String> headers) throws IOException {
@@ -1518,90 +1322,6 @@ public class PushServiceSocket {
 //            }
 //        }
     }
-
-    private ResumeInfo getResumeInfo(String resumableUrl, long contentLength) throws IOException {
-         throw new UnsupportedOperationException("NYI");
-//
-//        ConnectionHolder connectionHolder = getRandom(cdnClientsMap.get(2), random);
-//        OkHttpClient okHttpClient = connectionHolder.getClient()
-//                .newBuilder()
-//                .connectTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
-//                .readTimeout(soTimeoutMillis, TimeUnit.MILLISECONDS)
-//                .build();
-//
-//        final long offset;
-//        final String contentRange;
-//
-//        Request.Builder request = new Request.Builder().url(buildConfiguredUrl(connectionHolder, resumableUrl))
-//                .put(RequestBody.create(null, ""))
-//                .addHeader("Content-Range", String.format(Locale.US, "bytes */%d", contentLength));
-//
-//        if (connectionHolder.getHostHeader().isPresent()) {
-//            request.header("host", connectionHolder.getHostHeader().get());
-//        }
-//
-//        Call call = okHttpClient.newCall(request.build());
-//
-//        synchronized (connections) {
-//            connections.add(call);
-//        }
-//
-//        try {
-//            Response response;
-//
-//            try {
-//                response = call.execute();
-//            } catch (IOException e) {
-//                throw new PushNetworkException(e);
-//            }
-//
-//            if (response.isSuccessful()) {
-//                offset = contentLength;
-//                contentRange = null;
-//            } else if (response.code() == 308) {
-//                String rangeCompleted = response.header("Range");
-//
-//                if (rangeCompleted == null) {
-//                    offset = 0;
-//                } else {
-//                    offset = Long.parseLong(rangeCompleted.split("-")[1]) + 1;
-//                }
-//
-//                contentRange = String.format(Locale.US, "bytes %d-%d/%d", offset, contentLength - 1, contentLength);
-//            } else if (response.code() == 404) {
-//                throw new ResumeLocationInvalidException();
-//            } else {
-//                throw new NonSuccessfulResponseCodeException(response.code(), "Response: " + response);
-//            }
-//        } finally {
-//            synchronized (connections) {
-//                connections.remove(call);
-//            }
-//        }
-//
-//        return new ResumeInfo(contentRange, offset);
-    }
-
-//    private static HttpUrl buildConfiguredUrl(ConnectionHolder connectionHolder, String url) throws IOException {
-//
-//        final HttpUrl endpointUrl = HttpUrl.get(connectionHolder.url);
-//        final HttpUrl resumableHttpUrl;
-//        try {
-//            resumableHttpUrl = HttpUrl.get(url);
-//        } catch (IllegalArgumentException e) {
-//            throw new IOException("Malformed URL!", e);
-//        }
-//        String format = endpointUrl.scheme()+":" + endpointUrl.host();
-//        HttpUrl answer = new HttpUrl.Builder().scheme(endpointUrl.scheme())
-//                .host(endpointUrl.host())
-//                .port(endpointUrl.port())
-//                .encodedPath(endpointUrl.encodedPath())
-//                .addEncodedPathSegments(resumableHttpUrl.encodedPath().substring(1))
-//                .encodedQuery(resumableHttpUrl.encodedQuery())
-//                .encodedFragment(resumableHttpUrl.encodedFragment())
-//                .build();
-//        return answer;
-//    }
 
     private String makeServiceRequestWithoutAuthentication(String urlFragment, String method, String jsonBody)
             throws NonSuccessfulResponseCodeException, IOException, MalformedResponseException {
@@ -1836,7 +1556,7 @@ public class PushServiceSocket {
             boolean doNotAddAuthenticationOrUnidentifiedAccessKey,
             String rawBody)
             throws IOException {
-
+        System.err.println("HEADERS = "+headers);
         HttpRequest serviceRequest = buildServiceRequest(urlFragment, method, body, headers, unidentifiedAccess, doNotAddAuthenticationOrUnidentifiedAccessKey);
         NetworkClient client = buildNetworkClient(unidentifiedAccess.isPresent());
         byte[] rawBytes = (body == null ? new byte[0] : body.getRawBytes());
@@ -2365,6 +2085,7 @@ public class PushServiceSocket {
                 null,
                 NO_HEADERS,
                 Optional.empty());
+              System.err.println("RETRIEVEGROUPCRED => "+response);
         return JsonUtil.fromJson(response, CredentialResponse.class);
     }
 //       public CredentialResponse retrieveGroupsV2Credentials(int today)
