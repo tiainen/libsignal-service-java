@@ -36,4 +36,14 @@ public interface ChangeSetModifier {
   void removeDeleteRequestingMembers(int i);
 
   void removePromoteRequestingMembers(int i);
+
+  void clearModifyDescription();
+
+  void clearModifyAnnouncementsOnly();
+
+  void removeAddBannedMembers(int i);
+
+  void removeDeleteBannedMembers(int i);
+
+  void removePromotePendingPniAciMembers(int i);
 }

@@ -56,8 +56,10 @@ message ManifestRecord {
     Type  type = 2;
   }
 
-           uint64     version     = 1;
-  repeated Identifier identifiers = 2;
+           uint64     version      = 1;
+           uint32     sourceDevice = 3;
+  repeated Identifier identifiers  = 2;
+  // Next ID: 4
 }
 
 message StorageRecord {
@@ -77,9 +79,9 @@ message ContactRecord {
     UNVERIFIED = 2;
   }
 
-  string        serviceId               = 1;
-  string        serviceE164             = 2;
-  string        servicePni              = 15;
+  string        aci                     = 1;
+  string        e164                    = 2;
+  string        pni                     = 15;
   bytes         profileKey              = 3;
   bytes         identityKey             = 4;
   IdentityState identityState           = 5;
@@ -95,8 +97,9 @@ message ContactRecord {
   uint64        unregisteredAtTimestamp = 16;
   string        systemGivenName         = 17;
   string        systemFamilyName        = 18;
-  bool          hidden                  = 19;
-  // NEXT ID: 20
+  string        systemNickname          = 19;
+  bool          hidden                  = 20;
+  // NEXT ID: 21
 }
 
 message GroupV1Record {
@@ -142,8 +145,8 @@ message AccountRecord {
 
   message PinnedConversation {
     message Contact {
-      string uuid = 1;
-      string e164 = 2;
+      string serviceId = 1;
+      string e164      = 2;
     }
 
     oneof identifier {
@@ -153,44 +156,46 @@ message AccountRecord {
     }
   }
 
-           bytes                  profileKey                    = 1;
-           string                 givenName                     = 2;
-           string                 familyName                    = 3;
-           string                 avatarUrlPath                 = 4;
-           bool                   noteToSelfArchived            = 5;
-           bool                   readReceipts                  = 6;
-           bool                   sealedSenderIndicators        = 7;
-           bool                   typingIndicators              = 8;
-           bool                   proxiedLinkPreviews           = 9;
-           bool                   noteToSelfMarkedUnread        = 10;
-           bool                   linkPreviews                  = 11;
-           PhoneNumberSharingMode phoneNumberSharingMode        = 12;
-           bool                   unlistedPhoneNumber           = 13;
-  repeated PinnedConversation     pinnedConversations           = 14;
-           bool                   preferContactAvatars          = 15;
-           Payments               payments                      = 16;
-           uint32                 universalExpireTimer          = 17;
-           bool                   primarySendsSms               = 18;
-           string                 e164                          = 19;
-  repeated string                 preferredReactionEmoji        = 20;
-           bytes                  subscriberId                  = 21;
-           string                 subscriberCurrencyCode        = 22;
-           bool                   displayBadgesOnProfile        = 23;
-           bool                   subscriptionManuallyCancelled = 24;
-           bool                   keepMutedChatsArchived        = 25;
-           bool                   hasSetMyStoriesPrivacy        = 26;
-           bool                   hasViewedOnboardingStory      = 27;
-           reserved            /* storiesDisabled */              28;
-           bool                   storiesDisabled               = 29;
-           OptionalBool           storyViewReceiptsEnabled      = 30;
-           bool                   hasReadOnboardingStory        = 31;
+           bytes                  profileKey                      = 1;
+           string                 givenName                       = 2;
+           string                 familyName                      = 3;
+           string                 avatarUrlPath                   = 4;
+           bool                   noteToSelfArchived              = 5;
+           bool                   readReceipts                    = 6;
+           bool                   sealedSenderIndicators          = 7;
+           bool                   typingIndicators                = 8;
+           bool                   proxiedLinkPreviews             = 9;
+           bool                   noteToSelfMarkedUnread          = 10;
+           bool                   linkPreviews                    = 11;
+           PhoneNumberSharingMode phoneNumberSharingMode          = 12;
+           bool                   unlistedPhoneNumber             = 13;
+  repeated PinnedConversation     pinnedConversations             = 14;
+           bool                   preferContactAvatars            = 15;
+           Payments               payments                        = 16;
+           uint32                 universalExpireTimer            = 17;
+           bool                   primarySendsSms                 = 18;
+           string                 e164                            = 19;
+  repeated string                 preferredReactionEmoji          = 20;
+           bytes                  subscriberId                    = 21;
+           string                 subscriberCurrencyCode          = 22;
+           bool                   displayBadgesOnProfile          = 23;
+           bool                   subscriptionManuallyCancelled   = 24;
+           bool                   keepMutedChatsArchived          = 25;
+           bool                   hasSetMyStoriesPrivacy          = 26;
+           bool                   hasViewedOnboardingStory        = 27;
+           reserved            /* storiesDisabled */                28;
+           bool                   storiesDisabled                 = 29;
+           OptionalBool           storyViewReceiptsEnabled        = 30;
+           bool                   hasReadOnboardingStory          = 31;
+           bool                   hasSeenGroupStoryEducationSheet = 32;
+           string                 username                        = 33;
 }
 
 message StoryDistributionListRecord {
-           bytes  identifier         = 1;
-           string name               = 2;
-  repeated string recipientUuids     = 3;
-           uint64 deletedAtTimestamp = 4;
-           bool   allowsReplies      = 5;
-           bool   isBlockList        = 6;
+           bytes  identifier          = 1;
+           string name                = 2;
+  repeated string recipientServiceIds = 3;
+           uint64 deletedAtTimestamp  = 4;
+           bool   allowsReplies       = 5;
+           bool   isBlockList         = 6;
 }

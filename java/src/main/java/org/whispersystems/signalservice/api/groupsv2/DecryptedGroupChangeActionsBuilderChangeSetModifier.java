@@ -103,7 +103,7 @@ final class DecryptedGroupChangeActionsBuilderChangeSetModifier implements Chang
     result.removeNewRequestingMembers(i);
 
     DecryptedMember build = DecryptedMember.newBuilder()
-                                           .setUuid(addMemberAction.getUuid())
+                                           .setAciBytes(addMemberAction.getAciBytes())
                                            .setProfileKey(addMemberAction.getProfileKey())
                                            .setRole(Member.Role.DEFAULT).build();
 
@@ -121,6 +121,31 @@ final class DecryptedGroupChangeActionsBuilderChangeSetModifier implements Chang
   @Override
   public void removePromoteRequestingMembers(int i) {
     result.removePromoteRequestingMembers(i);
+  }
+
+  @Override
+  public void clearModifyDescription() {
+    result.clearNewDescription();
+  }
+
+  @Override
+  public void clearModifyAnnouncementsOnly() {
+    result.clearNewIsAnnouncementGroup();
+  }
+
+  @Override
+  public void removeAddBannedMembers(int i) {
+    result.removeNewBannedMembers(i);
+  }
+
+  @Override
+  public void removeDeleteBannedMembers(int i) {
+    result.removeDeleteBannedMembers(i);
+  }
+
+  @Override
+  public void removePromotePendingPniAciMembers(int i) {
+    result.removePromotePendingPniAciMembers(i);
   }
 
   private static List<ByteString> removeIndexFromByteStringList(List<ByteString> byteStrings, int i) {

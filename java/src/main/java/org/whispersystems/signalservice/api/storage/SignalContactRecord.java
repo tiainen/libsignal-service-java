@@ -3,7 +3,8 @@ package org.whispersystems.signalservice.api.storage;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 
-import org.whispersystems.signalservice.api.push.PNI;
+import org.whispersystems.signalservice.api.push.ServiceId.ACI;
+import org.whispersystems.signalservice.api.push.ServiceId.PNI;
 import org.whispersystems.signalservice.api.push.ServiceId;
 import org.whispersystems.signalservice.api.util.OptionalUtil;
 import org.whispersystems.signalservice.api.util.ProtoUtil;
@@ -26,29 +27,32 @@ public final class SignalContactRecord implements SignalRecord {
   private final ContactRecord proto;
   private final boolean       hasUnknownFields;
 
-  private final ServiceId        serviceId;
+  private final Optional<ACI>    aci;
   private final Optional<PNI>    pni;
   private final Optional<String> e164;
   private final Optional<String> profileGivenName;
   private final Optional<String> profileFamilyName;
   private final Optional<String> systemGivenName;
   private final Optional<String> systemFamilyName;
+  private final Optional<String> systemNickname;
   private final Optional<byte[]> profileKey;
   private final Optional<String> username;
   private final Optional<byte[]> identityKey;
+  
+  private static final Logger LOG = Logger.getLogger(SignalContactRecord.class.getName());
 
   public SignalContactRecord(StorageId id, ContactRecord proto) {
-    this.id               = id;
-    this.proto            = proto;
-    this.hasUnknownFields = ProtoUtil.hasUnknownFields(proto);
-
-    this.serviceId         = ServiceId.parseOrUnknown(proto.getServiceId());
-    this.pni               = OptionalUtil.absentIfEmpty(proto.getServicePni()).map(PNI::parseOrNull);
-    this.e164              = OptionalUtil.absentIfEmpty(proto.getServiceE164());
+    this.id                = id;
+    this.proto             = proto;
+    this.hasUnknownFields  = ProtoUtil.hasUnknownFields(proto);
+    this.aci               = OptionalUtil.absentIfEmpty(proto.getAci()).map(ACI::parseOrNull).map(it -> it.isUnknown() ? null : it);
+    this.pni               = OptionalUtil.absentIfEmpty(proto.getPni()).map(PNI::parseOrNull).map(it -> it.isUnknown() ? null : it);
+    this.e164              = OptionalUtil.absentIfEmpty(proto.getE164());
     this.profileGivenName  = OptionalUtil.absentIfEmpty(proto.getGivenName());
     this.profileFamilyName = OptionalUtil.absentIfEmpty(proto.getFamilyName());
     this.systemGivenName   = OptionalUtil.absentIfEmpty(proto.getSystemGivenName());
     this.systemFamilyName  = OptionalUtil.absentIfEmpty(proto.getSystemFamilyName());
+    this.systemNickname    = OptionalUtil.absentIfEmpty(proto.getSystemNickname());
     this.profileKey        = OptionalUtil.absentIfEmpty(proto.getProfileKey());
     this.username          = OptionalUtil.absentIfEmpty(proto.getUsername());
     this.identityKey       = OptionalUtil.absentIfEmpty(proto.getIdentityKey());
@@ -74,8 +78,8 @@ public final class SignalContactRecord implements SignalRecord {
         diff.add("ID");
       }
 
-      if (!Objects.equals(this.getServiceId(), that.getServiceId())) {
-        diff.add("ServiceId");
+      if (!Objects.equals(this.getAci(), that.getAci())) {
+        diff.add("ACI");
       }
 
       if (!Objects.equals(this.getPni(), that.getPni())) {
@@ -100,6 +104,10 @@ public final class SignalContactRecord implements SignalRecord {
 
       if (!Objects.equals(this.systemFamilyName, that.systemFamilyName)) {
         diff.add("SystemFamilyName");
+      }
+
+      if (!Objects.equals(this.systemNickname, that.systemNickname)) {
+        diff.add("SystemNickname");
       }
 
       if (!OptionalUtil.byteArrayEquals(this.profileKey, that.profileKey)) {
@@ -168,12 +176,22 @@ public final class SignalContactRecord implements SignalRecord {
     return hasUnknownFields ? proto.toByteArray() : null;
   }
 
-  public ServiceId getServiceId() {
-    return serviceId;
+  public Optional<ACI> getAci() {
+    return aci;
   }
 
   public Optional<PNI> getPni() {
     return pni;
+  }
+
+  public Optional<? extends ServiceId> getServiceId() {
+    if (aci.isPresent()) {
+      return aci;
+    } else if (pni.isPresent()) {
+      return pni;
+    } else {
+      return Optional.empty();
+    }
   }
 
   public Optional<String> getNumber() {
@@ -194,6 +212,10 @@ public final class SignalContactRecord implements SignalRecord {
 
   public Optional<String> getSystemFamilyName() {
     return systemFamilyName;
+  }
+
+  public Optional<String> getSystemNickname() {
+    return systemNickname;
   }
 
   public Optional<byte[]> getProfileKey() {
@@ -248,7 +270,7 @@ public final class SignalContactRecord implements SignalRecord {
    * Returns the same record, but stripped of the PNI field. Only used while PNP is in development.
    */
   public SignalContactRecord withoutPni() {
-    return new SignalContactRecord(id, proto.toBuilder().clearServicePni().build());
+    return new SignalContactRecord(id, proto.toBuilder().clearPni().build());
   }
 
   public ContactRecord toProto() {
@@ -273,7 +295,7 @@ public final class SignalContactRecord implements SignalRecord {
     private final StorageId             id;
     private final ContactRecord.Builder builder;
 
-    public Builder(byte[] rawId, ServiceId serviceId, byte[] serializedUnknowns) {
+    public Builder(byte[] rawId, ACI aci, byte[] serializedUnknowns) {
       this.id = StorageId.forContact(rawId);
 
       if (serializedUnknowns != null) {
@@ -282,16 +304,16 @@ public final class SignalContactRecord implements SignalRecord {
         this.builder = ContactRecord.newBuilder();
       }
 
-      builder.setServiceId(serviceId.toString());
+      builder.setAci(aci.toString());
     }
 
     public Builder setE164(String e164) {
-      builder.setServiceE164(e164 == null ? "" : e164);
+      builder.setE164(e164 == null ? "" : e164);
       return this;
     }
 
     public Builder setPni(PNI pni) {
-      builder.setServicePni(pni == null ? "" : pni.toString());
+      builder.setPni(pni == null ? "" : pni.toStringWithoutPrefix());
       return this;
     }
 
@@ -312,6 +334,11 @@ public final class SignalContactRecord implements SignalRecord {
 
     public Builder setSystemFamilyName(String familyName) {
       builder.setSystemFamilyName(familyName == null ? "" : familyName);
+      return this;
+    }
+
+    public Builder setSystemNickname(String nickname) {
+      builder.setSystemNickname(nickname == null ? "" : nickname);
       return this;
     }
 
@@ -379,7 +406,7 @@ public final class SignalContactRecord implements SignalRecord {
       try {
         return ContactRecord.parseFrom(serializedUnknowns).toBuilder();
       } catch (InvalidProtocolBufferException e) {
-        LOG.log(Level.WARNING, "Failed to combine unknown fields!", e);
+        LOG.log(Level.SEVERE, "Failed to combine unknown fields!", e);
         return ContactRecord.newBuilder();
       }
     }
@@ -388,5 +415,4 @@ public final class SignalContactRecord implements SignalRecord {
       return new SignalContactRecord(id, builder.build());
     }
   }
-    private static final Logger LOG = Logger.getLogger(SignalContactRecord.class.getName());
 }

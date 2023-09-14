@@ -1,14 +1,10 @@
 package org.whispersystems.signalservice.internal.serialize;
 
-import com.google.protobuf.ByteString;
 
 import org.whispersystems.signalservice.api.push.SignalServiceAddress;
-import org.whispersystems.signalservice.api.util.UuidUtil;
 import org.whispersystems.signalservice.internal.serialize.protos.AddressProto;
 
 import java.util.Optional;
-import java.util.UUID;
-import org.whispersystems.signalservice.api.push.ACI;
 import org.whispersystems.signalservice.api.push.ServiceId;
 
 public final class SignalServiceAddressProtobufSerializer {

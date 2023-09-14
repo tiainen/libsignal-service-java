@@ -142,7 +142,7 @@ import org.signal.libsignal.zkgroup.profiles.ExpiringProfileKeyCredential;
 import org.whispersystems.signalservice.api.account.ChangePhoneNumberRequest;
 import org.whispersystems.signalservice.api.messages.multidevice.VerifyDeviceResponse;
 import org.whispersystems.signalservice.api.payments.CurrencyConversions;
-import org.whispersystems.signalservice.api.push.ACI;
+import org.whispersystems.signalservice.api.push.ServiceId.ACI;
 import org.whispersystems.signalservice.api.push.ServiceId;
 import org.whispersystems.signalservice.api.push.ServiceIdType;
 import org.whispersystems.signalservice.api.push.exceptions.ImpossiblePhoneNumberException;
@@ -685,12 +685,12 @@ public class PushServiceSocket {
             }
         });
     }
-    public ListenableFuture<ProfileAndCredential> retrieveVersionedProfileAndCredential(UUID target, ProfileKey profileKey, Optional<UnidentifiedAccess> unidentifiedAccess) {
+    public ListenableFuture<ProfileAndCredential> retrieveVersionedProfileAndCredential(ACI target, ProfileKey profileKey, Optional<UnidentifiedAccess> unidentifiedAccess) {
         return retrieveVersionedProfileAndCredential(target, profileKey, unidentifiedAccess, Locale.getDefault());
     }
-    public ListenableFuture<ProfileAndCredential> retrieveVersionedProfileAndCredential(UUID target, ProfileKey profileKey, Optional<UnidentifiedAccess> unidentifiedAccess, Locale locale) {
-        ProfileKeyVersion profileKeyIdentifier = profileKey.getProfileKeyVersion(target);
-        ProfileKeyCredentialRequestContext requestContext = clientZkProfileOperations.createProfileKeyCredentialRequestContext(random, target, profileKey);
+    public ListenableFuture<ProfileAndCredential> retrieveVersionedProfileAndCredential(ACI target, ProfileKey profileKey, Optional<UnidentifiedAccess> unidentifiedAccess, Locale locale) {
+        ProfileKeyVersion profileKeyIdentifier = profileKey.getProfileKeyVersion(target.getLibSignalAci());
+        ProfileKeyCredentialRequestContext requestContext = clientZkProfileOperations.createProfileKeyCredentialRequestContext(random, target.getLibSignalAci(), profileKey);
         ProfileKeyCredentialRequest request = requestContext.getRequest();
 
         String version = profileKeyIdentifier.serialize();
@@ -723,12 +723,13 @@ public class PushServiceSocket {
     }
   }
 
-    public ListenableFuture<SignalServiceProfile> retrieveVersionedProfile(UUID target, ProfileKey profileKey, Optional<UnidentifiedAccess> unidentifiedAccess) {
+    public ListenableFuture<SignalServiceProfile> retrieveVersionedProfile(ACI target, ProfileKey profileKey, Optional<UnidentifiedAccess> unidentifiedAccess) {
         return retrieveVersionedProfile(target, profileKey, unidentifiedAccess, Locale.getDefault());
     }
 
-    public ListenableFuture<SignalServiceProfile> retrieveVersionedProfile(UUID target, ProfileKey profileKey, Optional<UnidentifiedAccess> unidentifiedAccess, Locale locale) {
-        ProfileKeyVersion profileKeyIdentifier = profileKey.getProfileKeyVersion(target);
+    public ListenableFuture<SignalServiceProfile> retrieveVersionedProfile(ACI target, ProfileKey profileKey, Optional<UnidentifiedAccess> unidentifiedAccess, Locale locale) {
+        System.err.println("Retrieve profile for ACI = "+target+" with lsa = "+target.getLibSignalAci());
+        ProfileKeyVersion profileKeyIdentifier = profileKey.getProfileKeyVersion(target.getLibSignalAci());
 
         String version = profileKeyIdentifier.serialize();
         String subPath = String.format("%s/%s", target, version);
@@ -803,7 +804,7 @@ public class PushServiceSocket {
      * @return The ACI for the given username if it exists.
      * @throws IOException if a network exception occurs.
      */
-    public ACI getAciByUsername(String username) throws IOException {
+    public ServiceId.ACI getAciByUsername(String username) throws IOException {
         String response = makeServiceRequestWithoutAuthentication(
                 String.format(GET_USERNAME_PATH, URLEncoder.encode(username, StandardCharsets.UTF_8.toString())),
                 "GET",
@@ -2177,13 +2178,14 @@ public class PushServiceSocket {
         } else {
             path = GROUPSV2_GROUP;
         }
-
+        System.err.println("PATCH GROUP!!!");
+        System.err.println("DESC = " + groupChange.getModifyDescription().getDescription().toString());
         ResponseBody response = makeStorageRequest(authorization,
                 path,
                 "PATCH",
                 protobufRequestBody(groupChange),
                 GROUPS_V2_PATCH_RESPONSE_HANDLER);
-
+        System.err.println("RESPONSE OF PATCH GROUP = "+response);
         return GroupChange.parseFrom(readBodyBytes(response));
     }
 

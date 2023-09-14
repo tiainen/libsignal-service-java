@@ -31,6 +31,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
+import org.whispersystems.signalservice.api.push.ServiceId.ACI;
+import org.whispersystems.signalservice.api.push.ServiceId.PNI;
 
 public final class GroupsV2Api {
 
@@ -54,15 +56,15 @@ public final class GroupsV2Api {
   /**
    * Create an auth token from a credential response.
    */
-  public GroupsV2AuthorizationString getGroupsV2AuthorizationString(ServiceId aci,
-                                                                    ServiceId pni,
+  public GroupsV2AuthorizationString getGroupsV2AuthorizationString(ACI aci,
+                                                                    PNI pni,
                                                                     long redemptionTimeSeconds,
                                                                     GroupSecretParams groupSecretParams,
                                                                     AuthCredentialWithPniResponse authCredentialWithPniResponse)
       throws VerificationFailedException
   {
     ClientZkAuthOperations     authOperations             = groupsOperations.getAuthOperations();
-    AuthCredentialWithPni      authCredentialWithPni      = authOperations.receiveAuthCredentialWithPni(aci.uuid(), pni.uuid(), redemptionTimeSeconds, authCredentialWithPniResponse);
+    AuthCredentialWithPni      authCredentialWithPni      = authOperations.receiveAuthCredentialWithPniAsServiceId(aci.getLibSignalAci(), pni.getLibSignalPni(), redemptionTimeSeconds, authCredentialWithPniResponse);
     AuthCredentialPresentation authCredentialPresentation = authOperations.createAuthCredentialPresentation(new SecureRandom(), groupSecretParams, authCredentialWithPni);
 
     return new GroupsV2AuthorizationString(groupSecretParams, authCredentialPresentation);
@@ -164,7 +166,8 @@ public final class GroupsV2Api {
                                 Optional<byte[]> groupLinkPassword)
       throws IOException
   {
-    return socket.patchGroupsV2Group(groupChange, authorization.toString(), groupLinkPassword);
+    GroupChange answer = socket.patchGroupsV2Group(groupChange, authorization.toString(), groupLinkPassword);
+    return answer;
   }
 
   public GroupExternalCredential getGroupExternalCredential(GroupsV2AuthorizationString authorization)

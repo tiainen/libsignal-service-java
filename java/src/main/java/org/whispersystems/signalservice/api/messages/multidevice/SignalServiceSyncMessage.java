@@ -7,8 +7,10 @@
 package org.whispersystems.signalservice.api.messages.multidevice;
 
 
-import org.whispersystems.signalservice.api.messages.SignalServiceAttachment;
-import org.whispersystems.signalservice.internal.push.SignalServiceProtos.SyncMessage.PniIdentity;
+import org.whispersystems.signalservice.internal.push.SignalServiceProtos;
+import org.whispersystems.signalservice.internal.push.SignalServiceProtos.SyncMessage.CallEvent;
+import org.whispersystems.signalservice.internal.push.SignalServiceProtos.SyncMessage.CallLinkUpdate;
+import org.whispersystems.signalservice.internal.push.SignalServiceProtos.SyncMessage.CallLogEvent;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -18,7 +20,6 @@ public class SignalServiceSyncMessage {
 
   private final Optional<SentTranscriptMessage>             sent;
   private final Optional<ContactsMessage>                   contacts;
-  private final Optional<SignalServiceAttachment>           groups;
   private final Optional<BlockedListMessage>                blockedList;
   private final Optional<RequestMessage>                    request;
   private final Optional<List<ReadMessage>>                 reads;
@@ -30,29 +31,31 @@ public class SignalServiceSyncMessage {
   private final Optional<KeysMessage>                       keys;
   private final Optional<MessageRequestResponseMessage>     messageRequestResponse;
   private final Optional<OutgoingPaymentMessage>            outgoingPaymentMessage;
-  private final Optional<PniIdentity>                       pniIdentity;
   private final Optional<List<ViewedMessage>>               views;
+  private final Optional<CallEvent>                         callEvent;
+  private final Optional<CallLinkUpdate>                    callLinkUpdate;
+  private final Optional<CallLogEvent>                      callLogEvent;
 
-  private SignalServiceSyncMessage(Optional<SentTranscriptMessage>             sent,
-                                   Optional<ContactsMessage>                   contacts,
-                                   Optional<SignalServiceAttachment>           groups,
-                                   Optional<BlockedListMessage>                blockedList,
-                                   Optional<RequestMessage>                    request,
-                                   Optional<List<ReadMessage>>                 reads,
-                                   Optional<ViewOnceOpenMessage>               viewOnceOpen,
-                                   Optional<VerifiedMessage>                   verified,
-                                   Optional<ConfigurationMessage>              configuration,
+  private SignalServiceSyncMessage(Optional<SentTranscriptMessage> sent,
+                                   Optional<ContactsMessage> contacts,
+                                   Optional<BlockedListMessage> blockedList,
+                                   Optional<RequestMessage> request,
+                                   Optional<List<ReadMessage>> reads,
+                                   Optional<ViewOnceOpenMessage> viewOnceOpen,
+                                   Optional<VerifiedMessage> verified,
+                                   Optional<ConfigurationMessage> configuration,
                                    Optional<List<StickerPackOperationMessage>> stickerPackOperations,
-                                   Optional<FetchType>                         fetchType,
-                                   Optional<KeysMessage>                       keys,
-                                   Optional<MessageRequestResponseMessage>     messageRequestResponse,
-                                   Optional<OutgoingPaymentMessage>            outgoingPaymentMessage,
-                                   Optional<List<ViewedMessage>>               views,
-                                   Optional<PniIdentity>                       pniIdentity)
+                                   Optional<FetchType> fetchType,
+                                   Optional<KeysMessage> keys,
+                                   Optional<MessageRequestResponseMessage> messageRequestResponse,
+                                   Optional<OutgoingPaymentMessage> outgoingPaymentMessage,
+                                   Optional<List<ViewedMessage>> views,
+                                   Optional<CallEvent> callEvent,
+                                   Optional<CallLinkUpdate> callLinkUpdate,
+                                   Optional<CallLogEvent> callLogEvent)
   {
     this.sent                   = sent;
     this.contacts               = contacts;
-    this.groups                 = groups;
     this.blockedList            = blockedList;
     this.request                = request;
     this.reads                  = reads;
@@ -65,11 +68,14 @@ public class SignalServiceSyncMessage {
     this.messageRequestResponse = messageRequestResponse;
     this.outgoingPaymentMessage = outgoingPaymentMessage;
     this.views                  = views;
-    this.pniIdentity            = pniIdentity;
+    this.callEvent              = callEvent;
+    this.callLinkUpdate         = callLinkUpdate;
+    this.callLogEvent           = callLogEvent;
   }
 
   public static SignalServiceSyncMessage forSentTranscript(SentTranscriptMessage sent) {
     return new SignalServiceSyncMessage(Optional.of(sent),
+                                        Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
@@ -103,24 +109,6 @@ public class SignalServiceSyncMessage {
                                         Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
-                                        Optional.empty());
-  }
-
-  public static SignalServiceSyncMessage forGroups(SignalServiceAttachment groups) {
-    return new SignalServiceSyncMessage(Optional.empty(),
-                                        Optional.empty(),
-                                        Optional.of(groups),
-                                        Optional.empty(),
-                                        Optional.empty(),
-                                        Optional.empty(),
-                                        Optional.empty(),
-                                        Optional.empty(),
-                                        Optional.empty(),
-                                        Optional.empty(),
-                                        Optional.empty(),
-                                        Optional.empty(),
-                                        Optional.empty(),
-                                        Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty());
   }
@@ -129,8 +117,9 @@ public class SignalServiceSyncMessage {
     return new SignalServiceSyncMessage(Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
-                                        Optional.empty(),
                                         Optional.of(request),
+                                        Optional.empty(),
+                                        Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
@@ -149,8 +138,9 @@ public class SignalServiceSyncMessage {
                                         Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
-                                        Optional.empty(),
                                         Optional.of(reads),
+                                        Optional.empty(),
+                                        Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
@@ -177,8 +167,9 @@ public class SignalServiceSyncMessage {
                                         Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
-                                        Optional.empty(),
                                         Optional.of(views),
+                                        Optional.empty(),
+                                        Optional.empty(),
                                         Optional.empty());
   }
 
@@ -188,8 +179,9 @@ public class SignalServiceSyncMessage {
                                         Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
-                                        Optional.empty(),
                                         Optional.of(timerRead),
+                                        Optional.empty(),
+                                        Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
@@ -209,8 +201,9 @@ public class SignalServiceSyncMessage {
                                         Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
-                                        Optional.empty(),
                                         Optional.of(reads),
+                                        Optional.empty(),
+                                        Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
@@ -230,8 +223,9 @@ public class SignalServiceSyncMessage {
                                         Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
-                                        Optional.empty(),
                                         Optional.of(verifiedMessage),
+                                        Optional.empty(),
+                                        Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
@@ -245,8 +239,9 @@ public class SignalServiceSyncMessage {
   public static SignalServiceSyncMessage forBlocked(BlockedListMessage blocked) {
     return new SignalServiceSyncMessage(Optional.empty(),
                                         Optional.empty(),
-                                        Optional.empty(),
                                         Optional.of(blocked),
+                                        Optional.empty(),
+                                        Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
@@ -269,8 +264,9 @@ public class SignalServiceSyncMessage {
                                         Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
-                                        Optional.empty(),
                                         Optional.of(configuration),
+                                        Optional.empty(),
+                                        Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
@@ -289,8 +285,9 @@ public class SignalServiceSyncMessage {
                                         Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
-                                        Optional.empty(),
                                         Optional.of(stickerPackOperations),
+                                        Optional.empty(),
+                                        Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
@@ -309,8 +306,9 @@ public class SignalServiceSyncMessage {
                                         Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
-                                        Optional.empty(),
                                         Optional.of(fetchType),
+                                        Optional.empty(),
+                                        Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
@@ -329,8 +327,9 @@ public class SignalServiceSyncMessage {
                                         Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
-                                        Optional.empty(),
                                         Optional.of(keys),
+                                        Optional.empty(),
+                                        Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
@@ -349,8 +348,9 @@ public class SignalServiceSyncMessage {
                                         Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
-                                        Optional.empty(),
                                         Optional.of(messageRequestResponse),
+                                        Optional.empty(),
+                                        Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty());
@@ -369,13 +369,34 @@ public class SignalServiceSyncMessage {
                                         Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
-                                        Optional.empty(),
                                         Optional.of(outgoingPaymentMessage),
+                                        Optional.empty(),
+                                        Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty());
   }
 
-  public static SignalServiceSyncMessage forPniIdentity(PniIdentity pniIdentity) {
+  public static SignalServiceSyncMessage forCallEvent(CallEvent callEvent) {
+    return new SignalServiceSyncMessage(Optional.empty(),
+                                        Optional.empty(),
+                                        Optional.empty(),
+                                        Optional.empty(),
+                                        Optional.empty(),
+                                        Optional.empty(),
+                                        Optional.empty(),
+                                        Optional.empty(),
+                                        Optional.empty(),
+                                        Optional.empty(),
+                                        Optional.empty(),
+                                        Optional.empty(),
+                                        Optional.empty(),
+                                        Optional.empty(),
+                                        Optional.of(callEvent),
+                                        Optional.empty(),
+                                        Optional.empty());
+  }
+
+  public static SignalServiceSyncMessage forCallLinkUpdate(CallLinkUpdate callLinkUpdate) {
     return new SignalServiceSyncMessage(Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
@@ -391,11 +412,33 @@ public class SignalServiceSyncMessage {
                                         Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
-                                        Optional.of(pniIdentity));
+                                        Optional.of(callLinkUpdate),
+                                        Optional.empty());
+  }
+
+  public static SignalServiceSyncMessage forCallLogEvent(CallLogEvent callLogEvent) {
+    return new SignalServiceSyncMessage(Optional.empty(),
+                                        Optional.empty(),
+                                        Optional.empty(),
+                                        Optional.empty(),
+                                        Optional.empty(),
+                                        Optional.empty(),
+                                        Optional.empty(),
+                                        Optional.empty(),
+                                        Optional.empty(),
+                                        Optional.empty(),
+                                        Optional.empty(),
+                                        Optional.empty(),
+                                        Optional.empty(),
+                                        Optional.empty(),
+                                        Optional.empty(),
+                                        Optional.empty(),
+                                        Optional.of(callLogEvent));
   }
 
   public static SignalServiceSyncMessage empty() {
     return new SignalServiceSyncMessage(Optional.empty(),
+                                        Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
                                         Optional.empty(),
@@ -415,10 +458,6 @@ public class SignalServiceSyncMessage {
 
   public Optional<SentTranscriptMessage> getSent() {
     return sent;
-  }
-
-  public Optional<SignalServiceAttachment> getGroups() {
-    return groups;
   }
 
   public Optional<ContactsMessage> getContacts() {
@@ -473,8 +512,16 @@ public class SignalServiceSyncMessage {
     return views;
   }
 
-  public Optional<PniIdentity> getPniIdentity() {
-    return pniIdentity;
+  public Optional<CallEvent> getCallEvent() {
+    return callEvent;
+  }
+
+  public Optional<CallLinkUpdate> getCallLinkUpdate() {
+    return callLinkUpdate;
+  }
+
+  public Optional<CallLogEvent> getCallLogEvent() {
+    return callLogEvent;
   }
 
   public enum FetchType {

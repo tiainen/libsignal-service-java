@@ -39,6 +39,15 @@ public class SignalServiceAddress {
     this.serviceId = serviceId;
     this.e164      = Optional.empty();
   }
+  
+  /**
+   * The preferred way to create a SignalServiceAddress, using a ServiceId from
+   * libsignal.
+   * @param sid 
+   */
+  public SignalServiceAddress(org.signal.libsignal.protocol.ServiceId sid) {
+      this(ServiceId.fromLibSignal(sid));
+  }
 
   /**
    * Convenience constructor that will consider a UUID/E164 string absent if it is null or empty.
