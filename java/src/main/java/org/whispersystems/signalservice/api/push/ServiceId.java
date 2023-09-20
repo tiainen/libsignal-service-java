@@ -10,6 +10,7 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.signal.libsignal.protocol.ServiceId.Aci;
+import org.signal.libsignal.protocol.ServiceId.Pni;
 import org.signal.libsignal.protocol.SignalProtocolAddress;
 
 /**
@@ -205,7 +206,7 @@ public class ServiceId {
     public static class PNI extends ServiceId {
 
         public PNI(UUID uuid) {
-            super(uuid);
+            super(new Pni(uuid));
         }
 
         public PNI(org.signal.libsignal.protocol.ServiceId.Pni spni) {

@@ -1,6 +1,5 @@
 package org.whispersystems.signalservice.api.groupsv2;
 
-import com.gluonhq.snl.NetworkAPI;
 import com.google.protobuf.ByteString;
 
 import org.signal.libsignal.zkgroup.InvalidInputException;
@@ -9,6 +8,7 @@ import org.signal.libsignal.zkgroup.auth.AuthCredentialPresentation;
 import org.signal.libsignal.zkgroup.auth.AuthCredentialWithPni;
 import org.signal.libsignal.zkgroup.auth.AuthCredentialWithPniResponse;
 import org.signal.libsignal.zkgroup.auth.ClientZkAuthOperations;
+import org.signal.libsignal.zkgroup.calllinks.CallLinkAuthCredentialResponse;
 import org.signal.libsignal.zkgroup.groups.ClientZkGroupCipher;
 import org.signal.libsignal.zkgroup.groups.GroupSecretParams;
 import org.signal.storageservice.protos.groups.AvatarUploadAttributes;
@@ -21,7 +21,8 @@ import org.signal.storageservice.protos.groups.GroupJoinInfo;
 import org.signal.storageservice.protos.groups.local.DecryptedGroup;
 import org.signal.storageservice.protos.groups.local.DecryptedGroupChange;
 import org.signal.storageservice.protos.groups.local.DecryptedGroupJoinInfo;
-import org.whispersystems.signalservice.api.push.ServiceId;
+import org.whispersystems.signalservice.api.push.ServiceId.ACI;
+import org.whispersystems.signalservice.api.push.ServiceId.PNI;
 import org.whispersystems.signalservice.internal.push.PushServiceSocket;
 import org.whispersystems.signalservice.internal.push.exceptions.ForbiddenException;
 
@@ -30,11 +31,10 @@ import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import org.whispersystems.signalservice.api.push.ServiceId.ACI;
-import org.whispersystems.signalservice.api.push.ServiceId.PNI;
 
-public final class GroupsV2Api {
+public class GroupsV2Api {
 
   private final PushServiceSocket  socket;
   private final GroupsV2Operations groupsOperations;
@@ -47,10 +47,10 @@ public final class GroupsV2Api {
   /**
    * Provides 7 days of credentials, which you should cache.
    */
-  public HashMap<Long, AuthCredentialWithPniResponse> getCredentials(long todaySeconds)
+  public CredentialResponseMaps getCredentials(long todaySeconds)
       throws IOException
   {
-    return parseCredentialResponse(NetworkAPI.retrieveGroupsV2Credentials(todaySeconds));
+    return parseCredentialResponse(socket.retrieveGroupsV2Credentials(todaySeconds));
   }
 
   /**
@@ -166,8 +166,7 @@ public final class GroupsV2Api {
                                 Optional<byte[]> groupLinkPassword)
       throws IOException
   {
-    GroupChange answer = socket.patchGroupsV2Group(groupChange, authorization.toString(), groupLinkPassword);
-    return answer;
+    return socket.patchGroupsV2Group(groupChange, authorization.toString(), groupLinkPassword);
   }
 
   public GroupExternalCredential getGroupExternalCredential(GroupsV2AuthorizationString authorization)
@@ -176,10 +175,11 @@ public final class GroupsV2Api {
     return socket.getGroupExternalCredential(authorization);
   }
 
-  private static HashMap<Long, AuthCredentialWithPniResponse> parseCredentialResponse(CredentialResponse credentialResponse)
+  private static CredentialResponseMaps parseCredentialResponse(CredentialResponse credentialResponse)
       throws IOException
   {
-    HashMap<Long, AuthCredentialWithPniResponse> credentials = new HashMap<>();
+    HashMap<Long, AuthCredentialWithPniResponse>  credentials         = new HashMap<>();
+    HashMap<Long, CallLinkAuthCredentialResponse> callLinkCredentials = new HashMap<>();
 
     for (TemporalCredential credential : credentialResponse.getCredentials()) {
       AuthCredentialWithPniResponse authCredentialWithPniResponse;
@@ -192,6 +192,44 @@ public final class GroupsV2Api {
       credentials.put(credential.getRedemptionTime(), authCredentialWithPniResponse);
     }
 
-    return credentials;
+    for (TemporalCredential credential : credentialResponse.getCallLinkAuthCredentials()) {
+      CallLinkAuthCredentialResponse callLinkAuthCredentialResponse;
+      try {
+        callLinkAuthCredentialResponse = new CallLinkAuthCredentialResponse(credential.getCredential());
+      } catch (InvalidInputException e) {
+        throw new IOException(e);
+      }
+
+      callLinkCredentials.put(credential.getRedemptionTime(), callLinkAuthCredentialResponse);
+    }
+
+    return new CredentialResponseMaps(credentials, callLinkCredentials);
+  }
+
+  public static class CredentialResponseMaps {
+    private final Map<Long, AuthCredentialWithPniResponse>  authCredentialWithPniResponseHashMap;
+    private final Map<Long, CallLinkAuthCredentialResponse> callLinkAuthCredentialResponseHashMap;
+
+    public CredentialResponseMaps(Map<Long, AuthCredentialWithPniResponse> authCredentialWithPniResponseHashMap,
+                                  Map<Long, CallLinkAuthCredentialResponse> callLinkAuthCredentialResponseHashMap)
+    {
+      this.authCredentialWithPniResponseHashMap  = authCredentialWithPniResponseHashMap;
+      this.callLinkAuthCredentialResponseHashMap = callLinkAuthCredentialResponseHashMap;
+    }
+
+    public Map<Long, AuthCredentialWithPniResponse> getAuthCredentialWithPniResponseHashMap() {
+      return authCredentialWithPniResponseHashMap;
+    }
+
+    public Map<Long, CallLinkAuthCredentialResponse> getCallLinkAuthCredentialResponseHashMap() {
+      return callLinkAuthCredentialResponseHashMap;
+    }
+
+    public CredentialResponseMaps createUnmodifiableCopy() {
+      return new CredentialResponseMaps(
+          Map.copyOf(authCredentialWithPniResponseHashMap),
+          Map.copyOf(callLinkAuthCredentialResponseHashMap)
+      );
+    }
   }
 }

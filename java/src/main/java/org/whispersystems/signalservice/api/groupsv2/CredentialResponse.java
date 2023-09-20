@@ -4,16 +4,25 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class CredentialResponse {
 
-  @JsonProperty
-  private TemporalCredential[] credentials;
+    @JsonProperty
+    private TemporalCredential[] credentials;
 
-  public CredentialResponse() {}
+    @JsonProperty
+    private TemporalCredential[] callLinkAuthCredentials;
 
-  public CredentialResponse(TemporalCredential[] tc) {
-      this.credentials = tc;
-  }
+    public CredentialResponse() {
+    }
 
-  public TemporalCredential[] getCredentials() {
-    return credentials;
-  }
+    public CredentialResponse(TemporalCredential[] tc) {
+        this.credentials = tc;
+    }
+
+    public TemporalCredential[] getCredentials() {
+        return credentials;
+    }
+
+    public TemporalCredential[] getCallLinkAuthCredentials() {
+        return callLinkAuthCredentials;
+    }
+
 }
