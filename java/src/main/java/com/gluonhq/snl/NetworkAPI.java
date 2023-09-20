@@ -135,7 +135,6 @@ public class NetworkAPI {
     public static CredentialResponse retrieveGroupsV2Credentials(long todaySeconds)
             throws IOException {
         try {
-            
             long todayPlus7 = todaySeconds + TimeUnit.DAYS.toSeconds(7);
             URI uri = new URI("xhttps://chat.signal.org/v1/certificate/auth/group?redemptionStartSeconds=" + todaySeconds + "&redemptionEndSeconds=" + todayPlus7);
             Map<String, List<String>> headers = new HashMap<>();

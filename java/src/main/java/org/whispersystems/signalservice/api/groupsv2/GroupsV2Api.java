@@ -29,6 +29,7 @@ import org.whispersystems.signalservice.internal.push.exceptions.ForbiddenExcept
 import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -64,7 +65,7 @@ public class GroupsV2Api {
       throws VerificationFailedException
   {
     ClientZkAuthOperations     authOperations             = groupsOperations.getAuthOperations();
-    AuthCredentialWithPni      authCredentialWithPni      = authOperations.receiveAuthCredentialWithPniAsServiceId(aci.getLibSignalAci(), pni.getLibSignalPni(), redemptionTimeSeconds, authCredentialWithPniResponse);
+    AuthCredentialWithPni      authCredentialWithPni      = authOperations.receiveAuthCredentialWithPniAsAci(aci.getLibSignalAci(), pni.getLibSignalPni(), redemptionTimeSeconds, authCredentialWithPniResponse);
     AuthCredentialPresentation authCredentialPresentation = authOperations.createAuthCredentialPresentation(new SecureRandom(), groupSecretParams, authCredentialWithPni);
 
     return new GroupsV2AuthorizationString(groupSecretParams, authCredentialPresentation);
