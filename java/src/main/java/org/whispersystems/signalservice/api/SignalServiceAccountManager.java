@@ -171,7 +171,6 @@ public class SignalServiceAccountManager {
   }
 
   public byte[] getSenderCertificate() throws IOException {
-   //S   pushServiceSocket.getSenderCertificate();
       return NetworkAPI.getSenderCertificate(credentials);
   }
 

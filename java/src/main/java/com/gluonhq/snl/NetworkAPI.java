@@ -27,6 +27,7 @@ import org.whispersystems.signalservice.api.groupsv2.CredentialResponse;
 import org.whispersystems.signalservice.api.groupsv2.TemporalCredential;
 import org.whispersystems.signalservice.api.push.SignalServiceAddress;
 import org.whispersystems.signalservice.api.push.SignedPreKeyEntity;
+import org.whispersystems.signalservice.api.push.exceptions.AuthorizationFailedException;
 import org.whispersystems.signalservice.api.util.CredentialsProvider;
 import org.whispersystems.signalservice.internal.push.PreKeyEntity;
 import org.whispersystems.signalservice.internal.push.PreKeyResponse;
@@ -65,6 +66,9 @@ public class NetworkAPI {
             Map<String, List<String>> headers = new HashMap<>();
             headers.put("Authorization", List.of(getAuthorizationHeader(cred)));
             Response response = getClient().sendRequest(uri, "GET", new byte[0], headers);
+            if (response.getStatusCode() == 401) {
+                throw new AuthorizationFailedException(response.getStatusCode(), "Got a 401 code from server when asking sendercertifcate");
+            }
             byte[] raw = response.body().bytes();
             return raw;
         } catch (URISyntaxException ex) {
@@ -80,6 +84,7 @@ public class NetworkAPI {
             Map<String, List<String>> headers = new HashMap<>();
             headers.put("Authorization", List.of(getAuthorizationHeader(cred)));
             Response response = getClient().sendRequest(uri, "GET", new byte[0], headers);
+            checkResponseStatus(response.getStatusCode());
             byte[] raw = response.body().bytes();
             UserRemoteConfigListMessage urlm = UserRemoteConfigListMessage.parseFrom(raw);
             for (UserRemoteConfigMessage urcm : urlm.getUserRemoteConfigList()) {
@@ -98,6 +103,7 @@ public class NetworkAPI {
             Map<String, List<String>> headers = new HashMap<>();
             headers.put("Authorization", List.of(getAuthorizationHeader(cp.get())));
             Response response = getClient().sendRequest(uri, "GET", new byte[0], headers);
+            checkResponseStatus(response.getStatusCode());
             byte[] raw = response.body().bytes();
             PreKeyResponseMessage pkrm = PreKeyResponseMessage.parseFrom(raw);
             byte[] keyBytes = pkrm.getIdentityKey().toByteArray();
@@ -140,6 +146,7 @@ public class NetworkAPI {
             Map<String, List<String>> headers = new HashMap<>();
             headers.put("Authorization", List.of(getAuthorizationHeader(cp.get())));
             Response response = getClient().sendRequest(uri, "GET", new byte[0], headers);
+            checkResponseStatus(response.getStatusCode());
             byte[] raw = response.body().bytes();
             CredentialsResponseMessage crm = CredentialsResponseMessage.parseFrom(raw);
             TemporalCredential[] creds = new TemporalCredential[crm.getCredentialsList().size()];
@@ -168,5 +175,9 @@ public class NetworkAPI {
         } catch (UnsupportedEncodingException e) {
             throw new AssertionError(e);
         }
+    }
+
+    private static void checkResponseStatus(int responseCode) throws AuthorizationFailedException {
+        if (responseCode == 401) throw new AuthorizationFailedException(responseCode, "Authorization failed");
     }
 }
