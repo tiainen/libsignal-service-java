@@ -121,6 +121,7 @@ import org.signal.libsignal.protocol.message.SenderKeyDistributionMessage;
 import org.whispersystems.signalservice.api.crypto.ContentHint;
 import org.whispersystems.signalservice.api.crypto.EnvelopeContent;
 import org.whispersystems.signalservice.api.crypto.SignalGroupSessionBuilder;
+import org.whispersystems.signalservice.api.messages.SignalServiceEditMessage;
 import org.whispersystems.signalservice.api.messages.SignalServicePreview;
 import org.whispersystems.signalservice.api.messages.SignalServiceStoryMessage;
 import org.whispersystems.signalservice.api.messages.SignalServiceStoryMessageRecipient;
@@ -135,6 +136,7 @@ import org.whispersystems.signalservice.internal.push.GroupStaleDevices;
 import org.whispersystems.signalservice.internal.push.SendGroupMessageResponse;
 import org.whispersystems.signalservice.internal.push.SignalServiceProtos;
 import org.whispersystems.signalservice.internal.push.SignalServiceProtos.BodyRange;
+import org.whispersystems.signalservice.internal.push.SignalServiceProtos.EditMessage;
 import org.whispersystems.signalservice.internal.push.SignalServiceProtos.Preview;
 import org.whispersystems.signalservice.internal.push.SignalServiceProtos.StoryMessage;
 import org.whispersystems.signalservice.internal.push.SignalServiceProtos.TextAttachment;
@@ -395,10 +397,16 @@ public class SignalServiceMessageSender {
             ContentHint contentHint,
             SignalServiceDataMessage message,
             SenderKeyGroupEvents sendEvents,
-            boolean urgent, boolean isForStory)
+            boolean urgent, boolean isForStory,
+            SignalServiceEditMessage editMessage)
             throws IOException, UntrustedIdentityException, NoSessionException, InvalidKeyException, InvalidRegistrationIdException {
         LOG.info("[" + message.getTimestamp() + "] Sending a group data message to " + recipients.size() + " recipients using DistributionId " + distributionId);
-        Content content = createMessageContent(message);
+        Content content;
+        if (editMessage != null) {
+            content = createEditMessageContent(editMessage);
+        } else {
+            content = createMessageContent(message);
+        }
         Optional<byte[]> groupId = message.getGroupId();
         List<SendMessageResult> results = sendGroupMessage(distributionId, recipients, unidentifiedAccess,
                 message.getTimestamp(), content, contentHint, groupId, false, sendEvents, urgent, isForStory);
@@ -450,6 +458,22 @@ public class SignalServiceMessageSender {
 
         Content content = createMessageContent(message);
         return sendContent(recipient, unidentifiedAccess, contentHint, message, sendEvents, urgent, includePniSignature, content);
+    }
+
+    /**
+     * Send an edit message to a single recipient.
+     */
+    public SendMessageResult sendEditMessage(SignalServiceAddress recipient,
+            Optional<UnidentifiedAccessPair> unidentifiedAccess,
+            ContentHint contentHint,
+            SignalServiceDataMessage message,
+            IndividualSendEvents sendEvents,
+            boolean urgent,
+            long targetSentTimestamp)
+            throws UntrustedIdentityException, IOException {
+        LOG.info("Sending an edit message for " + targetSentTimestamp + ".");
+        Content content = createEditMessageContent(new SignalServiceEditMessage(targetSentTimestamp, message));
+        return sendContent(recipient, unidentifiedAccess, contentHint, message, sendEvents, urgent, false, content);
     }
 
     /**
@@ -987,6 +1011,21 @@ public class SignalServiceMessageSender {
 
     public Content createMessageContent(SignalServiceDataMessage message) throws IOException {
         Content.Builder container = Content.newBuilder();
+        DataMessage.Builder dataMessage = createDataMessage(message);
+        return enforceMaxContentSize(container.setDataMessage(dataMessage).build());
+    }
+
+    private Content createEditMessageContent(SignalServiceEditMessage editMessage) throws IOException {
+        Content.Builder container = Content.newBuilder();
+        DataMessage.Builder dataMessage = createDataMessage(editMessage.getDataMessage());
+        EditMessage.Builder editMessageProto = EditMessage.newBuilder()
+                .setDataMessage(dataMessage)
+                .setTargetSentTimestamp(editMessage.getTargetSentTimestamp());
+
+        return enforceMaxContentSize(container.setEditMessage(editMessageProto).build());
+    }
+
+    private DataMessage.Builder createDataMessage(SignalServiceDataMessage message) throws IOException {
         DataMessage.Builder builder = DataMessage.newBuilder();
         List<AttachmentPointer> pointers = createAttachmentPointers(message.getAttachments());
 
@@ -1148,7 +1187,7 @@ public class SignalServiceMessageSender {
         }
 
         builder.setTimestamp(message.getTimestamp());
-        return enforceMaxContentSize(container.setDataMessage(builder).build());
+        return builder;
     }
 
     private Preview createPreview(SignalServicePreview preview) throws IOException {

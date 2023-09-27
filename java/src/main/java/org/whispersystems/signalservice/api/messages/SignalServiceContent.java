@@ -1080,7 +1080,7 @@ public final class SignalServiceContent {
                                                                  Optional.empty());
   }
 
-  private static SignalServiceStoryMessage createStoryMessage(SignalServiceProtos.StoryMessage content) throws InvalidMessageStructureException {
+  public static SignalServiceStoryMessage createStoryMessage(SignalServiceProtos.StoryMessage content) throws InvalidMessageStructureException {
     byte[] profileKey = content.hasProfileKey() ? content.getProfileKey().toByteArray() : null;
 
     if (content.hasFileAttachment()) {
