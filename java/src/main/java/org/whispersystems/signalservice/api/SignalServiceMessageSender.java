@@ -1959,7 +1959,7 @@ public class SignalServiceMessageSender {
             throws UntrustedIdentityException, IOException {
         enforceMaxContentSize(content);
         long startTime = System.currentTimeMillis();
-        LOG.info("UNA = " + unidentifiedAccess);
+        LOG.info("Do we have a UA token?" + unidentifiedAccess.isPresent());
         for (int i = 0; i < RETRY_COUNT; i++) {
             if (cancelationSignal != null && cancelationSignal.isCanceled()) {
                 throw new CancelationException();
@@ -2350,9 +2350,6 @@ public class SignalServiceMessageSender {
 
     private Optional<UnidentifiedAccess> getTargetUnidentifiedAccess(Optional<UnidentifiedAccessPair> unidentifiedAccess) {
         if (unidentifiedAccess.isPresent()) {
-            LOG.finest("GTE, pair = " + unidentifiedAccess.get() + ", me = "
-                    + Arrays.toString(unidentifiedAccess.get().getSelfUnidentifiedAccess().get().getUnidentifiedAccessKey())
-                    + " and them = " + Arrays.toString(unidentifiedAccess.get().getTargetUnidentifiedAccess().get().getUnidentifiedAccessKey()));
             return unidentifiedAccess.get().getTargetUnidentifiedAccess();
         }
 
