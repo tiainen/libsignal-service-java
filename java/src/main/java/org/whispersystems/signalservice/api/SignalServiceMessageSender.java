@@ -2005,7 +2005,10 @@ public class SignalServiceMessageSender {
                 LOG.info("Got stale devices, handle those!");
                 handleStaleDevices(recipient, ste.getStaleDevices());
                 LOG.info("Got stale devices, handled those!");
-            } catch (Throwable t) {
+            } catch (ProofRequiredException pre) {
+                throw pre;
+            }
+            catch (Throwable t) {
                 LOG.info("CATCHING a throwable.");
                 LOG.info("t = " + t);
                 t.printStackTrace();
