@@ -13,8 +13,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import okio.Buffer;
-import okio.BufferedSink;
 
 /**
  *
@@ -148,12 +146,7 @@ public class MultipartBody {
         public MediaType contentType() {
             return this.contentType;
         }
-//
-//        @Override
-//        public void writeTo(BufferedSink sink) throws IOException {
-//            throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
-//        }
-//
+
         public MultipartBodyPublisher getBodyPublisher() {
             return new MultipartBodyPublisher(this.parts, boundary, Charset.defaultCharset());
         }

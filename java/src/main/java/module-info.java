@@ -3,9 +3,7 @@ module org.whispersystems.service {
     requires java.net.http;
     requires com.google.protobuf;
     requires grpc.stub;
-    // requires libphonenumber;
     requires grpcproxy.client;
-    requires okio;
     requires com.fasterxml.jackson.annotation;
     requires com.fasterxml.jackson.core;
     requires com.fasterxml.jackson.databind;
@@ -33,7 +31,6 @@ module org.whispersystems.service {
     exports org.whispersystems.signalservice.api.websocket;
     exports org.whispersystems.util;
     exports com.gluonhq.snl;
- //   exports tokhttp3;
     opens org.whispersystems.signalservice.api.groupsv2 to com.fasterxml.jackson.databind;
     opens org.whispersystems.signalservice.internal.push to com.fasterxml.jackson.databind;
     opens org.whispersystems.signalservice.api.messages.calls to com.fasterxml.jackson.databind;
