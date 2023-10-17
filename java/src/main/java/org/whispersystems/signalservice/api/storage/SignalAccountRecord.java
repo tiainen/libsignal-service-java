@@ -16,6 +16,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import org.whispersystems.signalservice.api.payments.PaymentsConstants;
+import org.whispersystems.signalservice.internal.storage.protos.OptionalBool;
 
 public final class SignalAccountRecord implements SignalRecord {
 
@@ -44,9 +46,9 @@ public final class SignalAccountRecord implements SignalRecord {
     this.profileKey           = OptionalUtil.absentIfEmpty(proto.getProfileKey());
     this.avatarUrlPath        = OptionalUtil.absentIfEmpty(proto.getAvatarUrlPath());
     this.pinnedConversations  = new ArrayList<>(proto.getPinnedConversationsCount());
-//    this.payments             = new Payments(proto.getPayments().getEnabled(), OptionalUtil.absentIfEmpty(proto.getPayments().getEntropy()));
-//    this.defaultReactions     = new ArrayList<>(proto.getPreferredReactionEmojiList());
-//    this.subscriber           = new Subscriber(proto.getSubscriberCurrencyCode(), proto.getSubscriberId().toByteArray());
+    this.payments             = new Payments(proto.getPayments().getEnabled(), OptionalUtil.absentIfEmpty(proto.getPayments().getEntropy()));
+    this.defaultReactions     = new ArrayList<>(proto.getPreferredReactionEmojiList());
+    this.subscriber           = new Subscriber(proto.getSubscriberCurrencyCode(), proto.getSubscriberId().toByteArray());
 
     for (AccountRecord.PinnedConversation conversation : proto.getPinnedConversationsList()) {
       pinnedConversations.add(PinnedConversation.fromRemote(conversation));
@@ -161,6 +163,42 @@ public final class SignalAccountRecord implements SignalRecord {
         diff.add("DisplayBadgesOnProfile");
       }
 
+      if (!Objects.equals(this.isSubscriptionManuallyCancelled(), that.isSubscriptionManuallyCancelled())) {
+        diff.add("SubscriptionManuallyCancelled");
+      }
+
+      if (isKeepMutedChatsArchived() != that.isKeepMutedChatsArchived()) {
+        diff.add("KeepMutedChatsArchived");
+      }
+
+      if (hasSetMyStoriesPrivacy() != that.hasSetMyStoriesPrivacy()) {
+        diff.add("HasSetMyStoryPrivacy");
+      }
+
+      if (hasViewedOnboardingStory() != that.hasViewedOnboardingStory()) {
+        diff.add("HasViewedOnboardingStory");
+      }
+
+      if (isStoriesDisabled() != that.isStoriesDisabled()) {
+        diff.add("StoriesDisabled");
+      }
+
+      if (getStoryViewReceiptsState() != that.getStoryViewReceiptsState()) {
+        diff.add("StoryViewedReceipts");
+      }
+
+      if (hasReadOnboardingStory() != that.hasReadOnboardingStory()) {
+        diff.add("HasReadOnboardingStory");
+      }
+
+      if (hasSeenGroupStoryEducationSheet() != that.hasSeenGroupStoryEducationSheet()) {
+        diff.add("HasSeenGroupStoryEducationSheet");
+      }
+
+      if (!Objects.equals(getUsername(), that.getUsername())) {
+        diff.add("Username");
+      }
+
       return diff.toString();
     } else {
       return "Different class. " + getClass().getSimpleName() + " | " + other.getClass().getSimpleName();
@@ -259,6 +297,10 @@ public final class SignalAccountRecord implements SignalRecord {
     return proto.getDisplayBadgesOnProfile();
   }
 
+  public boolean isSubscriptionManuallyCancelled() {
+    return proto.getSubscriptionManuallyCancelled();
+  }
+
   public boolean isKeepMutedChatsArchived() {
     return proto.getKeepMutedChatsArchived();
   }
@@ -267,8 +309,28 @@ public final class SignalAccountRecord implements SignalRecord {
     return proto.getHasSetMyStoriesPrivacy();
   }
 
+  public boolean hasViewedOnboardingStory() {
+    return proto.getHasViewedOnboardingStory();
+  }
+
   public boolean isStoriesDisabled() {
     return proto.getStoriesDisabled();
+  }
+
+  public OptionalBool getStoryViewReceiptsState() {
+    return proto.getStoryViewReceiptsEnabled();
+  }
+
+  public boolean hasReadOnboardingStory() {
+    return proto.getHasReadOnboardingStory();
+  }
+
+  public boolean hasSeenGroupStoryEducationSheet() {
+    return proto.getHasSeenGroupStoryEducationSheet();
+  }
+
+  public String getUsername() {
+    return proto.getUsername();
   }
 
   AccountRecord toProto() {
@@ -422,13 +484,13 @@ public final class SignalAccountRecord implements SignalRecord {
     private  Optional<byte[]> entropy;
 
     public Payments(boolean enabled, Optional<byte[]> entropy) {
-//      byte[] entropyBytes = entropy.orNull();
-//      if (entropyBytes != null && entropyBytes.length != PaymentsConstants.PAYMENTS_ENTROPY_LENGTH) {
-//        Log.w(TAG, "Blocked entropy of length " + entropyBytes.length);
-//        entropyBytes = null;
-//      }
-//      this.entropy = Optional.fromNullable(entropyBytes);
-//      this.enabled = enabled && this.entropy.isPresent();
+      byte[] entropyBytes = entropy.orElse(null);
+      if (entropyBytes != null && entropyBytes.length != PaymentsConstants.PAYMENTS_ENTROPY_LENGTH) {
+        Log.w(TAG, "Blocked entropy of length " + entropyBytes.length);
+        entropyBytes = null;
+      }
+      this.entropy = Optional.ofNullable(entropyBytes);
+      this.enabled = enabled && this.entropy.isPresent();
     }
 
     public boolean isEnabled() {
@@ -458,16 +520,19 @@ public final class SignalAccountRecord implements SignalRecord {
     private final StorageId             id;
     private final AccountRecord.Builder builder;
 
-    private byte[] unknownFields;
-
+    // added convenience constructor
     public Builder(byte[] rawId) {
-      this.id      = StorageId.forAccount(rawId);
-      this.builder = AccountRecord.newBuilder();
+        this (rawId, null);
     }
 
-    public Builder setUnknownFields(byte[] serializedUnknowns) {
-      this.unknownFields = serializedUnknowns;
-      return this;
+    public Builder(byte[] rawId, byte[] serializedUnknowns) {
+      this.id = StorageId.forAccount(rawId);
+
+      if (serializedUnknowns != null) { 
+        this.builder = parseUnknowns(serializedUnknowns);
+      } else {
+        this.builder = AccountRecord.newBuilder();
+      }
     }
 
     public Builder setGivenName(String givenName) {
@@ -546,17 +611,17 @@ public final class SignalAccountRecord implements SignalRecord {
     }
 
     public Builder setPayments(boolean enabled, byte[] entropy) {
-//      org.whispersystems.signalservice.internal.storage.protos.Payments.Builder paymentsBuilder = org.whispersystems.signalservice.internal.storage.protos.Payments.newBuilder();
-//
-//      boolean entropyPresent = entropy != null && entropy.length == PaymentsConstants.PAYMENTS_ENTROPY_LENGTH;
-//
-//      paymentsBuilder.setEnabled(enabled && entropyPresent);
-//
-//      if (entropyPresent) {
-//        paymentsBuilder.setEntropy(ByteString.copyFrom(entropy));
-//      }
-//
-//      builder.setPayments(paymentsBuilder);
+      org.whispersystems.signalservice.internal.storage.protos.Payments.Builder paymentsBuilder = org.whispersystems.signalservice.internal.storage.protos.Payments.newBuilder();
+
+      boolean entropyPresent = entropy != null && entropy.length == PaymentsConstants.PAYMENTS_ENTROPY_LENGTH;
+
+      paymentsBuilder.setEnabled(enabled && entropyPresent);
+
+      if (entropyPresent) {
+        paymentsBuilder.setEntropy(ByteString.copyFrom(entropy));
+      }
+
+      builder.setPayments(paymentsBuilder);
 
       return this;
     }
@@ -599,24 +664,68 @@ public final class SignalAccountRecord implements SignalRecord {
       return this;
     }
 
+    public Builder setSubscriptionManuallyCancelled(boolean subscriptionManuallyCancelled) {
+      builder.setSubscriptionManuallyCancelled(subscriptionManuallyCancelled);
+      return this;
+    }
+
+    public Builder setKeepMutedChatsArchived(boolean keepMutedChatsArchived) {
+      builder.setKeepMutedChatsArchived(keepMutedChatsArchived);
+      return this;
+    }
+
+    public Builder setHasSetMyStoriesPrivacy(boolean hasSetMyStoriesPrivacy) {
+      builder.setHasSetMyStoriesPrivacy(hasSetMyStoriesPrivacy);
+      return this;
+    }
+
+    public Builder setHasViewedOnboardingStory(boolean hasViewedOnboardingStory) {
+      builder.setHasViewedOnboardingStory(hasViewedOnboardingStory);
+      return this;
+    }
+
     public Builder setStoriesDisabled(boolean storiesDisabled) {
       builder.setStoriesDisabled(storiesDisabled);
       return this;
     }
 
-    public SignalAccountRecord build() {
-      AccountRecord proto = builder.build();
+    public Builder setStoryViewReceiptsState(OptionalBool storyViewedReceiptsEnabled) {
+      builder.setStoryViewReceiptsEnabled(storyViewedReceiptsEnabled);
+      return this;
+    }
 
-      if (unknownFields != null) {
-        try {
-          proto = ProtoUtil.combineWithUnknownFields(proto, unknownFields);
-        } catch (InvalidProtocolBufferException e) {
-          Log.w(TAG, "Failed to combine unknown fields!", e);
-          throw new IllegalStateException(e);
-        }
+    public Builder setHasReadOnboardingStory(boolean hasReadOnboardingStory) {
+      builder.setHasReadOnboardingStory(hasReadOnboardingStory);
+      return this;
+    }
+
+    public Builder setHasSeenGroupStoryEducationSheet(boolean hasSeenGroupStoryEducationSheet) {
+      builder.setHasSeenGroupStoryEducationSheet(hasSeenGroupStoryEducationSheet);
+      return this;
+    }
+
+    public Builder setUsername(String username) {
+      if (username == null || username.isEmpty()) {
+        builder.clearUsername();
+      } else {
+        builder.setUsername(username);
       }
 
-      return new SignalAccountRecord(id, proto);
+      return this;
     }
+
+    private static AccountRecord.Builder parseUnknowns(byte[] serializedUnknowns) {
+      try {
+        return AccountRecord.parseFrom(serializedUnknowns).toBuilder();
+      } catch (InvalidProtocolBufferException e) {
+        Log.w(TAG, "Failed to combine unknown fields!", e);
+        return AccountRecord.newBuilder();
+      }
+    }
+
+    public SignalAccountRecord build() {
+      return new SignalAccountRecord(id, builder.build());
+    }
+
   }
 }
