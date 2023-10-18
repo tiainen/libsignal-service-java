@@ -491,7 +491,7 @@ public abstract class NetworkClient {
             throw new IOException("Trying to use a closed networkclient " + this);
         }
         CompletableFuture<Response> response = implAsyncSendRequest(request, raw);
-        response.thenApply(res -> validateResponse(res));
+        response.thenApply(res -> validateResponse(request.uri(), res));
         return response;
     }
     
@@ -517,21 +517,25 @@ public abstract class NetworkClient {
             throw new IOException("Trying to use a closed networkclient " + this);
         }
         CompletableFuture<Response> response = implAsyncSendRequest(uri, method, body, headers);
-        response.thenApply(res -> validateResponse(res));
+        response.thenApply(res -> validateResponse(uri, res));
         return response;
     }
 
     protected abstract CompletableFuture<Response> implAsyncSendRequest(HttpRequest request, byte[] raw) throws IOException;
     protected abstract CompletableFuture<Response> implAsyncSendRequest(URI uri, String method, byte[] body, Map<String, List<String>> headers) throws IOException;
 
-    private Response validateResponse(Response response) {
+    private Response validateResponse(URI uri, Response response) {
         try {
             int statusCode = response.getStatusCode();
             switch (statusCode) {
                 case 409:
-                    LOG.info("Got a 409 exception, throw MMDE");
-                    MismatchedDevices mismatchedDevices = readResponseJson(response, MismatchedDevices.class);
-                    throw new MismatchedDevicesException(mismatchedDevices);
+                    if (uri.getHost().indexOf("storage") > -1) {
+                        LOG.info("Got a 409 exception in a storage request, ignore in this layer");
+                    } else {
+                        LOG.info("Got a 409 exception, throw MMDE");
+                        MismatchedDevices mismatchedDevices = readResponseJson(response, MismatchedDevices.class);
+                        throw new MismatchedDevicesException(mismatchedDevices);
+                    }
             }
         } catch (Exception e) {
             throw new RuntimeException(e);

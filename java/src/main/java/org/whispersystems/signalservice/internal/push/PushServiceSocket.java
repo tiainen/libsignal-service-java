@@ -1763,38 +1763,39 @@ public class PushServiceSocket {
         Response response = null;
         try {
             response = client.sendRequest(hrBuilder.build(), rawBytes);
-            statusCode = response.getStatusCode();
-            
-            if (response.isSuccessful() && response.getStatusCode() != 204) {
-                return response;
-            }
+        } catch (IOException ex) {
+            LOG.log(Level.SEVERE, null, ex);
+            throw new PushNetworkException(ex);
+        }
+        statusCode = response.getStatusCode();
 
-            ResponseBody responseBody = response.body();
+        if (response.isSuccessful() && response.getStatusCode() != 204) {
+            return response;
+        }
 
-            responseCodeHandler.handle(response.getStatusCode(), responseBody, response::header);
+        ResponseBody responseBody = response.body();
 
-            switch (response.getStatusCode()) {
-                case 204:
-                    throw new NoContentException("No content!");
-                case 401:
-                case 403:
-                    throw new AuthorizationFailedException(response.getStatusCode(), "Authorization failed!");
-                case 404:
-                    throw new NotFoundException("Not found");
-                case 409:
-                    if (response.body() != null) {
-                        throw new ContactManifestMismatchException(readBodyBytes(response.body()));
-                    } else {
-                        throw new ConflictException();
-                    }
-                case 429:
-                    throw new RateLimitException(response.getStatusCode(), "Rate limit exceeded: " + response.getStatusCode());
-                case 499:
-                    throw new DeprecatedVersionException();
-            }
-        } catch (IOException e) {
-            throw new PushNetworkException(e);
-        } 
+        responseCodeHandler.handle(response.getStatusCode(), responseBody, response::header);
+
+        switch (response.getStatusCode()) {
+            case 204:
+                throw new NoContentException("No content!");
+            case 401:
+            case 403:
+                throw new AuthorizationFailedException(response.getStatusCode(), "Authorization failed!");
+            case 404:
+                throw new NotFoundException("Not found");
+            case 409:
+                if (response.body() != null) {
+                    throw new ContactManifestMismatchException(readBodyBytes(response.body()));
+                } else {
+                    throw new ConflictException();
+                }
+            case 429:
+                throw new RateLimitException(response.getStatusCode(), "Rate limit exceeded: " + response.getStatusCode());
+            case 499:
+                throw new DeprecatedVersionException();
+        }
         throw new NonSuccessfulResponseCodeException(statusCode, "Response: " + response);
     }
 

@@ -708,7 +708,6 @@ public class SignalServiceAccountManager {
     }
 
     Optional<StorageManifest> conflict = this.pushServiceSocket.writeStorageContacts(authToken, writeBuilder.build());
-
     if (conflict.isPresent()) {
       StorageManifestKey conflictKey       = storageKey.deriveManifestKey(conflict.get().getVersion());
       byte[]             rawManifestRecord = SignalStorageCipher.decrypt(conflictKey, conflict.get().getValue().toByteArray());
@@ -719,8 +718,7 @@ public class SignalServiceAccountManager {
         ids.add(StorageId.forType(id.getRaw().toByteArray(), id.getTypeValue()));
       }
 
-      SignalStorageManifest conflictManifest = new SignalStorageManifest(record.getVersion(), ids);
-
+      SignalStorageManifest conflictManifest = new SignalStorageManifest(record.getVersion(), record.getSourceDevice(), ids);
       return Optional.of(conflictManifest);
     } else {
       return Optional.empty();
