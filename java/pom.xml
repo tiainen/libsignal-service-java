@@ -27,7 +27,7 @@
         <dependency>
           <groupId>org.signal</groupId>
           <artifactId>libsignal-client</artifactId>
-          <version>0.31.0-gluon-1</version>
+          <version>0.31.0-gluon-2</version>
         </dependency>
         <dependency>
           <groupId>io.privacyresearch</groupId>
