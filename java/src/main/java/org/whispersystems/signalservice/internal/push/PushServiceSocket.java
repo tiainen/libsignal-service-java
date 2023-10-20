@@ -7,7 +7,6 @@ package org.whispersystems.signalservice.internal.push;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.gluonhq.snl.Credentials;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageLite;
 
@@ -128,13 +127,15 @@ import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.gluonhq.snl.doubt.RequestBody;
+import com.gluonhq.snl.Credentials;
 import com.gluonhq.snl.NetworkClient;
+import com.gluonhq.snl.NetworkMode;
 import com.gluonhq.snl.Response;
 import com.gluonhq.snl.ResponseBody;
 import com.gluonhq.snl.doubt.MediaType;
 import com.gluonhq.snl.doubt.MultipartBody;
 import com.gluonhq.snl.doubt.MultipartBodyPublisher;
+import com.gluonhq.snl.doubt.RequestBody;
 
 import org.signal.libsignal.zkgroup.receipts.ReceiptCredentialPresentation;
 import org.signal.libsignal.protocol.InvalidKeyException;
@@ -1892,7 +1893,7 @@ public class PushServiceSocket {
     }
 
     private static NetworkClient createConnectionClient(SignalUrl url, Optional<SignalProxy> proxy) {
-      return NetworkClient.createNetworkClient(url, "FOO", true);
+      return NetworkClient.createNetworkClient(NetworkMode.get(), url, "FOO", true);
     }
 
     private String getAuthorizationHeader(CredentialsProvider credentialsProvider) {

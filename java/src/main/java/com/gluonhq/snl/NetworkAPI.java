@@ -20,11 +20,17 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.signal.chat.device.GetDevicesRequest;
+import org.signal.chat.device.GetDevicesResponse;
+import org.signal.libsignal.chat.DeviceClient;
+import org.signal.libsignal.chat.SignalChatCommunicationFailureException;
 import org.signal.libsignal.protocol.IdentityKey;
 import org.signal.libsignal.protocol.InvalidKeyException;
 import org.signal.libsignal.protocol.ecc.ECPublicKey;
 import org.whispersystems.signalservice.api.groupsv2.CredentialResponse;
 import org.whispersystems.signalservice.api.groupsv2.TemporalCredential;
+import org.whispersystems.signalservice.api.messages.multidevice.DeviceInfo;
+import org.whispersystems.signalservice.api.profiles.SignalServiceProfile;
 import org.whispersystems.signalservice.api.push.SignalServiceAddress;
 import org.whispersystems.signalservice.api.push.SignedPreKeyEntity;
 import org.whispersystems.signalservice.api.push.exceptions.AuthorizationFailedException;
@@ -45,9 +51,11 @@ public class NetworkAPI {
     static private NetworkClient networkClient;
     private static final Logger LOG = Logger.getLogger(NetworkAPI.class.getName());
 
+    private static final NetworkMode networkMode = NetworkMode.get();
+
     private static NetworkClient getClient() {
         if (networkClient == null) {
-            networkClient = NetworkClient.createNetworkClient(cp);
+            networkClient = NetworkClient.createNetworkClient(networkMode, cp);
         }
         return networkClient;
     }
@@ -163,6 +171,45 @@ public class NetworkAPI {
             throw new IOException(ex);
 
         }
+    }
+
+    public static List<DeviceInfo> getDevices(CredentialsProvider cred) throws IOException {
+        if (networkMode == NetworkMode.GRPC) {
+            String waveGrpcHost = System.getProperty("wave.grpchost", "https://grpcproxy.gluonhq.net:50052");
+            try {
+                DeviceClient deviceClient = new DeviceClient(waveGrpcHost);
+                GetDevicesResponse getDevicesResponse = deviceClient.getDevices(GetDevicesRequest.newBuilder().build(), getAuthorizationHeader(cred));
+                return convertToSignalApiEntities(getDevicesResponse);
+            } catch (SignalChatCommunicationFailureException e) {
+                LOG.log(Level.SEVERE, null, e);
+                throw new IOException(e);
+            }
+        } else {
+            try {
+                URI uri = new URI("xhttps://chat.signal.org/v1/devices/");
+                Map<String, List<String>> headers = new HashMap<>();
+                headers.put("Authorization", List.of(getAuthorizationHeader(cred)));
+                Response response = getClient().sendRequest(uri, "GET", new byte[0], headers);
+                if (response.getStatusCode() == 401) {
+                    throw new AuthorizationFailedException(response.getStatusCode(), "Got a 401 code from server when getting devices");
+                }
+                byte[] raw = response.body().bytes();
+                GetDevicesResponse getDevicesResponse = GetDevicesResponse.parseFrom(raw);
+                return convertToSignalApiEntities(getDevicesResponse);
+            } catch (URISyntaxException ex) {
+                Logger.getLogger(NetworkAPI.class.getName()).log(Level.SEVERE, null, ex);
+                throw new IOException(ex);
+            }
+        }
+    }
+
+    private static List<DeviceInfo> convertToSignalApiEntities(GetDevicesResponse getDevicesResponse) {
+        List<DeviceInfo> answer = new ArrayList<>();
+        for (GetDevicesResponse.LinkedDevice linkedDevice : getDevicesResponse.getDevicesList()) {
+            answer.add(new DeviceInfo(linkedDevice.getId(), linkedDevice.getName().toStringUtf8(),
+                linkedDevice.getCreated(), linkedDevice.getLastSeen()));
+        }
+        return answer;
     }
 
     private static String getAuthorizationHeader(CredentialsProvider credentialsProvider) {

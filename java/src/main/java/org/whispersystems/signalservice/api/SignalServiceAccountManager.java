@@ -777,7 +777,7 @@ public class SignalServiceAccountManager {
   }
 
   public List<DeviceInfo> getDevices() throws IOException {
-    return this.pushServiceSocket.getDevices();
+    return NetworkAPI.getDevices(credentials);
   }
 
   public void removeDevice(long deviceId) throws IOException {

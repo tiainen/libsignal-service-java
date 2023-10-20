@@ -41,8 +41,8 @@ public class LegacyNetworkClient extends NetworkClient {
     KeepAliveSender keepAliveSender;
     private static final int KEEPALIVE_TIMEOUT_SECONDS = 55;
 
-    public LegacyNetworkClient(SignalUrl url, Optional<CredentialsProvider> cp, String signalAgent, Optional<ConnectivityListener> connectivityListener, boolean allowStories) {
-        super(url, cp, signalAgent, connectivityListener, allowStories);
+    public LegacyNetworkClient(NetworkMode networkMode, SignalUrl url, Optional<CredentialsProvider> cp, String signalAgent, Optional<ConnectivityListener> connectivityListener, boolean allowStories) {
+        super(networkMode, url, cp, signalAgent, connectivityListener, allowStories);
         this.httpClient = buildClient();
     }
 

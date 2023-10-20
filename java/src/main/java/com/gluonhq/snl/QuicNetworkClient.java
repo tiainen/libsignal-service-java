@@ -43,12 +43,13 @@ public class QuicNetworkClient extends NetworkClient {
     private final ExecutorService directExecutorService = Executors.newFixedThreadPool(1);
 
 
-    public QuicNetworkClient(SignalUrl url, String agent, boolean allowStories) {
-        this(url, Optional.empty(), agent, Optional.empty(), allowStories);
+    public QuicNetworkClient(NetworkMode networkMode, SignalUrl url, String agent, boolean allowStories) {
+        this(networkMode, url, Optional.empty(), agent, Optional.empty(), allowStories);
     }
 
-    public QuicNetworkClient(SignalUrl url, Optional<CredentialsProvider> cp, String signalAgent, Optional<ConnectivityListener> connectivityListener, boolean allowStories) {
-        super(url, cp, signalAgent, connectivityListener, allowStories);
+    public QuicNetworkClient(NetworkMode networkMode, SignalUrl url, Optional<CredentialsProvider> cp, String signalAgent, Optional<ConnectivityListener> connectivityListener, boolean allowStories) {
+        super(networkMode, url, cp, signalAgent, connectivityListener, allowStories);
+
         URI uri = null;
         this.kwikAddress = System.getProperty("wave.kwikhost", "swave://grpcproxy.gluonhq.net:7444");
 

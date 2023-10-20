@@ -24,6 +24,13 @@ public class DeviceInfo {
 
   public DeviceInfo() {}
 
+  public DeviceInfo(long id, String name, long created, long lastSeen) {
+    this.id = id;
+    this.name = name;
+    this.created = created;
+    this.lastSeen = lastSeen;
+  }
+
   public long getId() {
     return id;
   }

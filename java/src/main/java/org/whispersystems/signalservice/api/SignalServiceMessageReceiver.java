@@ -7,6 +7,7 @@
 package org.whispersystems.signalservice.api;
 
 import com.gluonhq.snl.NetworkClient;
+import com.gluonhq.snl.NetworkMode;
 import org.signal.libsignal.zkgroup.profiles.ClientZkProfileOperations;
 import org.signal.libsignal.zkgroup.profiles.ProfileKey;
 import org.signal.libsignal.protocol.InvalidMessageException;
@@ -186,7 +187,7 @@ public class SignalServiceMessageReceiver {
    * @return A SignalServiceMessagePipe for receiving Signal Service messages.
    */
     public NetworkClient createMessagePipe(Consumer callback) {
-        NetworkClient networkClient = NetworkClient.createNetworkClient(urls.getSignalServiceUrls()[0], Optional.of(credentialsProvider), signalAgent, Optional.of(connectivityListener), allowStories);
+        NetworkClient networkClient = NetworkClient.createNetworkClient(NetworkMode.get(), urls.getSignalServiceUrls()[0], Optional.of(credentialsProvider), signalAgent, Optional.of(connectivityListener), allowStories);
         callback.accept(networkClient);
 //                                                            Optional.of(credentialsProvider), signalAgent,  )
 //    WebSocketConnection webSocket = new WebSocketConnection(urls.getSignalServiceUrls()[0].getUrl(),
@@ -203,7 +204,7 @@ public class SignalServiceMessageReceiver {
     }
 
   public NetworkClient createUnidentifiedMessagePipe(Consumer callback) {
-              NetworkClient networkClient = NetworkClient.createNetworkClient(urls.getSignalServiceUrls()[0], Optional.empty(), signalAgent, Optional.of(connectivityListener), allowStories);
+              NetworkClient networkClient = NetworkClient.createNetworkClient(NetworkMode.get(), urls.getSignalServiceUrls()[0], Optional.empty(), signalAgent, Optional.of(connectivityListener), allowStories);
         callback.accept(networkClient);
               return networkClient;
 
