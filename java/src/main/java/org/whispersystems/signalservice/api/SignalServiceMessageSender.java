@@ -1028,7 +1028,6 @@ public class SignalServiceMessageSender {
     private DataMessage.Builder createDataMessage(SignalServiceDataMessage message) throws IOException {
         DataMessage.Builder builder = DataMessage.newBuilder();
         List<AttachmentPointer> pointers = createAttachmentPointers(message.getAttachments());
-
         if (!pointers.isEmpty()) {
             builder.addAllAttachments(pointers);
 

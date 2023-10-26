@@ -29,4 +29,6 @@ public class ResponseBody<T> {
         return -1;
     }
 
+    public void close(){
+    }
 }

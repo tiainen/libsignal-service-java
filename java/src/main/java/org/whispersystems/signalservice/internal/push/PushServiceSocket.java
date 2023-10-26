@@ -1705,12 +1705,10 @@ public class PushServiceSocket {
 
     private void makeAndCloseStorageRequest(String authorization, String path, String method, RequestBody body, ResponseCodeHandler responseCodeHandler)
             throws PushNetworkException, NonSuccessfulResponseCodeException {
-            throw new UnsupportedOperationException("NYI");
-//
-//        ResponseBody responseBody = makeStorageRequest(authorization, path, method, body, responseCodeHandler);
-//        if (responseBody != null) {
-//            responseBody.close();
-//        }
+        ResponseBody responseBody = makeStorageRequest(authorization, path, method, body, responseCodeHandler);
+        if (responseBody != null) {
+            responseBody.close();
+        }
     }
 
     private ResponseBody makeStorageRequest(String authorization, String path, String method, RequestBody body)
