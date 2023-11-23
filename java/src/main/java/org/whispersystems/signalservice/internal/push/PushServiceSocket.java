@@ -8,6 +8,7 @@ package org.whispersystems.signalservice.internal.push;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.gluonhq.snl.Credentials;
+import com.gluonhq.snl.LegacyNetworkClient;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.MessageLite;
 
@@ -135,6 +136,7 @@ import com.gluonhq.snl.ResponseBody;
 import com.gluonhq.snl.doubt.MediaType;
 import com.gluonhq.snl.doubt.MultipartBody;
 import com.gluonhq.snl.doubt.MultipartBodyPublisher;
+import java.util.Arrays;
 
 import org.signal.libsignal.zkgroup.receipts.ReceiptCredentialPresentation;
 import org.signal.libsignal.protocol.InvalidKeyException;
@@ -215,7 +217,7 @@ public class PushServiceSocket {
     private static final String STICKER_MANIFEST_PATH = "stickers/%s/manifest.proto";
     private static final String STICKER_PATH = "stickers/%s/full/%d";
   
-    private static final String GROUPSV2_CREDENTIAL = "/v1/certificate/auth/group?redemptionStartSeconds=%d&redemptionEndSeconds=%d";
+    private static final String GROUPSV2_CREDENTIAL = "/v1/certificate/auth/group?redemptionStartSeconds=%d&redemptionEndSeconds=%d&pniAsServiceId=true";
 
   //  private static final String GROUPSV2_CREDENTIAL = "/v1/certificate/group/%d/%d";
     private static final String GROUPSV2_GROUP = "/v1/groups/";
@@ -2184,8 +2186,8 @@ public class PushServiceSocket {
                 "PATCH",
                 protobufRequestBody(groupChange),
                 GROUPS_V2_PATCH_RESPONSE_HANDLER);
-        System.err.println("RESPONSE OF PATCH GROUP = "+response);
-        return GroupChange.parseFrom(readBodyBytes(response));
+        GroupChange answer = GroupChange.parseFrom(readBodyBytes(response));
+        return answer;
     }
 
     public GroupHistory getGroupsV2GroupHistory(int fromVersion, GroupsV2AuthorizationString authorization, int highestKnownEpoch, boolean includeFirstState)

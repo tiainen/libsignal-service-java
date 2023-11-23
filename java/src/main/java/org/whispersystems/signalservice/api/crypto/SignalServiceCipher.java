@@ -58,6 +58,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.logging.Logger;
+import org.signal.libsignal.protocol.InvalidSessionException;
 
 /**
  * This is used to encrypt + decrypt received envelopes.
@@ -113,16 +114,19 @@ public class SignalServiceCipher {
                                      EnvelopeContent              content)
       throws UntrustedIdentityException, InvalidKeyException
   {
+      try {
+     SignalSessionCipher sessionCipher = new SignalSessionCipher(sessionLock, new SessionCipher(signalProtocolStore, destination));
     if (unidentifiedAccess.isPresent()) {
-      SignalSessionCipher       sessionCipher        = new SignalSessionCipher(sessionLock, new SessionCipher(signalProtocolStore, destination));
       SignalSealedSessionCipher sealedSessionCipher  = new SignalSealedSessionCipher(sessionLock, new SealedSessionCipher(signalProtocolStore, localAddress.getServiceId().getRawUuid(), localAddress.getNumber().orElse(null), localDeviceId));
 
       return content.processSealedSender(sessionCipher, sealedSessionCipher, destination, unidentifiedAccess.get().getUnidentifiedCertificate());
     } else {
-      SignalSessionCipher sessionCipher = new SignalSessionCipher(sessionLock, new SessionCipher(signalProtocolStore, destination));
 
       return content.processUnsealedSender(sessionCipher, destination);
     }
+      } catch (NoSessionException e) {
+          throw new InvalidSessionException("Session not found.");
+      }
   }
 
   public SignalServiceCipherResult decrypt(Envelope envelope, long serverDeliveredTimestamp)

@@ -27,7 +27,7 @@ public class SignalSessionCipher {
     this.cipher = cipher;
   }
 
-  public CiphertextMessage encrypt(byte[] paddedMessage) throws UntrustedIdentityException {
+  public CiphertextMessage encrypt(byte[] paddedMessage) throws UntrustedIdentityException, NoSessionException {
     try (SignalSessionLock.Lock unused = lock.acquire()) {
       return cipher.encrypt(paddedMessage);
     }

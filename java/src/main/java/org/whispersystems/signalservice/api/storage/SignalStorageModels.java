@@ -33,7 +33,6 @@ public final class SignalStorageModels {
     byte[]        rawRecord = SignalStorageCipher.decrypt(storageKey.deriveItemKey(key), item.getValue().toByteArray());
     StorageRecord record    = StorageRecord.parseFrom(rawRecord);
     StorageId     id        = StorageId.forType(key, type);
-
     if (record.hasContact() && type == ManifestRecord.Identifier.Type.CONTACT_VALUE) {
       return SignalStorageRecord.forContact(id, new SignalContactRecord(id, record.getContact()));
     } else if (record.hasGroupV1() && type == ManifestRecord.Identifier.Type.GROUPV1_VALUE) {

@@ -65,7 +65,8 @@ public class GroupsV2Api {
       throws VerificationFailedException
   {
     ClientZkAuthOperations     authOperations             = groupsOperations.getAuthOperations();
-    AuthCredentialWithPni      authCredentialWithPni      = authOperations.receiveAuthCredentialWithPniAsAci(aci.getLibSignalAci(), pni.getLibSignalPni(), redemptionTimeSeconds, authCredentialWithPniResponse);
+    AuthCredentialWithPni      authCredentialWithPni      = authOperations.receiveAuthCredentialWithPniAsServiceId(aci.getLibSignalAci(), pni.getLibSignalPni(), redemptionTimeSeconds, authCredentialWithPniResponse);
+
     AuthCredentialPresentation authCredentialPresentation = authOperations.createAuthCredentialPresentation(new SecureRandom(), groupSecretParams, authCredentialWithPni);
 
     return new GroupsV2AuthorizationString(groupSecretParams, authCredentialPresentation);
@@ -103,7 +104,6 @@ public class GroupsV2Api {
       throws IOException, InvalidGroupStateException, VerificationFailedException
   {
     Group group = socket.getGroupsV2Group(authorization);
-
     return groupsOperations.forGroup(groupSecretParams)
                            .decryptGroup(group);
   }
@@ -189,7 +189,6 @@ public class GroupsV2Api {
       } catch (InvalidInputException e) {
         throw new IOException(e);
       }
-
       credentials.put(credential.getRedemptionTime(), authCredentialWithPniResponse);
     }
 

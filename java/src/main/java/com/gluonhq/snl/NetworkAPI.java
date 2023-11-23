@@ -41,10 +41,15 @@ import org.whispersystems.util.Base64;
 public class NetworkAPI {
 
     public static Optional<CredentialsProvider> cp;
+    static String HOST = "chat.signal.org";
 
     static private NetworkClient networkClient;
     private static final Logger LOG = Logger.getLogger(NetworkAPI.class.getName());
-
+    static {
+        if ("true".equals(System.getProperty("wave.staging"))) {
+            HOST = "chat.staging.signal.org";
+        }
+    }
     private static NetworkClient getClient() {
         if (networkClient == null) {
             networkClient = NetworkClient.createNetworkClient(cp);
@@ -62,7 +67,7 @@ public class NetworkAPI {
      */
     public static byte[] getSenderCertificate(CredentialsProvider cred) throws IOException {
         try {
-            URI uri = new URI("xhttps://chat.signal.org/v1/certificate/delivery");
+            URI uri = new URI("xhttps://"+HOST+"/v1/certificate/delivery");
             Map<String, List<String>> headers = new HashMap<>();
             headers.put("Authorization", List.of(getAuthorizationHeader(cred)));
             Response response = getClient().sendRequest(uri, "GET", new byte[0], headers);
@@ -80,7 +85,7 @@ public class NetworkAPI {
     public static Map<String, Object> getRemoteConfig(CredentialsProvider cred) throws IOException {
         try {
             Map<String, Object> answer = new HashMap<>();
-            URI uri = new URI("xhttps://chat.signal.org/v1/config");
+            URI uri = new URI("xhttps://"+HOST+"/v1/config");
             Map<String, List<String>> headers = new HashMap<>();
             headers.put("Authorization", List.of(getAuthorizationHeader(cred)));
             Response response = getClient().sendRequest(uri, "GET", new byte[0], headers);
@@ -99,7 +104,7 @@ public class NetworkAPI {
 
     public static PreKeyResponse getPreKey(String uuid, int deviceId) throws IOException {
         try {
-            URI uri = new URI("xhttps://chat.signal.org/v2/keys/" + uuid + "/" + deviceId);
+            URI uri = new URI("xhttps://"+HOST+"/v2/keys/" + uuid + "/" + deviceId);
             Map<String, List<String>> headers = new HashMap<>();
             headers.put("Authorization", List.of(getAuthorizationHeader(cp.get())));
             Response response = getClient().sendRequest(uri, "GET", new byte[0], headers);
@@ -142,7 +147,7 @@ public class NetworkAPI {
             throws IOException {
         try {
             long todayPlus7 = todaySeconds + TimeUnit.DAYS.toSeconds(7);
-            URI uri = new URI("xhttps://chat.signal.org/v1/certificate/auth/group?redemptionStartSeconds=" + todaySeconds + "&redemptionEndSeconds=" + todayPlus7);
+            URI uri = new URI("xhttps://"+HOST+"/v1/certificate/auth/group?redemptionStartSeconds=" + todaySeconds + "&redemptionEndSeconds=" + todayPlus7);
             Map<String, List<String>> headers = new HashMap<>();
             headers.put("Authorization", List.of(getAuthorizationHeader(cp.get())));
             Response response = getClient().sendRequest(uri, "GET", new byte[0], headers);
