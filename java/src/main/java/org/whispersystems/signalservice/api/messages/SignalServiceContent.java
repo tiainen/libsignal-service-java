@@ -1009,7 +1009,7 @@ public final class SignalServiceContent {
   }
 
   private static SignalServiceCallMessage createCallMessage(SignalServiceProtos.CallMessage content) {
-    boolean isMultiRing         = content.getMultiRing();
+    boolean isMultiRing         = true;
     Integer destinationDeviceId = content.hasDestinationDeviceId() ? content.getDestinationDeviceId() : null;
 
     if (content.hasOffer()) {

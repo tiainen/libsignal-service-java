@@ -1280,7 +1280,7 @@ public class SignalServiceMessageSender {
             builder.setOpaque(CallMessage.Opaque.newBuilder().setData(ByteString.copyFrom(callMessage.getOpaqueMessage().get().getOpaque())));
         }
 
-        builder.setMultiRing(callMessage.isMultiRing());
+       // builder.setMultiRing(callMessage.isMultiRing());
 
         if (callMessage.getDestinationDeviceId().isPresent()) {
             builder.setDestinationDeviceId(callMessage.getDestinationDeviceId().get());
