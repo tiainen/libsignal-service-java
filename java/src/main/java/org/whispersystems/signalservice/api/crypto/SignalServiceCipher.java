@@ -196,22 +196,18 @@ LOG.info("decryptInternal, envelopeType= "+envelope.getType()+" and hasSourceSer
         paddedMessage = new PlaintextContent(envelope.getContent().toByteArray()).getBody();
         metadata      = new SignalServiceMetadata(getSourceAddress(envelope), envelope.getSourceDevice(), envelope.getTimestamp(), envelope.getServerTimestamp(), serverDeliveredTimestamp, false, envelope.getServerGuid(), Optional.empty(), envelope.getDestinationServiceId());
       } else if (envelope.getType().getNumber() == Envelope.Type.UNIDENTIFIED_SENDER_VALUE) {
-          System.err.println("SSC A1");
           SignalSealedSessionCipher sealedSessionCipher = new SignalSealedSessionCipher(sessionLock, new SealedSessionCipher(signalProtocolStore, localAddress.getServiceId().getRawUuid(), localAddress.getNumber().orElse(null), localDeviceId));
-          System.err.println("SSC A2");
 
-          DecryptionResult          result              = sealedSessionCipher.decrypt(certificateValidator, envelope.getContent().toByteArray(), envelope.getServerTimestamp());
-       System.err.println("SSC A3");
+          DecryptionResult result = sealedSessionCipher.decrypt(certificateValidator, envelope.getContent().toByteArray(), envelope.getServerTimestamp());
 
-          SignalServiceAddress      resultAddress       = new SignalServiceAddress(ACI.parseOrThrow(result.getSenderUuid()), result.getSenderE164());
-        System.err.println("SSC A4");
-Optional<byte[]>          groupId             = result.getGroupId();
-        boolean                   needsReceipt        = true;
+          SignalServiceAddress resultAddress = new SignalServiceAddress(ACI.parseOrThrow(result.getSenderUuid()), result.getSenderE164());
+          Optional<byte[]> groupId = result.getGroupId();
+          boolean needsReceipt = true;
 
-        if (envelope.hasSourceServiceId()) {
-          Log.w(TAG, "[" + envelope.getTimestamp() + "] Received a UD-encrypted message sent over an identified channel. Marking as needsReceipt=false");
-          needsReceipt = false;
-        }
+          if (envelope.hasSourceServiceId()) {
+              Log.w(TAG, "[" + envelope.getTimestamp() + "] Received a UD-encrypted message sent over an identified channel. Marking as needsReceipt=false");
+              needsReceipt = false;
+          }
 
         if (result.getCiphertextMessageType() == CiphertextMessage.PREKEY_TYPE) {
           signalProtocolStore.clearSenderKeySharedWith(Collections.singleton(new SignalProtocolAddress(result.getSenderUuid(), result.getDeviceId())));
