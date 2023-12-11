@@ -19,9 +19,9 @@ import org.signal.libsignal.protocol.InvalidKeyException;
 import org.signal.libsignal.protocol.kem.KEMPublicKey;
 
 import java.io.IOException;
-import java.util.Base64;
+import org.whispersystems.util.Base64;
 
-public class KyberPreKeyEntity {
+public class KyberPreKeyEntity  {
 
     @JsonProperty
     private int keyId;
@@ -62,7 +62,7 @@ public class KyberPreKeyEntity {
         @Override
         public void serialize(KEMPublicKey value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
 
-            gen.writeString(encodeWithoutPadding(value.serialize()));
+            gen.writeString(Base64.encodeBytesWithoutPadding(value.serialize()));
         }
     }
 
@@ -71,30 +71,27 @@ public class KyberPreKeyEntity {
         @Override
         public KEMPublicKey deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
             try {
-                return new KEMPublicKey(Base64.getDecoder().decode(p.getValueAsString()), 0);
+                return new KEMPublicKey(Base64.decode(p.getValueAsString()), 0);
             } catch (InvalidKeyException e) {
                 throw new IOException(e);
             }
         }
     }
 
-    private static class ByteArraySerializer extends JsonSerializer<byte[]> {
 
-        @Override
-        public void serialize(byte[] value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
-            gen.writeString(encodeWithoutPadding(value));
-        }
+  private static class ByteArraySerializer extends JsonSerializer<byte[]> {
+    @Override
+    public void serialize(byte[] value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
+      gen.writeString(Base64.encodeBytesWithoutPadding(value));
     }
+  }
 
-    private static class ByteArrayDeserializer extends JsonDeserializer<byte[]> {
+  private static class ByteArrayDeserializer extends JsonDeserializer<byte[]> {
 
-        @Override
-        public byte[] deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
-            return Base64.getDecoder().decode(p.getValueAsString());
-        }
+    @Override
+    public byte[] deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+      return Base64.decodeWithoutPadding(p.getValueAsString());
     }
+  }
 
-    static String encodeWithoutPadding(byte[] val) {
-        return new String(Base64.getEncoder().encode(val)).replaceAll("=+$", "");
-    }
 }
