@@ -8,6 +8,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import org.signal.libsignal.protocol.ServiceId.Aci;
 import org.signal.libsignal.protocol.ServiceId.Pni;
@@ -23,6 +25,8 @@ import org.signal.libsignal.protocol.SignalProtocolAddress;
  * is during CDS refreshes or specific inbound messages that link them together.
  */
 public class ServiceId {
+
+    private static final Logger LOG = Logger.getLogger(ServiceId.class.getName());
 
     public static final ServiceId UNKNOWN = ServiceId.from(UuidUtil.UNKNOWN_UUID);
 
@@ -66,18 +70,33 @@ public class ServiceId {
     }
 
     public static ServiceId parseOrNull(String raw) {
-        UUID uuid = UuidUtil.parseOrNull(raw);
-        return uuid != null ? from(uuid) : null;
+        if (raw == null) return null;
+        try {
+            org.signal.libsignal.protocol.ServiceId lsServiceId = org.signal.libsignal.protocol.ServiceId.parseFromString(raw);
+            ServiceId answer = fromLibSignal(lsServiceId);
+            return answer;
+        } catch (org.signal.libsignal.protocol.ServiceId.InvalidServiceIdException ex) {
+            LOG.log(Level.SEVERE, null, ex);
+        }
+        return null;
     }
 
     public static ServiceId parseOrNull(byte[] raw) {
-        UUID uuid = UuidUtil.parseOrNull(raw);
-        return uuid != null ? from(uuid) : null;
+        if (raw == null) return null;
+        try {
+            if (raw.length == 17) {
+                return fromLibSignal(org.signal.libsignal.protocol.ServiceId.parseFromFixedWidthBinary(raw));
+            } else {
+                return fromLibSignal(org.signal.libsignal.protocol.ServiceId.parseFromBinary(raw));
+            }
+        } catch (org.signal.libsignal.protocol.ServiceId.InvalidServiceIdException ex) {
+            LOG.log(Level.SEVERE, null, ex);
+        }
+        return null;
     }
 
     public static ServiceId parseOrNull(ByteString raw) {
-        UUID uuid = UuidUtil.parseOrNull(raw.toByteArray());
-        return uuid != null ? from(uuid) : null;
+        return parseOrNull(raw.toByteArray());
     }
 
     public static ServiceId parseOrUnknown(String raw) {
