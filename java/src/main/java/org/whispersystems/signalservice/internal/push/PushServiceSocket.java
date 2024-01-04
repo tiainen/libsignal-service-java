@@ -909,8 +909,8 @@ public class PushServiceSocket {
         makeServiceRequest(DELETE_ACCOUNT_PATH, "DELETE", null);
     }
 
-    public void requestRateLimitPushChallenge() throws IOException {
-        makeServiceRequest(REQUEST_RATE_LIMIT_PUSH_CHALLENGE, "POST", "");
+    public String requestRateLimitPushChallenge() throws IOException {
+        return makeServiceRequest(REQUEST_RATE_LIMIT_PUSH_CHALLENGE, "POST", "");
     }
 
     public void submitRateLimitPushChallenge(String challenge) throws IOException {

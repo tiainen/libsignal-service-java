@@ -884,8 +884,8 @@ public class SignalServiceAccountManager {
     this.pushServiceSocket.deleteAccount();
   }
 
-  public void requestRateLimitPushChallenge() throws IOException {
-    this.pushServiceSocket.requestRateLimitPushChallenge();
+  public String requestRateLimitPushChallenge() throws IOException {
+    return this.pushServiceSocket.requestRateLimitPushChallenge();
   }
 
   public void submitRateLimitPushChallenge(String challenge) throws IOException {
