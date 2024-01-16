@@ -21,6 +21,7 @@ module org.whispersystems.service {
     exports org.whispersystems.signalservice.api;
     exports org.whispersystems.signalservice.api.crypto;
     exports org.whispersystems.signalservice.api.groupsv2;
+    exports org.whispersystems.signalservice.api.kbs;
     exports org.whispersystems.signalservice.api.messages;
     exports org.whispersystems.signalservice.api.messages.calls;
     exports org.whispersystems.signalservice.api.messages.multidevice;
