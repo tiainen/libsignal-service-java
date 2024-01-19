@@ -25,15 +25,17 @@ public class SignalServiceAttachmentPointer extends SignalServiceAttachment {
   private final Optional<Integer>               size;
   private final Optional<byte[]>                preview;
   private final Optional<byte[]>                digest;
+  private final Optional<byte[]>                incrementalDigest;
+  private final int                             incrementalMacChunkSize;
   private final Optional<String>                fileName;
   private final boolean                         voiceNote;
   private final boolean                         borderless;
+  private final boolean                         gif;
   private final int                             width;
   private final int                             height;
   private final Optional<String>                caption;
   private final Optional<String>                blurHash;
   private final long                            uploadTimestamp;
-    private final boolean gif;
 
   public SignalServiceAttachmentPointer(int cdnNumber,
                                         SignalServiceAttachmentRemoteId remoteId,
@@ -44,6 +46,8 @@ public class SignalServiceAttachmentPointer extends SignalServiceAttachment {
                                         int width,
                                         int height,
                                         Optional<byte[]> digest,
+                                        Optional<byte[]> incrementalDigest,
+                                        int incrementalMacChunkSize,
                                         Optional<String> fileName,
                                         boolean voiceNote,
                                         boolean borderless,
@@ -53,21 +57,23 @@ public class SignalServiceAttachmentPointer extends SignalServiceAttachment {
                                         long uploadTimestamp)
   {
     super(contentType);
-    this.cdnNumber       = cdnNumber;
-    this.remoteId        = remoteId;
-    this.key             = key;
-    this.size            = size;
-    this.preview         = preview;
-    this.width           = width;
-    this.height          = height;
-    this.digest          = digest;
-    this.fileName        = fileName;
-    this.voiceNote       = voiceNote;
-    this.borderless      = borderless;
-    this.caption         = caption;
-    this.blurHash        = blurHash;
-    this.uploadTimestamp = uploadTimestamp;
-    this.gif             = gif;
+    this.cdnNumber               = cdnNumber;
+    this.remoteId                = remoteId;
+    this.key                     = key;
+    this.size                    = size;
+    this.preview                 = preview;
+    this.width                   = width;
+    this.height                  = height;
+    this.incrementalMacChunkSize = incrementalMacChunkSize;
+    this.digest                  = digest;
+    this.incrementalDigest       = incrementalDigest;
+    this.fileName                = fileName;
+    this.voiceNote               = voiceNote;
+    this.borderless              = borderless;
+    this.caption                 = caption;
+    this.blurHash                = blurHash;
+    this.uploadTimestamp         = uploadTimestamp;
+    this.gif                     = gif;
   }
 
   public int getCdnNumber() {
@@ -108,6 +114,10 @@ public class SignalServiceAttachmentPointer extends SignalServiceAttachment {
     return digest;
   }
 
+  public Optional<byte[]> getIncrementalDigest() {
+    return incrementalDigest;
+  }
+
   public boolean getVoiceNote() {
     return voiceNote;
   }
@@ -126,6 +136,10 @@ public class SignalServiceAttachmentPointer extends SignalServiceAttachment {
 
   public int getHeight() {
     return height;
+  }
+
+  public int getIncrementalMacChunkSize() {
+    return incrementalMacChunkSize;
   }
 
   public Optional<String> getCaption() {
