@@ -56,6 +56,7 @@ import org.whispersystems.signalservice.api.push.exceptions.ServerRejectedExcept
 import org.whispersystems.signalservice.api.push.exceptions.UnregisteredUserException;
 import org.whispersystems.signalservice.api.util.CredentialsProvider;
 import org.whispersystems.signalservice.internal.configuration.SignalServiceConfiguration;
+import org.whispersystems.signalservice.internal.crypto.AttachmentDigest;
 import org.whispersystems.signalservice.internal.crypto.PaddingInputStream;
 import org.whispersystems.signalservice.internal.push.AttachmentV2UploadAttributes;
 import org.whispersystems.signalservice.internal.push.MismatchedDevices;
@@ -641,13 +642,14 @@ public class SignalServiceMessageSender {
         PushAttachmentData attachmentData = new PushAttachmentData(attachment.getContentType(),
                 dataStream,
                 ciphertextLength,
+                attachment.isFaststart(),
                 new AttachmentCipherOutputStreamFactory(attachmentKey, attachmentIV),
                 attachment.getListener(),
                 attachment.getCancelationSignal(),
                 attachment.getResumableUploadSpec().orElse(null));
 
         if (attachment.getResumableUploadSpec().isPresent()) {
-            return uploadAttachmentV3(attachment, attachmentKey, attachmentData);
+            return uploadAttachmentV4(attachment, attachmentKey, attachmentData);
         } else {
             return uploadAttachmentV2(attachment, attachmentKey, attachmentData);
         }
@@ -672,7 +674,7 @@ public class SignalServiceMessageSender {
             v2UploadAttributes = socket.getAttachmentV2UploadAttributes();
         }
 
-        Pair<Long, byte[]> attachmentIdAndDigest = socket.uploadAttachment(attachmentData, v2UploadAttributes);
+        Pair<Long, AttachmentDigest> attachmentIdAndDigest = socket.uploadAttachment(attachmentData, v2UploadAttributes);
 
         return new SignalServiceAttachmentPointer(0,
                 new SignalServiceAttachmentRemoteId(attachmentIdAndDigest.first()),
@@ -681,7 +683,9 @@ public class SignalServiceMessageSender {
                 Optional.of(Util.toIntExact(attachment.getLength())),
                 attachment.getPreview(),
                 attachment.getWidth(), attachment.getHeight(),
-                Optional.of(attachmentIdAndDigest.second()),
+                Optional.of(attachmentIdAndDigest.second().digest()),
+                attachmentIdAndDigest.second().incrementalDigest(),
+                attachmentIdAndDigest.second().incrementalMacChunkSize(),
                 attachment.getFileName(),
                 attachment.getVoiceNote(),
                 attachment.isBorderless(),
@@ -695,26 +699,28 @@ public class SignalServiceMessageSender {
         throw new UnsupportedOperationException("NYI");
     }
 
-    private SignalServiceAttachmentPointer uploadAttachmentV3(SignalServiceAttachmentStream attachment, byte[] attachmentKey, PushAttachmentData attachmentData) throws IOException {
-        byte[] digest = socket.uploadAttachment(attachmentData);
+    private SignalServiceAttachmentPointer uploadAttachmentV4(SignalServiceAttachmentStream attachment, byte[] attachmentKey, PushAttachmentData attachmentData) throws IOException {
+        AttachmentDigest digest = socket.uploadAttachment(attachmentData);
         return new SignalServiceAttachmentPointer(attachmentData.getResumableUploadSpec().getCdnNumber(),
-                new SignalServiceAttachmentRemoteId(attachmentData.getResumableUploadSpec().getCdnKey()),
-                attachment.getContentType(),
-                attachmentKey,
-                Optional.of(Util.toIntExact(attachment.getLength())),
-                attachment.getPreview(),
-                attachment.getWidth(),
-                attachment.getHeight(),
-                Optional.of(digest),
-                attachment.getFileName(),
-                attachment.getVoiceNote(),
-                attachment.isBorderless(),
-                attachment.isGif(),
-                attachment.getCaption(),
-                attachment.getBlurHash(),
-                attachment.getUploadTimestamp());
-    }
-
+                                                  new SignalServiceAttachmentRemoteId(attachmentData.getResumableUploadSpec().getCdnKey()),
+                                                  attachment.getContentType(),
+                                                  attachmentKey,
+                                                  Optional.of(Util.toIntExact(attachment.getLength())),
+                                                  attachment.getPreview(),
+                                                  attachment.getWidth(),
+                                                  attachment.getHeight(),
+                                                  Optional.of(digest.digest()),
+                                                  digest.incrementalDigest(),
+                                                  digest.incrementalDigest().isPresent() ? digest.incrementalMacChunkSize() : 0,
+                                                  attachment.getFileName(),
+                                                  attachment.getVoiceNote(),
+                                                  attachment.isBorderless(),
+                                                  attachment.isGif(),
+                                                  attachment.getCaption(),
+                                                  attachment.getBlurHash(),
+                                                  attachment.getUploadTimestamp());
+      }
+    
     private SendMessageResult sendVerifiedSyncMessage(VerifiedMessage message)
             throws IOException, UntrustedIdentityException {
         byte[] nullMessageBody = DataMessage.newBuilder()

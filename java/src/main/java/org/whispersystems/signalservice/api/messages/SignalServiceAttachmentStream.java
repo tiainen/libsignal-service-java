@@ -29,6 +29,7 @@ public class SignalServiceAttachmentStream extends SignalServiceAttachment imple
   private final boolean                       voiceNote;
   private final boolean                       borderless;
   private final boolean                       gif;
+  private final boolean                       faststart;
   private final int                           width;
   private final int                           height;
   private final long                          uploadTimestamp;
@@ -43,10 +44,11 @@ public class SignalServiceAttachmentStream extends SignalServiceAttachment imple
                                        boolean voiceNote,
                                        boolean borderless,
                                        boolean gif,
+                                       boolean faststart,
                                        ProgressListener listener,
                                        CancelationSignal cancelationSignal)
   {
-    this(inputStream, contentType, length, fileName, voiceNote, borderless, gif, Optional.empty(), 0, 0, System.currentTimeMillis(), Optional.empty(), Optional.empty(), listener, cancelationSignal, Optional.empty());
+    this(inputStream, contentType, length, fileName, voiceNote, borderless, gif, faststart, Optional.empty(), 0, 0, System.currentTimeMillis(), Optional.empty(), Optional.empty(), listener, cancelationSignal, Optional.empty());
   }
 
   public SignalServiceAttachmentStream(InputStream inputStream,
@@ -56,6 +58,7 @@ public class SignalServiceAttachmentStream extends SignalServiceAttachment imple
                                        boolean voiceNote,
                                        boolean borderless,
                                        boolean gif,
+                                       boolean faststart,
                                        Optional<byte[]> preview,
                                        int width,
                                        int height,
@@ -75,6 +78,7 @@ public class SignalServiceAttachmentStream extends SignalServiceAttachment imple
     this.borderless              = borderless;
     this.gif                     = gif;
     this.preview                 = preview;
+    this.faststart               = faststart;
     this.width                   = width;
     this.height                  = height;
     this.uploadTimestamp         = uploadTimestamp;
@@ -128,6 +132,10 @@ public class SignalServiceAttachmentStream extends SignalServiceAttachment imple
 
   public boolean isGif() {
     return gif;
+  }
+
+  public boolean isFaststart() {
+    return faststart;
   }
 
   public int getWidth() {

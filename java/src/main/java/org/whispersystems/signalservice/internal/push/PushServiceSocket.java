@@ -75,6 +75,7 @@ import org.whispersystems.signalservice.internal.contacts.entities.DiscoveryResp
 import org.whispersystems.signalservice.internal.contacts.entities.KeyBackupRequest;
 import org.whispersystems.signalservice.internal.contacts.entities.KeyBackupResponse;
 import org.whispersystems.signalservice.internal.contacts.entities.TokenResponse;
+import org.whispersystems.signalservice.internal.crypto.AttachmentDigest;
 import org.whispersystems.signalservice.internal.push.exceptions.ForbiddenException;
 import org.whispersystems.signalservice.internal.push.exceptions.GroupExistsException;
 import org.whispersystems.signalservice.internal.push.exceptions.GroupNotFoundException;
@@ -783,7 +784,7 @@ public class PushServiceSocket {
                   formAttributes.getPolicy(), formAttributes.getAlgorithm(),
                   formAttributes.getCredential(), formAttributes.getDate(),
                   formAttributes.getSignature(), profileAvatar.getData(),
-                  profileAvatar.getContentType(), profileAvatar.getDataLength(),
+                  profileAvatar.getContentType(), profileAvatar.getDataLength(), false,
                   profileAvatar.getOutputStreamFactory(), null, null);
 
        return Optional.of(formAttributes.getKey());
@@ -1069,28 +1070,28 @@ public class PushServiceSocket {
         }
     }
 
-    public byte[] uploadGroupV2Avatar(byte[] avatarCipherText, AvatarUploadAttributes uploadAttributes)
+    public AttachmentDigest uploadGroupV2Avatar(byte[] avatarCipherText, AvatarUploadAttributes uploadAttributes)
             throws IOException {
         return uploadToCdn0(AVATAR_UPLOAD_PATH, uploadAttributes.getAcl(), uploadAttributes.getKey(),
                 uploadAttributes.getPolicy(), uploadAttributes.getAlgorithm(),
                 uploadAttributes.getCredential(), uploadAttributes.getDate(),
                 uploadAttributes.getSignature(),
                 new ByteArrayInputStream(avatarCipherText),
-                "application/octet-stream", avatarCipherText.length,
+                "application/octet-stream", avatarCipherText.length, false,
                 new NoCipherOutputStreamFactory(),
                 null, null);
     }
 
-    public Pair<Long, byte[]> uploadAttachment(PushAttachmentData attachment, AttachmentV2UploadAttributes uploadAttributes)
+    public Pair<Long, AttachmentDigest> uploadAttachment(PushAttachmentData attachment, AttachmentV2UploadAttributes uploadAttributes)
             throws PushNetworkException, NonSuccessfulResponseCodeException {
         long id = Long.parseLong(uploadAttributes.getAttachmentId());
-        byte[] digest = uploadToCdn0(ATTACHMENT_UPLOAD_PATH, uploadAttributes.getAcl(), uploadAttributes.getKey(),
+        AttachmentDigest digest = uploadToCdn0(ATTACHMENT_UPLOAD_PATH, uploadAttributes.getAcl(), uploadAttributes.getKey(),
                 uploadAttributes.getPolicy(), uploadAttributes.getAlgorithm(),
                 uploadAttributes.getCredential(), uploadAttributes.getDate(),
                 uploadAttributes.getSignature(), attachment.getData(),
                 "application/octet-stream", attachment.getDataSize(),
-                attachment.getOutputStreamFactory(), attachment.getListener(),
-                attachment.getCancelationSignal());
+                attachment.getIncremental(), attachment.getOutputStreamFactory(),
+                attachment.getListener(), attachment.getCancelationSignal());
 
         return new Pair<>(id, digest);
     }
@@ -1104,7 +1105,7 @@ public class PushServiceSocket {
                 System.currentTimeMillis() + CDN2_RESUMABLE_LINK_LIFETIME_MILLIS);
     }
 
-    public byte[] uploadAttachment(PushAttachmentData attachment) throws IOException {
+    public AttachmentDigest uploadAttachment(PushAttachmentData attachment) throws IOException {
 
         if (attachment.getResumableUploadSpec() == null || attachment.getResumableUploadSpec().getExpirationTimestamp() < System.currentTimeMillis()) {
             throw new ResumeLocationInvalidException();
@@ -1176,9 +1177,9 @@ public class PushServiceSocket {
         }
     }
 
-    private byte[] uploadToCdn0(String path, String acl, String key, String policy, String algorithm,
+    private AttachmentDigest uploadToCdn0(String path, String acl, String key, String policy, String algorithm,
             String credential, String date, String signature,
-            InputStream data, String contentType, long length,
+            InputStream data, String contentType, long length, boolean incremental,
             OutputStreamFactory outputStreamFactory, ProgressListener progressListener,
             CancelationSignal cancelationSignal)
             throws PushNetworkException, NonSuccessfulResponseCodeException {
@@ -1186,7 +1187,7 @@ public class PushServiceSocket {
         ConnectionHolder connectionHolder = getRandom(cdnClientsMap.get(0), random);
         NetworkClient client = connectionHolder.getClient();
 
-        DigestingRequestBody file = new DigestingRequestBody(data, outputStreamFactory, contentType, length, progressListener, cancelationSignal, 0);
+        DigestingRequestBody file = new DigestingRequestBody(data, outputStreamFactory, contentType, length, incremental, progressListener, cancelationSignal, 0);
         MultipartBody.MultiPartRequestBody requestBody = new MultipartBody.Builder()
                 .setType(MultipartBody.FORM)
                 .addFormDataPart("acl", acl)
@@ -1215,7 +1216,7 @@ public class PushServiceSocket {
             Logger.getLogger(PushServiceSocket.class.getName()).log(Level.SEVERE, null, ex);
             throw new PushNetworkException(ex);
         }
-        return file.getTransmittedDigest();
+        return file.getAttachmentDigest();
     }
 
     private String getResumableUploadUrl(String signedUrl, Map<String, String> headers) throws IOException {
@@ -1270,7 +1271,7 @@ public class PushServiceSocket {
 //        }
     }
 
-    private byte[] uploadToCdn2(String resumableUrl, InputStream data, String contentType, long length, OutputStreamFactory outputStreamFactory, ProgressListener progressListener, CancelationSignal cancelationSignal) throws IOException {
+    private AttachmentDigest uploadToCdn2(String resumableUrl, InputStream data, String contentType, long length, OutputStreamFactory outputStreamFactory, ProgressListener progressListener, CancelationSignal cancelationSignal) throws IOException {
            throw new UnsupportedOperationException("NYI");
 //
 //        ConnectionHolder connectionHolder = getRandom(cdnClientsMap.get(2), random);

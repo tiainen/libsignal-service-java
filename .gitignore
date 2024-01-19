@@ -3,4 +3,6 @@
 *.iml
 local.properties
 build/
+target/
+.vscode/
 gradle.properties
