@@ -234,6 +234,10 @@ public class ServiceId {
 
         public static PNI parseOrNull(String raw) {
             if (raw == null) return null;
+            if (raw.startsWith("PNI")) {
+                ServiceId answer = ServiceId.parseOrNull(raw);
+                return (answer instanceof PNI pniAnswer ? pniAnswer : null);
+            }
             return new PNI(UUID.fromString(raw));
         }
         
