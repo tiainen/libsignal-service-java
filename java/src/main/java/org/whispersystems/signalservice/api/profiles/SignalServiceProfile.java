@@ -63,6 +63,9 @@ public class SignalServiceProfile {
   @JsonProperty
   private List<Badge> badges;
 
+  @JsonProperty
+  private String phoneNumberSharing;
+
   @JsonIgnore
   private RequestType requestType;
 
@@ -94,6 +97,10 @@ public class SignalServiceProfile {
 
   public String getUnidentifiedAccess() {
     return unidentifiedAccess;
+  }
+
+  public String getPhoneNumberSharing() {
+    return phoneNumberSharing;
   }
 
   public boolean isUnrestrictedUnidentifiedAccess() {
@@ -206,10 +213,13 @@ public class SignalServiceProfile {
     @JsonProperty
     private boolean pnp;
 
+    @JsonProperty
+    private boolean paymentActivation;
+
     @JsonCreator
     public Capabilities() {}
 
-    public Capabilities(boolean storage, boolean gv1Migration, boolean senderKey, boolean announcementGroup, boolean changeNumber, boolean stories, boolean giftBadges, boolean pnp) {
+    public Capabilities(boolean storage, boolean gv1Migration, boolean senderKey, boolean announcementGroup, boolean changeNumber, boolean stories, boolean giftBadges, boolean pnp, boolean paymentActivation) {
       this.storage           = storage;
       this.gv1Migration      = gv1Migration;
       this.senderKey         = senderKey;
@@ -218,6 +228,7 @@ public class SignalServiceProfile {
       this.stories           = stories;
       this.giftBadges        = giftBadges;
       this.pnp               = pnp;
+      this.paymentActivation = paymentActivation;
     }
 
     public boolean isStorage() {
@@ -250,6 +261,10 @@ public class SignalServiceProfile {
 
     public boolean isPnp() {
       return pnp;
+    }
+
+    public boolean isPaymentActivation() {
+      return paymentActivation;
     }
   }
 
