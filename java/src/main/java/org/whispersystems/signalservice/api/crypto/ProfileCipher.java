@@ -14,6 +14,7 @@ import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Locale;
+import java.util.Optional;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -125,6 +126,22 @@ public class ProfileCipher {
     System.arraycopy(paddedPlaintext, 0, plaintext, 0, plaintextLength);
 
     return new String(plaintext);
+  }
+
+  public byte[] encryptBoolean(boolean input) {
+    byte[] value = new byte[1];
+    value[0] = (byte) (input ? 1 : 0);
+
+    return encrypt(value, value.length);
+  }
+
+  public Optional<Boolean> decryptBoolean(byte[] input) throws InvalidCiphertextException {
+    if (input == null) {
+      return Optional.empty();
+    }
+
+    byte[] paddedPlaintext = decrypt(input);
+    return Optional.of(paddedPlaintext[0] != 0);
   }
 
   /**
