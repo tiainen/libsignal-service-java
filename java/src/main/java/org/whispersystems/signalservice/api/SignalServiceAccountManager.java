@@ -868,9 +868,9 @@ public class SignalServiceAccountManager {
     this.pushServiceSocket.setUsername(nickname, existingUsername);
   }
 
-  public ReserveUsernameResponse reserveUsername(String nickname) throws IOException {
-    return this.pushServiceSocket.reserveUsername(nickname);
-  }
+//  public ReserveUsernameResponse reserveUsername(String nickname) throws IOException {
+//    return this.pushServiceSocket.reserveUsername(nickname);
+//  }
 
   public void confirmUsername(ReserveUsernameResponse reserveUsernameResponse) throws IOException {
     this.pushServiceSocket.confirmUsername(reserveUsernameResponse);

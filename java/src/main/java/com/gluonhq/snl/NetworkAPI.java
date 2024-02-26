@@ -23,6 +23,7 @@ import java.util.logging.Logger;
 import org.signal.libsignal.protocol.IdentityKey;
 import org.signal.libsignal.protocol.InvalidKeyException;
 import org.signal.libsignal.protocol.ecc.ECPublicKey;
+import org.signal.libsignal.usernames.Username;
 import org.whispersystems.signalservice.api.groupsv2.CredentialResponse;
 import org.whispersystems.signalservice.api.groupsv2.TemporalCredential;
 import org.whispersystems.signalservice.api.push.SignalServiceAddress;
@@ -99,6 +100,56 @@ public class NetworkAPI {
         } catch (URISyntaxException ex) {
             Logger.getLogger(NetworkAPI.class.getName()).log(Level.SEVERE, null, ex);
             throw new IOException(ex);
+        }
+    }
+
+    public static String reserveUsername(List<Username> usernames) {
+        try {
+            URI uri = new URI("https://" + HOST + "/v1/accounts/username_hash/reserve");
+            Map<String, List<String>> headers = new HashMap<>();
+            headers.put("Authorization", List.of(getAuthorizationHeader(cp.get())));
+            headers.put("content-type", List.of("application/json"));
+            String body = "{\"usernameHashes\":[";
+            for (int i = 0; i < usernames.size(); i++) {
+                Username candidate = usernames.get(i);
+                String hash = java.util.Base64.getUrlEncoder().encodeToString(candidate.getHash());
+                body = body + "\"" + hash + "\"";
+                if (i < usernames.size() - 1) {
+                    body = body + ",";
+                }
+            }
+            body = body + "]}";
+            Response response = getClient().sendRequest(uri, "PUT", body.getBytes(), headers);
+            LOG.info("response code = "+response.getStatusCode());
+            return response.body().string();
+        } catch (URISyntaxException | IOException ex) {
+            LOG.log(Level.SEVERE, null, ex);
+        }
+        return null;
+    }
+
+    /**
+     * Confirm the supplied username
+     * @param hash
+     * @param proof
+     * @param link
+     * @return the response body of the server message 
+     */
+    public static String confirmUsername(String hash, String proof, String link) {
+        try {
+            URI uri = new URI("https://" + HOST + "/v1/accounts/username_hash/confirm");
+            Map<String, List<String>> headers = new HashMap<>();
+            headers.put("Authorization", List.of(getAuthorizationHeader(cp.get())));
+            headers.put("content-type", List.of("application/json"));
+            String body = "{\"usernameHash\":\"" + hash + "\",\n"
+                    + "\"zkProof\":\"" + proof + "\",\n"
+                    + "\"encryptedUsername\":\"" + link + "\"\n}";
+            Response response = getClient().sendRequest(uri, "PUT", body.getBytes(), headers);
+            LOG.info("response code = " + response.getStatusCode());
+            return response.body().string();
+        } catch (URISyntaxException | IOException ex) {
+            LOG.log(Level.SEVERE, null, ex);
+            return null;
         }
     }
 

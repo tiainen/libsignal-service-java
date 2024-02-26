@@ -864,8 +864,8 @@ public class PushServiceSocket {
      * @throws IOException Thrown when the username is invalid or taken, or when
      * another network error occurs.
      */
-    public ReserveUsernameResponse reserveUsername(String nickname) throws IOException {
-        ReserveUsernameRequest reserveUsernameRequest = new ReserveUsernameRequest(nickname);
+    public ReserveUsernameResponse reserveUsername(List<String> usernameHashes) throws IOException {
+        ReserveUsernameRequest reserveUsernameRequest = new ReserveUsernameRequest(usernameHashes);
 
         String responseString = makeServiceRequest(RESERVE_USERNAME_PATH, "PUT", JsonUtil.toJson(reserveUsernameRequest), NO_HEADERS, (responseCode, body) -> {
             switch (responseCode) {
