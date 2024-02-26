@@ -187,10 +187,6 @@ public final class SignalAccountRecord implements SignalRecord {
         diff.add("StoryViewedReceipts");
       }
 
-      if (hasReadOnboardingStory() != that.hasReadOnboardingStory()) {
-        diff.add("HasReadOnboardingStory");
-      }
-
       if (hasSeenGroupStoryEducationSheet() != that.hasSeenGroupStoryEducationSheet()) {
         diff.add("HasSeenGroupStoryEducationSheet");
       }
@@ -319,10 +315,6 @@ public final class SignalAccountRecord implements SignalRecord {
 
   public OptionalBool getStoryViewReceiptsState() {
     return proto.getStoryViewReceiptsEnabled();
-  }
-
-  public boolean hasReadOnboardingStory() {
-    return proto.getHasReadOnboardingStory();
   }
 
   public boolean hasSeenGroupStoryEducationSheet() {
@@ -691,11 +683,6 @@ public final class SignalAccountRecord implements SignalRecord {
 
     public Builder setStoryViewReceiptsState(OptionalBool storyViewedReceiptsEnabled) {
       builder.setStoryViewReceiptsEnabled(storyViewedReceiptsEnabled);
-      return this;
-    }
-
-    public Builder setHasReadOnboardingStory(boolean hasReadOnboardingStory) {
-      builder.setHasReadOnboardingStory(hasReadOnboardingStory);
       return this;
     }
 
