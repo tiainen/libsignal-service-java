@@ -194,6 +194,9 @@ public final class SignalAccountRecord implements SignalRecord {
       if (!Objects.equals(getUsername(), that.getUsername())) {
         diff.add("Username");
       }
+ if (hasCompletedUsernameOnboarding() != that.hasCompletedUsernameOnboarding())  {
+         diff.add("HasCompletedUsernameOnboarding");
+      }
 
       return diff.toString();
     } else {
@@ -321,9 +324,17 @@ public final class SignalAccountRecord implements SignalRecord {
     return proto.getHasSeenGroupStoryEducationSheet();
   }
 
-  public String getUsername() {
-    return proto.getUsername();
-  }
+    public boolean hasCompletedUsernameOnboarding() {
+        return proto.getHasCompletedUsernameOnboarding();
+    }
+
+    public String getUsername() {
+        return proto.getUsername();
+    }
+
+    public AccountRecord.UsernameLink getUsernameLink() {
+        return proto.getUsernameLink();
+    }
 
   AccountRecord toProto() {
     return proto;
@@ -687,15 +698,29 @@ public final class SignalAccountRecord implements SignalRecord {
     }
 
     public Builder setHasSeenGroupStoryEducationSheet(boolean hasSeenGroupStoryEducationSheet) {
-      builder.setHasSeenGroupStoryEducationSheet(hasSeenGroupStoryEducationSheet);
-      return this;
+        builder.setHasSeenGroupStoryEducationSheet(hasSeenGroupStoryEducationSheet);
+        return this;
+    }
+
+    public Builder setHasCompletedUsernameOnboarding(boolean hasCompletedUsernameOnboarding) {
+        builder.setHasCompletedUsernameOnboarding(hasCompletedUsernameOnboarding);
+        return this;
     }
 
     public Builder setUsername(String username) {
-      if (username == null || username.isEmpty()) {
-        builder.clearUsername();
+        if (username == null || username.isEmpty()) {
+            builder.clearUsername();
+        } else {
+            builder.setUsername(username);
+        }
+        return this;
+    }
+
+      public Builder setUsernameLink(AccountRecord.UsernameLink link) {
+      if (link == null) {
+        builder.clearUsernameLink();
       } else {
-        builder.setUsername(username);
+        builder.setUsernameLink(link);
       }
 
       return this;
