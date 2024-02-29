@@ -1057,7 +1057,7 @@ public final class SignalServiceContent {
   private static DecryptionErrorMessage createDecryptionErrorMessage(SignalServiceMetadata metadata, ByteString content) throws InvalidMessageStructureException {
     try {
       return new DecryptionErrorMessage(content.toByteArray());
-    } catch (InvalidMessageException e) {
+    } catch (InvalidMessageException | InvalidKeyException e) {
       throw new InvalidMessageStructureException(e, metadata.getSender().getIdentifier(), metadata.getSenderDevice());
     }
   }
